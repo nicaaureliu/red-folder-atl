@@ -1,6 +1,6 @@
 /* public/app.js */
 (() => {
-  const BUILD = "v1.2";
+  const BUILD = "v1.3";
   const APP_TITLE = "Red Folder ATL";
 
   // Templates (served by Cloudflare Pages)
@@ -16,6 +16,10 @@
   // Storage keys
   const RECORDS_KEY = "RFATL_RECORDS_V1";
   const PROJECTS_KEY = "RFATL_PROJECTS_V1";
+
+  // IMPORTANT:
+  // Use sessionStorage so when you close the tab/browser and reopen the link,
+  // it forces choosing a project again.
   const CURRENT_PROJECT_KEY = "RFATL_CURRENT_PROJECT_V1";
 
   const DAILY_BRIEF_POINTS = [
@@ -127,13 +131,17 @@
   }
 
   function getCurrentProjectId() {
-    return localStorage.getItem(CURRENT_PROJECT_KEY) || "";
+    return sessionStorage.getItem(CURRENT_PROJECT_KEY) || "";
   }
 
   function setCurrentProjectId(id) {
-    if (!id) localStorage.removeItem(CURRENT_PROJECT_KEY);
-    else localStorage.setItem(CURRENT_PROJECT_KEY, id);
+    if (!id) sessionStorage.removeItem(CURRENT_PROJECT_KEY);
+    else sessionStorage.setItem(CURRENT_PROJECT_KEY, id);
     updateProjectPill();
+  }
+
+  function clearCurrentProject() {
+    setCurrentProjectId("");
   }
 
   function getProjectById(id) {
@@ -164,7 +172,7 @@
   function deleteProject(projectId) {
     const projects = loadProjects().filter((p) => p.id !== projectId);
     saveProjects(projects);
-    if (getCurrentProjectId() === projectId) setCurrentProjectId("");
+    if (getCurrentProjectId() === projectId) clearCurrentProject();
   }
 
   function touchProjectLastUsed(projectId) {
@@ -231,9 +239,23 @@
     const p = getCurrentProject();
     if (p) return p;
     location.hash = "#home";
-    // message is shown on home render
     sessionStorage.setItem("RFATL_NEED_PROJECT", backRouteForMessage);
     return null;
+  }
+
+  function headerHomeButtonHtml() {
+    // Always show a Home button that forces user back to project selection.
+    return `<button class="btnGhost" id="homeBtn" type="button">Home</button>`;
+  }
+
+  function wireHomeBtn() {
+    const btn = $("#homeBtn");
+    if (!btn) return;
+    btn.addEventListener("click", () => {
+      // Home = choose project again (but projects are still saved on device)
+      clearCurrentProject();
+      location.hash = "#home";
+    });
   }
 
   // ---------- PDF: Daily Brief ----------
@@ -378,15 +400,15 @@
   // ---------- Views ----------
   function renderHome() {
     const root = appRoot();
+
     const projects = loadProjects().slice().sort((a, b) => {
       const ta = a.lastUsedAt || a.updatedAt || a.createdAt || "";
       const tb = b.lastUsedAt || b.updatedAt || b.createdAt || "";
       return tb.localeCompare(ta);
     });
 
-    const current = getCurrentProject();
-
-    setSubtitle(current ? `Project: ${current.name}` : "Select a project");
+    // Home always means "choose project"
+    setSubtitle("Choose a project");
 
     const need = sessionStorage.getItem("RFATL_NEED_PROJECT");
     sessionStorage.removeItem("RFATL_NEED_PROJECT");
@@ -395,12 +417,12 @@
       <div class="card">
         <div class="cardHead">
           <div style="min-width:0;">
-            <h1 class="h1">${current ? "Current project" : "Choose a project"}</h1>
-            <p class="sub">${current ? "Now pick Daily / Weekly / Monthly." : "Projects are saved on this device. Create once, then it auto-fills your forms."}</p>
+            <h1 class="h1">Choose a project</h1>
+            <p class="sub">Pick the job you’re working on today. Projects are saved on this device, but you must choose each session.</p>
           </div>
           <div class="btnRow">
-            <button class="btnAlt" id="manageProjectsBtn">${current ? "Change project" : "Manage projects"}</button>
             <a class="btnGhost" href="#history">History</a>
+            <a class="btnAlt" href="#projects">Manage projects</a>
           </div>
         </div>
 
@@ -414,56 +436,25 @@
       showMsg(body.parentElement, "Select a project first (so forms can prefill site / crew / details).", false);
     }
 
-    if (!current) {
-      body.innerHTML = `
-        <div class="tiles" id="projTiles"></div>
-        <div class="divider"></div>
-        <button class="btn" id="createProjectBtn">Create new project</button>
-        <p class="muted" style="margin-top:10px;">Tip: once a project is created, Daily Briefing will prefill site / location / lads automatically.</p>
-      `;
-
-      const tiles = $("#projTiles");
-      tiles.innerHTML = projects.length
-        ? projects.map((p) => tileHtml({
-            title: p.name,
-            desc: `${p.projectNo ? `Project No: ${p.projectNo} • ` : ""}${p.siteLocation ? `Site: ${p.siteLocation}` : "No site set yet"}`,
-            openHref: `#select-project:${encodeURIComponent(p.id)}`,
-            openText: "Select",
-          })).join("")
-        : `<p class="muted">No projects yet. Create one to get started.</p>`;
-
-      $("#createProjectBtn").addEventListener("click", () => {
-        location.hash = "#project-new";
-      });
-
-      $("#manageProjectsBtn").addEventListener("click", () => {
-        location.hash = "#projects";
-      });
-
-      return;
-    }
-
-    // If project selected: show categories
     body.innerHTML = `
-      <div class="tiles" id="catTiles"></div>
+      <div class="tiles" id="projTiles"></div>
       <div class="divider"></div>
-      <p class="muted">
-        Current project is saved on this device. To switch sites, use “Change project”.
-      </p>
+      <button class="btn" id="createProjectBtn">Create new project</button>
+      <p class="muted" style="margin-top:10px;">Tip: once a project is created, Daily Briefing will prefill site / location / lads automatically.</p>
     `;
 
-    const catTiles = $("#catTiles");
-    catTiles.innerHTML = CATEGORIES.map((c) =>
-      tileHtml({
-        title: c.title,
-        desc: c.desc,
-        openHref: `#${c.key}`,
-        openText: "Open",
-      })
-    ).join("");
+    const tiles = $("#projTiles");
+    tiles.innerHTML = projects.length
+      ? projects.map((p) => tileHtml({
+          title: p.name,
+          desc: `${p.projectNo ? `Project No: ${p.projectNo} • ` : ""}${p.siteLocation ? `Site: ${p.siteLocation}` : "No site set yet"}`,
+          openHref: `#select-project:${encodeURIComponent(p.id)}`,
+          openText: "Select",
+        })).join("")
+      : `<p class="muted">No projects yet. Create one to get started.</p>`;
 
-    $("#manageProjectsBtn").addEventListener("click", () => {
-      location.hash = "#projects";
+    $("#createProjectBtn").addEventListener("click", () => {
+      location.hash = "#project-new";
     });
   }
 
@@ -485,7 +476,7 @@
             <p class="sub">Create, edit, delete, or select a project.</p>
           </div>
           <div class="btnRow">
-            <a class="btnGhost" href="#home">Back</a>
+            ${headerHomeButtonHtml()}
             <a class="btnAlt" href="#project-new">Create</a>
           </div>
         </div>
@@ -495,6 +486,7 @@
         </div>
       </div>
     `;
+    wireHomeBtn();
 
     const list = $("#projList");
     if (!projects.length) {
@@ -547,7 +539,7 @@
       workLocation: "",
       defaultBriefingBy: "",
       defaultJobTitle: "",
-      crew: [], // names only
+      crew: [],
       createdAt: new Date().toISOString(),
       updatedAt: "",
       lastUsedAt: "",
@@ -563,6 +555,7 @@
             <p class="sub">Set this once. Forms will prefill automatically for this project.</p>
           </div>
           <div class="btnRow">
+            ${headerHomeButtonHtml()}
             <a class="btnGhost" href="#projects">Back</a>
             <button class="btn" id="saveProjectBtn">Save</button>
           </div>
@@ -572,25 +565,25 @@
           <div class="grid2">
             <div>
               <label class="lbl">Project name (shown in list)</label>
-              <input class="inp" id="p_name" value="${escapeHtml(init.name)}" placeholder="e.g. Hinckley W1.035 / Site X">
+              <input class="inp" id="p_name" value="${escapeHtml(init.name)}" placeholder="e.g. Job 836 • Sizewell C • Cofferdam">
             </div>
             <div>
               <label class="lbl">Project number</label>
-              <input class="inp" id="p_projectNo" value="${escapeHtml(init.projectNo)}" placeholder="e.g. ATL-XXXX">
+              <input class="inp" id="p_projectNo" value="${escapeHtml(init.projectNo)}" placeholder="e.g. 836">
             </div>
 
             <div>
               <label class="lbl">Site location (default)</label>
-              <input class="inp" id="p_siteLocation" value="${escapeHtml(init.siteLocation)}" placeholder="e.g. Hinckley">
+              <input class="inp" id="p_siteLocation" value="${escapeHtml(init.siteLocation)}" placeholder="e.g. Sizewell">
             </div>
             <div>
               <label class="lbl">Work location (default)</label>
-              <input class="inp" id="p_workLocation" value="${escapeHtml(init.workLocation)}" placeholder="e.g. Pit W1.035 / Compound">
+              <input class="inp" id="p_workLocation" value="${escapeHtml(init.workLocation)}" placeholder="e.g. Cofferdam / Pit W1.035">
             </div>
 
             <div>
               <label class="lbl">Default briefing by</label>
-              <input class="inp" id="p_briefingBy" value="${escapeHtml(init.defaultBriefingBy)}" placeholder="e.g. Site Manager / Supervisor">
+              <input class="inp" id="p_briefingBy" value="${escapeHtml(init.defaultBriefingBy)}" placeholder="e.g. Aureliu Nica">
             </div>
             <div>
               <label class="lbl">Default job title</label>
@@ -612,6 +605,7 @@ John Smith">${escapeHtml(crewText)}</textarea>
         </div>
       </div>
     `;
+    wireHomeBtn();
 
     $("#saveProjectBtn").addEventListener("click", () => {
       const name = $("#p_name").value.trim();
@@ -640,20 +634,62 @@ John Smith">${escapeHtml(crewText)}</textarea>
       upsertProject(saved);
       showMsg(root, "Project saved.", true);
 
-      // auto-select after creating
-      if (!isEdit) setCurrentProjectId(saved.id);
+      // Auto-select AFTER saving (but only for this session)
+      setCurrentProjectId(saved.id);
 
-      location.hash = "#home";
+      location.hash = "#dashboard";
     });
   }
 
-  function renderCategory(catKey) {
+  function renderDashboard() {
     const project = requireProjectOrRedirect("home");
+    if (!project) return;
+
+    setSubtitle(`Project: ${project.name}`);
+
+    const root = appRoot();
+
+    root.innerHTML = `
+      <div class="card">
+        <div class="cardHead">
+          <div style="min-width:0;">
+            <h1 class="h1">Current project</h1>
+            <p class="sub">Now pick Daily / Weekly / Monthly.</p>
+          </div>
+          <div class="btnRow">
+            ${headerHomeButtonHtml()}
+            <a class="btnAlt" href="#projects">Change project</a>
+            <a class="btnGhost" href="#history">History</a>
+          </div>
+        </div>
+
+        <div class="cardBody">
+          <div class="tiles" id="catTiles"></div>
+          <div class="divider"></div>
+          <p class="muted">Current project is saved only for this tab/session. If you close the tab and reopen the link, you’ll choose again.</p>
+        </div>
+      </div>
+    `;
+    wireHomeBtn();
+
+    const catTiles = $("#catTiles");
+    catTiles.innerHTML = CATEGORIES.map((c) =>
+      tileHtml({
+        title: c.title,
+        desc: c.desc,
+        openHref: `#${c.key}`,
+        openText: "Open",
+      })
+    ).join("");
+  }
+
+  function renderCategory(catKey) {
+    const project = requireProjectOrRedirect("dashboard");
     if (!project) return;
 
     const cat = CATEGORIES.find((c) => c.key === catKey);
     if (!cat) {
-      location.hash = "#home";
+      location.hash = "#dashboard";
       return;
     }
 
@@ -670,7 +706,8 @@ John Smith">${escapeHtml(crewText)}</textarea>
             <p class="sub">${escapeHtml(cat.desc)} Prefill is active for: <b>${escapeHtml(project.name)}</b></p>
           </div>
           <div class="btnRow">
-            <a class="btnGhost" href="#home">Back</a>
+            ${headerHomeButtonHtml()}
+            <a class="btnGhost" href="#dashboard">Back</a>
             <a class="btnAlt" href="#projects">Change project</a>
           </div>
         </div>
@@ -680,6 +717,7 @@ John Smith">${escapeHtml(crewText)}</textarea>
         </div>
       </div>
     `;
+    wireHomeBtn();
 
     const formTiles = $("#formTiles");
     formTiles.innerHTML = forms
@@ -742,10 +780,6 @@ John Smith">${escapeHtml(crewText)}</textarea>
     const last = findLastRecordByProject(project.id, "daily-brief");
     const lastData = last?.data || {};
 
-    // Prefill priority:
-    // 1) Project profile values
-    // 2) Last completion values (where it makes sense)
-    // 3) Defaults
     const init = {
       projectTitle: project.name || "",
       projectNo: project.projectNo || "",
@@ -766,7 +800,6 @@ John Smith">${escapeHtml(crewText)}</textarea>
       attendees: [],
     };
 
-    // Prefill attendee rows from project crew list, else from last completion attendee names
     const crewNames =
       (project.crew && project.crew.length ? project.crew : null) ||
       (Array.isArray(lastData.attendees) ? lastData.attendees.map((a) => a.name).filter(Boolean) : []) ||
@@ -786,6 +819,7 @@ John Smith">${escapeHtml(crewText)}</textarea>
             <p class="sub">Project: <b>${escapeHtml(project.name)}</b> • Fields auto-filled from Project + last completion.</p>
           </div>
           <div class="btnRow">
+            ${headerHomeButtonHtml()}
             <a class="btnGhost" href="#daily">Back</a>
             <a class="btnAlt" href="#projects">Change project</a>
             ${TEMPLATES.dailyBrief ? `<a class="linkBtn" href="${escapeHtml(TEMPLATES.dailyBrief)}" target="_blank" rel="noopener noreferrer">Blank PDF</a>` : ""}
@@ -797,6 +831,7 @@ John Smith">${escapeHtml(crewText)}</textarea>
         <div class="cardBody" id="dbBody"></div>
       </div>
     `;
+    wireHomeBtn();
 
     const body = $("#dbBody");
 
@@ -876,7 +911,6 @@ John Smith">${escapeHtml(crewText)}</textarea>
       <button class="btnAlt" type="button" id="addAttendee">Add attendee</button>
     `;
 
-    // points
     const pointsWrap = $("#db_points");
     DAILY_BRIEF_POINTS.forEach((p, idx) => {
       const row = document.createElement("label");
@@ -947,7 +981,6 @@ John Smith">${escapeHtml(crewText)}</textarea>
       renderAttendees();
     });
 
-    // keep attendee date aligned when date changes
     $("#db_date").addEventListener("change", () => {
       const d = prettyDate($("#db_date").value);
       attendees.forEach((a) => (a.date = d));
@@ -996,7 +1029,6 @@ John Smith">${escapeHtml(crewText)}</textarea>
         .map((a) => (a.name || "").trim())
         .filter(Boolean);
 
-      // Update crew list to latest known names (so next time it prefills correctly)
       if (names.length) {
         p.crew = Array.from(new Set(names));
         p.updatedAt = new Date().toISOString();
@@ -1060,7 +1092,8 @@ John Smith">${escapeHtml(crewText)}</textarea>
             <p class="sub">Project: <b>${escapeHtml(project.name)}</b> • We will build this next with prefill + PDF output.</p>
           </div>
           <div class="btnRow">
-            <a class="btnGhost" href="${escapeHtml(backHash || "#home")}">Back</a>
+            ${headerHomeButtonHtml()}
+            <a class="btnGhost" href="${escapeHtml(backHash || "#dashboard")}">Back</a>
             <a class="btnAlt" href="#projects">Change project</a>
           </div>
         </div>
@@ -1069,6 +1102,7 @@ John Smith">${escapeHtml(crewText)}</textarea>
         </div>
       </div>
     `;
+    wireHomeBtn();
   }
 
   function renderHistory() {
@@ -1086,7 +1120,7 @@ John Smith">${escapeHtml(crewText)}</textarea>
             <p class="sub">Saved records on this device/browser.</p>
           </div>
           <div class="btnRow">
-            <a class="btnGhost" href="#home">Back</a>
+            ${headerHomeButtonHtml()}
             <button class="btnAlt" id="clearBtn">Clear</button>
           </div>
         </div>
@@ -1095,6 +1129,7 @@ John Smith">${escapeHtml(crewText)}</textarea>
         </div>
       </div>
     `;
+    wireHomeBtn();
 
     const list = $("#histList");
     if (!records.length) {
@@ -1144,7 +1179,6 @@ John Smith">${escapeHtml(crewText)}</textarea>
 
     const r = route();
 
-    // actions
     if (r.startsWith("select-project:")) {
       const id = decodeURIComponent(r.split(":")[1] || "");
       const p = getProjectById(id);
@@ -1152,11 +1186,10 @@ John Smith">${escapeHtml(crewText)}</textarea>
         setCurrentProjectId(p.id);
         touchProjectLastUsed(p.id);
       }
-      location.hash = "#home";
+      location.hash = "#dashboard";
       return;
     }
 
-    // projects
     if (r === "projects") return renderProjectsManager();
     if (r === "project-new") return renderProjectForm("new");
     if (r.startsWith("project-edit:")) {
@@ -1164,13 +1197,16 @@ John Smith">${escapeHtml(crewText)}</textarea>
       return renderProjectForm("edit", id);
     }
 
-    // home + categories
+    // Home now ALWAYS means choose project
     if (r === "home") return renderHome();
+
+    // Dashboard is the current project landing page
+    if (r === "dashboard") return renderDashboard();
+
     if (r === "daily") return renderCategory("daily");
     if (r === "weekly") return renderCategory("weekly");
     if (r === "monthly") return renderCategory("monthly");
 
-    // forms
     if (r === "daily-brief") return renderDailyBrief();
     if (r === "ground-disturbance") return renderPlaceholder("Ground Disturbance Permit", "#daily");
     if (r === "hot-works") return renderPlaceholder("Hot Works Permit", "#daily");
@@ -1182,16 +1218,23 @@ John Smith">${escapeHtml(crewText)}</textarea>
     if (r === "monthly-pat") return renderPlaceholder("PAT Testing Check", "#monthly");
     if (r === "monthly-lifting") return renderPlaceholder("Monthly Lifting Equipment Check", "#monthly");
 
-    // history
     if (r === "history") return renderHistory();
 
-    // fallback
+    // default: go to home (choose project)
     location.hash = "#home";
   }
 
   function init() {
     setBuild();
+
+    // If someone had the old version that stored current project in localStorage,
+    // ignore it completely. (We now use sessionStorage only.)
+    // No action needed beyond not reading localStorage.
+
     window.addEventListener("hashchange", render);
+
+    // First load should always land on Home (choose project)
+    if (!location.hash) location.hash = "#home";
     render();
   }
 
