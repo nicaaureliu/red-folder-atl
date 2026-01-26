@@ -1,7 +1,8 @@
 /* public/app.js */
 (() => {
-  const BUILD = "v0.2";
-  const STORAGE_KEY = "RFATL_SUBMISSIONS_V1";
+  const BUILD = "v0.3";
+  const SUBMISSIONS_KEY = "RFATL_SUBMISSIONS_V1";
+  const PACKSTATE_KEY = "RFATL_PACKSTATE_V1";
 
   const $ = (id) => document.getElementById(id);
 
@@ -12,10 +13,13 @@
   };
 
   const CAT_HINTS = {
-    daily: "Complete the daily checklist and download the PDF record for today.",
-    weekly: "Complete once per Week Commencing (WC) and download the PDF record.",
-    monthly: "Complete once per calendar month and download the PDF record.",
+    daily: "Complete the daily checks and download records.",
+    weekly: "Complete once per Week Commencing (WC) and download records.",
+    monthly: "Complete once per calendar month and download records.",
   };
+
+  // If you want Plant Checks to open your existing QR Plant Checks site, paste it here:
+  const PLANT_CHECKS_URL = ""; // e.g. "https://your-plant-checks.pages.dev/"
 
   // Starter checklists (from your Excel screenshot)
   const CHECKLISTS = [
@@ -23,7 +27,7 @@
       id: "sm_daily_pack",
       category: "daily",
       title: "Site Manager Daily Pack",
-      description: "Daily compliance and paperwork checks (single PDF record).",
+      description: "Daily compliance and paperwork checks.",
       items: [
         { key: "daily_brief", label: "Daily brief completed" },
         { key: "plant_check_sheet", label: "Plant operative check sheet completed" },
@@ -45,7 +49,7 @@
       id: "sm_weekly_pack",
       category: "weekly",
       title: "Site Manager Weekly Pack",
-      description: "Weekly checks (one PDF per WC).",
+      description: "Weekly checks (one record per WC).",
       items: [
         { key: "safety_site_inspection", label: "Safety site inspection completed" },
         { key: "toolbox_talk", label: "Toolbox talk delivered and recorded" },
@@ -61,7 +65,7 @@
       id: "sm_monthly_pack",
       category: "monthly",
       title: "Site Manager Monthly Pack",
-      description: "Monthly checks (one PDF per calendar month).",
+      description: "Monthly checks (one record per calendar month).",
       items: [
         { key: "lifting_equipment", label: "Lifting equipment checks up to date" },
         { key: "pat_testing", label: "PAT testing of electrical tools up to date" },
@@ -69,12 +73,7 @@
     },
   ];
 
-  const STATUS = [
-    { key: "done", label: "Done" },
-    { key: "not_done", label: "Not Done" },
-    { key: "na", label: "N/A" },
-  ];
-
+  // ---------------- helpers ----------------
   function getParam(name) {
     const u = new URL(window.location.href);
     return u.searchParams.get(name) || "";
@@ -98,7 +97,7 @@
   function mondayOf(dateISO) {
     const d = new Date(dateISO + "T00:00:00");
     const day = d.getDay(); // 0 Sun ... 6 Sat
-    const diff = (day === 0 ? -6 : 1) - day; // move to Monday
+    const diff = (day === 0 ? -6 : 1) - day; // Monday
     d.setDate(d.getDate() + diff);
     const z = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
     return z.toISOString().slice(0, 10);
@@ -118,23 +117,81 @@
     return `${d}/${m}/${y}`;
   }
 
-  function uid() {
-    if (window.crypto?.randomUUID) return window.crypto.randomUUID();
-    return "id_" + Math.random().toString(16).slice(2) + "_" + Date.now();
+  function sanitizeFileName(s) {
+    return String(s || "")
+      .replaceAll(/[\/\\:*?"<>|]/g, "-")
+      .replaceAll(/\s+/g, " ")
+      .trim();
   }
 
-  function loadSubmissions() {
+  function getChecklistById(id) {
+    return CHECKLISTS.find((c) => c.id === id) || null;
+  }
+
+  function loadJSON(key, fallback) {
     try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      const arr = raw ? JSON.parse(raw) : [];
-      return Array.isArray(arr) ? arr : [];
+      const raw = localStorage.getItem(key);
+      return raw ? JSON.parse(raw) : fallback;
     } catch {
-      return [];
+      return fallback;
     }
   }
 
+  function saveJSON(key, value) {
+    localStorage.setItem(key, JSON.stringify(value));
+  }
+
+  // ---------------- pack state (draft) ----------------
+  function packKey(checklistId, period) {
+    return `${checklistId}__${period || ""}`;
+  }
+
+  function loadPackState() {
+    return loadJSON(PACKSTATE_KEY, {});
+  }
+
+  function savePackState(state) {
+    saveJSON(PACKSTATE_KEY, state);
+  }
+
+  function getPack(checklistId, period) {
+    const all = loadPackState();
+    const key = packKey(checklistId, period);
+    if (!all[key]) {
+      all[key] = {
+        checklistId,
+        period,
+        meta: {},
+        tasks: {}, // key -> { status: "new|complete|na", data: {}, updatedAt }
+        createdAt: new Date().toISOString(),
+      };
+      savePackState(all);
+    }
+    return all[key];
+  }
+
+  function setPack(checklistId, period, packObj) {
+    const all = loadPackState();
+    all[packKey(checklistId, period)] = packObj;
+    savePackState(all);
+  }
+
+  function setTaskStatus(checklistId, period, taskKey, status, data = null) {
+    const pack = getPack(checklistId, period);
+    pack.tasks[taskKey] = pack.tasks[taskKey] || { status: "new", data: {}, updatedAt: "" };
+    pack.tasks[taskKey].status = status;
+    if (data !== null) pack.tasks[taskKey].data = data;
+    pack.tasks[taskKey].updatedAt = new Date().toISOString();
+    setPack(checklistId, period, pack);
+  }
+
+  // ---------------- submissions (history) ----------------
+  function loadSubmissions() {
+    return loadJSON(SUBMISSIONS_KEY, []);
+  }
+
   function saveSubmissions(arr) {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(arr));
+    saveJSON(SUBMISSIONS_KEY, arr);
   }
 
   function addSubmission(sub) {
@@ -143,76 +200,62 @@
     saveSubmissions(all.slice(0, 100));
   }
 
-  function deleteSubmission(id) {
-    const all = loadSubmissions().filter((x) => x.uid !== id);
-    saveSubmissions(all);
-  }
-
-  function clearHistory() {
-    localStorage.removeItem(STORAGE_KEY);
-  }
-
-  function getChecklistById(id) {
-    return CHECKLISTS.find((c) => c.id === id) || null;
-  }
-
-  function sanitizeFileName(s) {
-    return String(s || "")
-      .replaceAll(/[\/\\:*?"<>|]/g, "-")
-      .replaceAll(/\s+/g, " ")
-      .trim();
-  }
-
-  // ---------------- PDF ----------------
-  function generatePDF(submission) {
+  // ---------------- PDF (generic) ----------------
+  function ensurePdf() {
     const jspdfNS = window.jspdf;
     if (!jspdfNS?.jsPDF) {
       alert("PDF library not loaded. Please refresh the page.");
-      return;
+      return null;
     }
+    return jspdfNS.jsPDF;
+  }
 
-    const doc = new jspdfNS.jsPDF({ unit: "pt", format: "a4" });
+  function packPeriodPretty(category, periodISO) {
+    if (!periodISO) return "";
+    if (category === "monthly") {
+      const d = new Date(periodISO + "T00:00:00");
+      const m = d.toLocaleString(undefined, { month: "long" });
+      return `${m} ${d.getFullYear()}`;
+    }
+    return prettyDate(periodISO);
+  }
 
-    const title = "RED FOLDER ATL";
-    const checklistTitle = submission.title || "Checklist";
-    const meta = submission.meta || {};
-    const createdAt = submission.createdAt ? new Date(submission.createdAt) : new Date();
+  function generatePackPDF(checklist, pack) {
+    const jsPDF = ensurePdf();
+    if (!jsPDF) return;
 
+    const doc = new jsPDF({ unit: "pt", format: "a4" });
     const left = 40;
     let y = 46;
 
     doc.setFont("helvetica", "bold");
     doc.setFontSize(16);
-    doc.text(title, left, y);
+    doc.text("RED FOLDER ATL", left, y);
 
     doc.setFont("helvetica", "normal");
     doc.setFontSize(10);
-    doc.text(`Generated: ${createdAt.toLocaleString()}`, left, y + 16);
+    doc.text(`Generated: ${new Date().toLocaleString()}`, left, y + 16);
 
     doc.setDrawColor(255, 214, 0);
     doc.setLineWidth(3);
     doc.line(left, y + 28, 555, y + 28);
 
-    y += 52;
+    y += 54;
 
     doc.setFont("helvetica", "bold");
     doc.setFontSize(13);
-    doc.text(checklistTitle, left, y);
+    doc.text(checklist.title, left, y);
     y += 14;
 
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(10);
-    doc.text(submission.category ? `Frequency: ${submission.category.toUpperCase()}` : "", left, y);
-    y += 18;
+    const periodPretty = packPeriodPretty(checklist.category, pack.period);
 
-    const periodLabel = submission.periodLabel || "Date";
     const metaRows = [
-      ["Project", meta.project || ""],
-      ["Project No.", meta.projectNo || ""],
-      ["Site", meta.site || ""],
-      ["Supervisor", meta.supervisor || ""],
-      [periodLabel, meta.periodPretty || meta.period || ""],
-      ["Completed by", meta.completedBy || ""],
+      ["Project", pack.meta.project || ""],
+      ["Project No.", pack.meta.projectNo || ""],
+      ["Site", pack.meta.site || ""],
+      ["Supervisor", pack.meta.supervisor || ""],
+      [checklist.category === "weekly" ? "Week Commencing" : (checklist.category === "monthly" ? "Month" : "Date"), periodPretty || pack.period || ""],
+      ["Completed by", pack.meta.completedBy || ""],
     ];
 
     doc.autoTable({
@@ -222,37 +265,490 @@
       theme: "grid",
       styles: { font: "helvetica", fontSize: 9, cellPadding: 4 },
       headStyles: { fillColor: [255, 214, 0], textColor: 17 },
-      columnStyles: { 0: { cellWidth: 110 }, 1: { cellWidth: 405 } },
       margin: { left, right: 40 },
     });
 
     y = doc.lastAutoTable.finalY + 14;
 
-    const body = (submission.items || []).map((it) => [
-      it.label || "",
-      (it.statusLabel || "").toUpperCase(),
-      it.note || "",
-    ]);
+    const rows = checklist.items.map((it) => {
+      const st = pack.tasks?.[it.key]?.status || "new";
+      const label = st === "complete" ? "COMPLETED" : (st === "na" ? "N/A" : "NOT STARTED");
+      return [it.label, label, pack.tasks?.[it.key]?.updatedAt ? new Date(pack.tasks[it.key].updatedAt).toLocaleString() : ""];
+    });
 
     doc.autoTable({
       startY: y,
-      head: [["Item", "Status", "Notes"]],
-      body,
+      head: [["Task", "Status", "Last updated"]],
+      body: rows,
       theme: "grid",
-      styles: { font: "helvetica", fontSize: 9, cellPadding: 4, valign: "top" },
+      styles: { font: "helvetica", fontSize: 9, cellPadding: 4 },
       headStyles: { fillColor: [17, 24, 39], textColor: 255 },
-      columnStyles: { 0: { cellWidth: 260 }, 1: { cellWidth: 90 }, 2: { cellWidth: 165 } },
       margin: { left, right: 40 },
+      columnStyles: { 0: { cellWidth: 310 }, 1: { cellWidth: 110 }, 2: { cellWidth: 135 } },
     });
 
-    const filePeriod = sanitizeFileName(meta.periodPretty || meta.period || "");
-    const fileTitle = sanitizeFileName(checklistTitle);
-    const filename = `RedFolderATL - ${fileTitle} - ${filePeriod || "Record"}.pdf`;
-
-    doc.save(filename);
+    const filePeriod = sanitizeFileName(periodPretty || pack.period || "");
+    const fileTitle = sanitizeFileName(checklist.title);
+    doc.save(`RedFolderATL - ${fileTitle} - ${filePeriod || "Record"}.pdf`);
   }
 
-  // -------------- RENDER: HOME --------------
+  // ---------------- TASK MODULES ----------------
+
+  const DAILY_BRIEF_POINTS = [
+    "Confined Spaces / Access",
+    "Emergency Procedures",
+    "Lifting Equipment (Crane / Slings)",
+    "Permits to Work",
+    "Plant & Equipment",
+    "Safety Planning",
+    "Barriers / Edge Protection",
+    "Clear Access Ways",
+    "Method Statement / Risk Assessments",
+    "Suitable PPE",
+    "Trench Collapse",
+    "Welfare Facilities",
+    "COSHH Assessments",
+    "Fire Precautions",
+    "Materials",
+    "Operative Experience / Competence",
+    "Overhead / Underground Cable Strike",
+    "Trips / Falls",
+  ];
+
+  function renderDailyBriefTask(container, pack, checklistId, period) {
+    const meta = pack.meta || {};
+    const existing = pack.tasks?.daily_brief?.data || {};
+
+    const defaultData = {
+      projectTitle: meta.project || "",
+      workLocation: "",
+      siteLocation: meta.site || "",
+      projectNo: meta.projectNo || "",
+      briefingBy: meta.supervisor || "",
+      jobTitle: "",
+      date: period || todayISO(),
+      personsAttending: "",
+      previousActivities: "",
+      wentAsPlanned: "yes",
+      concerns: "",
+      plannedActivities: "",
+      points: DAILY_BRIEF_POINTS.reduce((acc, p) => (acc[p] = false, acc), {}),
+      coveredByRAMS: "yes",
+      controlsInPlace: "yes",
+      ppeCompliant: "yes",
+      attendees: [], // [{name, date, signature}]
+    };
+
+    const data = Object.assign({}, defaultData, existing);
+
+    container.innerHTML = `
+      <div class="grid2">
+        <div><label class="lbl">Project title</label><input class="inp" id="db_projectTitle" value="${escapeHtml(data.projectTitle)}"></div>
+        <div><label class="lbl">Site location</label><input class="inp" id="db_siteLocation" value="${escapeHtml(data.siteLocation)}"></div>
+
+        <div><label class="lbl">Work location</label><input class="inp" id="db_workLocation" value="${escapeHtml(data.workLocation)}"></div>
+        <div><label class="lbl">Project no</label><input class="inp" id="db_projectNo" value="${escapeHtml(data.projectNo)}"></div>
+
+        <div><label class="lbl">Name of person giving briefing</label><input class="inp" id="db_briefingBy" value="${escapeHtml(data.briefingBy)}"></div>
+        <div><label class="lbl">Job title</label><input class="inp" id="db_jobTitle" value="${escapeHtml(data.jobTitle)}"></div>
+
+        <div><label class="lbl">Date</label><input class="inp" type="date" id="db_date" value="${escapeHtml(data.date)}"></div>
+        <div><label class="lbl">No. persons attending</label><input class="inp" id="db_personsAttending" value="${escapeHtml(data.personsAttending)}"></div>
+      </div>
+
+      <div class="divider"></div>
+
+      <div>
+        <label class="lbl">Previous day’s activities</label>
+        <textarea class="inp" rows="3" id="db_previousActivities">${escapeHtml(data.previousActivities)}</textarea>
+
+        <div class="grid2" style="margin-top:10px;">
+          <div>
+            <label class="lbl">Did they go as planned?</label>
+            <select class="inp" id="db_wentAsPlanned">
+              <option value="yes" ${data.wentAsPlanned==="yes"?"selected":""}>Yes</option>
+              <option value="no" ${data.wentAsPlanned==="no"?"selected":""}>No</option>
+            </select>
+          </div>
+          <div>
+            <label class="lbl">Any concerns from the previous day?</label>
+            <input class="inp" id="db_concerns" value="${escapeHtml(data.concerns)}" placeholder="Short note (or leave blank)">
+          </div>
+        </div>
+
+        <label class="lbl" style="margin-top:10px;">Today’s planned activities briefing</label>
+        <textarea class="inp" rows="3" id="db_plannedActivities">${escapeHtml(data.plannedActivities)}</textarea>
+      </div>
+
+      <div class="divider"></div>
+
+      <h3 class="h3">Points discussed for today’s operation</h3>
+      <div class="checkGrid" id="db_points"></div>
+
+      <div class="divider"></div>
+
+      <div class="grid3">
+        <div>
+          <label class="lbl">Activities covered by RAMS / Work Instruction?</label>
+          <select class="inp" id="db_coveredByRAMS">
+            <option value="yes" ${data.coveredByRAMS==="yes"?"selected":""}>Yes</option>
+            <option value="no" ${data.coveredByRAMS==="no"?"selected":""}>No</option>
+          </select>
+        </div>
+        <div>
+          <label class="lbl">All control measures in place?</label>
+          <select class="inp" id="db_controlsInPlace">
+            <option value="yes" ${data.controlsInPlace==="yes"?"selected":""}>Yes</option>
+            <option value="no" ${data.controlsInPlace==="no"?"selected":""}>No</option>
+          </select>
+        </div>
+        <div>
+          <label class="lbl">Operatives compliant with PPE?</label>
+          <select class="inp" id="db_ppeCompliant">
+            <option value="yes" ${data.ppeCompliant==="yes"?"selected":""}>Yes</option>
+            <option value="no" ${data.ppeCompliant==="no"?"selected":""}>No</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <h3 class="h3">Attendees (sign-up)</h3>
+      <div id="db_attendees"></div>
+      <button class="btn btnAlt" type="button" id="db_addAttendee">Add attendee</button>
+    `;
+
+    // render points
+    const pointsWrap = container.querySelector("#db_points");
+    DAILY_BRIEF_POINTS.forEach((p, idx) => {
+      const checked = !!data.points?.[p];
+      const el = document.createElement("label");
+      el.className = "tickRow";
+      el.innerHTML = `
+        <input type="checkbox" id="db_point_${idx}" ${checked ? "checked" : ""} />
+        <span>${escapeHtml(p)}</span>
+      `;
+      pointsWrap.appendChild(el);
+    });
+
+    function renderAttendees() {
+      const wrap = container.querySelector("#db_attendees");
+      wrap.innerHTML = "";
+
+      if (!Array.isArray(data.attendees)) data.attendees = [];
+
+      if (!data.attendees.length) {
+        const p = document.createElement("div");
+        p.className = "muted";
+        p.textContent = "No attendees added yet.";
+        wrap.appendChild(p);
+        return;
+      }
+
+      data.attendees.forEach((a, i) => {
+        const row = document.createElement("div");
+        row.className = "attRow";
+        row.innerHTML = `
+          <div class="grid3">
+            <div>
+              <label class="lbl">Name</label>
+              <input class="inp" data-att="name" data-i="${i}" value="${escapeHtml(a.name || "")}" />
+            </div>
+            <div>
+              <label class="lbl">Date</label>
+              <input class="inp" data-att="date" data-i="${i}" value="${escapeHtml(a.date || prettyDate(data.date))}" />
+            </div>
+            <div>
+              <label class="lbl">Signature (type)</label>
+              <input class="inp" data-att="sig" data-i="${i}" value="${escapeHtml(a.signature || "")}" placeholder="Type signature" />
+            </div>
+          </div>
+          <div style="margin-top:8px;">
+            <button class="btn btnAlt" type="button" data-del="${i}">Remove</button>
+          </div>
+          <div class="divider" style="margin:12px 0;"></div>
+        `;
+        wrap.appendChild(row);
+      });
+
+      wrap.addEventListener("click", (e) => {
+        const btn = e.target.closest("button[data-del]");
+        if (!btn) return;
+        const idx = Number(btn.dataset.del);
+        data.attendees.splice(idx, 1);
+        renderAttendees();
+      }, { once: true });
+
+      wrap.addEventListener("input", (e) => {
+        const inp = e.target.closest("input[data-att]");
+        if (!inp) return;
+        const i = Number(inp.dataset.i);
+        const f = inp.dataset.att;
+        data.attendees[i] = data.attendees[i] || {};
+        if (f === "name") data.attendees[i].name = inp.value;
+        if (f === "date") data.attendees[i].date = inp.value;
+        if (f === "sig") data.attendees[i].signature = inp.value;
+      });
+    }
+
+    renderAttendees();
+
+    container.querySelector("#db_addAttendee").addEventListener("click", () => {
+      data.attendees = data.attendees || [];
+      data.attendees.push({ name: "", date: prettyDate(data.date), signature: "" });
+      renderAttendees();
+    });
+
+    // return collectors + pdf generator for this module
+    return {
+      collect: () => {
+        const collected = {
+          projectTitle: container.querySelector("#db_projectTitle").value.trim(),
+          siteLocation: container.querySelector("#db_siteLocation").value.trim(),
+          workLocation: container.querySelector("#db_workLocation").value.trim(),
+          projectNo: container.querySelector("#db_projectNo").value.trim(),
+          briefingBy: container.querySelector("#db_briefingBy").value.trim(),
+          jobTitle: container.querySelector("#db_jobTitle").value.trim(),
+          date: container.querySelector("#db_date").value,
+          personsAttending: container.querySelector("#db_personsAttending").value.trim(),
+          previousActivities: container.querySelector("#db_previousActivities").value.trim(),
+          wentAsPlanned: container.querySelector("#db_wentAsPlanned").value,
+          concerns: container.querySelector("#db_concerns").value.trim(),
+          plannedActivities: container.querySelector("#db_plannedActivities").value.trim(),
+          points: {},
+          coveredByRAMS: container.querySelector("#db_coveredByRAMS").value,
+          controlsInPlace: container.querySelector("#db_controlsInPlace").value,
+          ppeCompliant: container.querySelector("#db_ppeCompliant").value,
+          attendees: (data.attendees || []).map((a) => ({
+            name: (a.name || "").trim(),
+            date: (a.date || "").trim(),
+            signature: (a.signature || "").trim(),
+          })),
+        };
+
+        DAILY_BRIEF_POINTS.forEach((p, idx) => {
+          const chk = container.querySelector(`#db_point_${idx}`);
+          collected.points[p] = !!chk?.checked;
+        });
+
+        return collected;
+      },
+
+      pdf: (collected) => {
+        const jsPDF = ensurePdf();
+        if (!jsPDF) return;
+
+        const doc = new jsPDF({ unit: "pt", format: "a4" });
+        const left = 40;
+        let y = 46;
+
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(14);
+        doc.text("HEALTH & SAFETY • MORNING BRIEFING", left, y);
+
+        doc.setDrawColor(255, 214, 0);
+        doc.setLineWidth(3);
+        doc.line(left, y + 12, 555, y + 12);
+
+        y += 28;
+
+        const metaRows = [
+          ["Project Title", collected.projectTitle],
+          ["Site Location", collected.siteLocation],
+          ["Work Location", collected.workLocation],
+          ["Project No", collected.projectNo],
+          ["Briefing by", collected.briefingBy],
+          ["Job title", collected.jobTitle],
+          ["Date", prettyDate(collected.date)],
+          ["No. persons attending", collected.personsAttending],
+          ["Went as planned?", (collected.wentAsPlanned || "").toUpperCase()],
+        ];
+
+        doc.autoTable({
+          startY: y,
+          head: [["Field", "Value"]],
+          body: metaRows,
+          theme: "grid",
+          styles: { font: "helvetica", fontSize: 9, cellPadding: 4 },
+          headStyles: { fillColor: [255, 214, 0], textColor: 17 },
+          margin: { left, right: 40 },
+          columnStyles: { 0: { cellWidth: 140 }, 1: { cellWidth: 375 } },
+        });
+
+        y = doc.lastAutoTable.finalY + 10;
+
+        const textRows = [
+          ["Previous day’s activities", collected.previousActivities || ""],
+          ["Concerns from previous day", collected.concerns || ""],
+          ["Today’s planned activities briefing", collected.plannedActivities || ""],
+        ];
+
+        doc.autoTable({
+          startY: y,
+          head: [["Section", "Notes"]],
+          body: textRows,
+          theme: "grid",
+          styles: { font: "helvetica", fontSize: 9, cellPadding: 4, valign: "top" },
+          headStyles: { fillColor: [17, 24, 39], textColor: 255 },
+          margin: { left, right: 40 },
+          columnStyles: { 0: { cellWidth: 180 }, 1: { cellWidth: 335 } },
+        });
+
+        y = doc.lastAutoTable.finalY + 10;
+
+        const pointsRows = DAILY_BRIEF_POINTS.map((p) => [p, collected.points?.[p] ? "✓" : ""]);
+        doc.autoTable({
+          startY: y,
+          head: [["Points discussed", ""]],
+          body: pointsRows,
+          theme: "grid",
+          styles: { font: "helvetica", fontSize: 9, cellPadding: 4 },
+          headStyles: { fillColor: [255, 214, 0], textColor: 17 },
+          margin: { left, right: 40 },
+          columnStyles: { 0: { cellWidth: 445 }, 1: { cellWidth: 70 } },
+        });
+
+        y = doc.lastAutoTable.finalY + 10;
+
+        doc.autoTable({
+          startY: y,
+          head: [["Compliance confirmations", "Answer"]],
+          body: [
+            ["Activities covered by RAMS / Work Instruction?", (collected.coveredByRAMS || "").toUpperCase()],
+            ["All control measures in place?", (collected.controlsInPlace || "").toUpperCase()],
+            ["Operatives compliant with PPE?", (collected.ppeCompliant || "").toUpperCase()],
+          ],
+          theme: "grid",
+          styles: { font: "helvetica", fontSize: 9, cellPadding: 4 },
+          headStyles: { fillColor: [17, 24, 39], textColor: 255 },
+          margin: { left, right: 40 },
+          columnStyles: { 0: { cellWidth: 445 }, 1: { cellWidth: 70 } },
+        });
+
+        // Page 2 (attendees)
+        doc.addPage();
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(14);
+        doc.text("MORNING BRIEFING SIGN-UP SHEET", left, 46);
+        doc.setDrawColor(255, 214, 0);
+        doc.setLineWidth(3);
+        doc.line(left, 58, 555, 58);
+
+        const att = (collected.attendees || []).filter((a) => a.name || a.signature);
+        const attRows = att.length
+          ? att.map((a) => [a.name || "", a.date || prettyDate(collected.date), a.signature || ""])
+          : [["", "", ""]];
+
+        doc.autoTable({
+          startY: 78,
+          head: [["Name", "Date", "Signature"]],
+          body: attRows,
+          theme: "grid",
+          styles: { font: "helvetica", fontSize: 9, cellPadding: 4 },
+          headStyles: { fillColor: [255, 214, 0], textColor: 17 },
+          margin: { left, right: 40 },
+          columnStyles: { 0: { cellWidth: 200 }, 1: { cellWidth: 110 }, 2: { cellWidth: 205 } },
+        });
+
+        const fileDate = sanitizeFileName(prettyDate(collected.date));
+        doc.save(`Daily Morning Briefing - ${fileDate || "Record"}.pdf`);
+      },
+    };
+  }
+
+  function renderGenericTask(container, taskKey, taskLabel, existingData = {}) {
+    const data = Object.assign({ note: "" }, existingData);
+
+    container.innerHTML = `
+      <label class="lbl">Notes / Details</label>
+      <textarea class="inp" rows="4" id="gen_note" placeholder="Add anything useful (optional)">${escapeHtml(data.note || "")}</textarea>
+      <p class="muted" style="margin-top:10px;">
+        This task is a placeholder for now. We will replace it with the full form (questions + proper PDF) next.
+      </p>
+    `;
+
+    return {
+      collect: () => ({ note: container.querySelector("#gen_note").value.trim() }),
+      pdf: (collected) => {
+        const jsPDF = ensurePdf();
+        if (!jsPDF) return;
+        const doc = new jsPDF({ unit: "pt", format: "a4" });
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(14);
+        doc.text(`Task: ${taskLabel}`, 40, 50);
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(10);
+        doc.text(`Generated: ${new Date().toLocaleString()}`, 40, 68);
+        doc.autoTable({
+          startY: 90,
+          head: [["Field", "Value"]],
+          body: [["Notes", collected.note || ""]],
+          theme: "grid",
+          styles: { font: "helvetica", fontSize: 9, cellPadding: 4, valign: "top" },
+          margin: { left: 40, right: 40 },
+          columnStyles: { 0: { cellWidth: 110 }, 1: { cellWidth: 405 } },
+        });
+        doc.save(`${sanitizeFileName(taskLabel)}.pdf`);
+      },
+    };
+  }
+
+  function renderPlantChecksTask(container, existingData = {}) {
+    const data = Object.assign({ note: "" }, existingData);
+
+    container.innerHTML = `
+      <p class="sub">
+        This will open your Plant Checks (QR) system. When done, come back and press Save to mark this task completed.
+      </p>
+      <div class="actions" style="justify-content:flex-start; gap:10px; margin: 10px 0 14px;">
+        <button class="btn" type="button" id="pc_open">Open Plant Checks</button>
+      </div>
+      <label class="lbl">Notes (optional)</label>
+      <textarea class="inp" rows="3" id="pc_note">${escapeHtml(data.note || "")}</textarea>
+      <p class="muted" style="margin-top:10px;">
+        Once you confirm the Plant Checks URL, I can embed it more tightly (or route you directly into the exact machine checks page).
+      </p>
+    `;
+
+    container.querySelector("#pc_open").addEventListener("click", () => {
+      if (!PLANT_CHECKS_URL) {
+        alert("Plant Checks URL not set yet in app.js (PLANT_CHECKS_URL).");
+        return;
+      }
+      window.open(PLANT_CHECKS_URL, "_blank", "noopener,noreferrer");
+    });
+
+    return {
+      collect: () => ({ note: container.querySelector("#pc_note").value.trim() }),
+      pdf: (collected) => {
+        const jsPDF = ensurePdf();
+        if (!jsPDF) return;
+        const doc = new jsPDF({ unit: "pt", format: "a4" });
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(14);
+        doc.text("Plant Operative Check Sheet", 40, 50);
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(10);
+        doc.text("This record confirms Plant Checks were completed via the Plant Checks system.", 40, 70);
+        doc.autoTable({
+          startY: 90,
+          head: [["Field", "Value"]],
+          body: [
+            ["Plant Checks URL", PLANT_CHECKS_URL || "Not set"],
+            ["Notes", collected.note || ""],
+          ],
+          theme: "grid",
+          styles: { font: "helvetica", fontSize: 9, cellPadding: 4, valign: "top" },
+          margin: { left: 40, right: 40 },
+          columnStyles: { 0: { cellWidth: 140 }, 1: { cellWidth: 375 } },
+        });
+        doc.save("Plant Operative Check Sheet - Record.pdf");
+      },
+    };
+  }
+
+  // ---------------- pages ----------------
+
   function renderHome() {
     const buildTag = $("buildTag");
     if (buildTag) buildTag.textContent = `BUILD ${BUILD} • by Aureliu Nica`;
@@ -268,7 +764,6 @@
       recentEmpty.style.display = "block";
       return;
     }
-
     recentEmpty.style.display = "none";
 
     for (const s of subs) {
@@ -289,7 +784,6 @@
     }
   }
 
-  // -------------- RENDER: LIST --------------
   function renderList() {
     const buildTag = $("buildTag");
     if (buildTag) buildTag.textContent = `BUILD ${BUILD} • by Aureliu Nica`;
@@ -333,7 +827,6 @@
     }
   }
 
-  // -------------- RENDER: FORM --------------
   function renderForm() {
     const buildTag = $("buildTag");
     if (buildTag) buildTag.textContent = `BUILD ${BUILD} • by Aureliu Nica`;
@@ -350,229 +843,235 @@
     const backLink = $("backLink");
     const errorBox = $("errorBox");
 
-    if (!checklist || !itemsWrap || !periodInput) {
-      if (titleEl) titleEl.textContent = "Checklist not found";
-      if (descEl) descEl.textContent = "Please go back and choose a checklist.";
-      if (itemsWrap) itemsWrap.innerHTML = "";
-      return;
-    }
+    if (!checklist || !itemsWrap || !periodInput) return;
 
-    const cat = checklist.category;
-    if (subEl) subEl.textContent = `${CAT_LABELS[cat] || "Checks"} • ${checklist.title}`;
+    if (subEl) subEl.textContent = `${CAT_LABELS[checklist.category] || "Checks"} • ${checklist.title}`;
     if (titleEl) titleEl.textContent = checklist.title;
     if (descEl) descEl.textContent = checklist.description || "";
 
-    // Back behaviour:
-    // - If only 1 checklist exists for that category, go back to Home
-    // - If more than 1 exists, go back to the category list
+    // Back: to list if multiple packs in category; else home
     if (backLink) {
-      const count = CHECKLISTS.filter((c) => c.category === cat).length;
-      backLink.href = count > 1 ? `./list.html?cat=${encodeURIComponent(cat)}` : `./index.html`;
+      const count = CHECKLISTS.filter((c) => c.category === checklist.category).length;
+      backLink.href = count > 1 ? `./list.html?cat=${encodeURIComponent(checklist.category)}` : `./index.html`;
     }
 
-    // Set period label + default value
+    // Period label + default
     let periodLabel = "Date";
-    if (cat === "weekly") periodLabel = "Week Commencing (Monday)";
-    if (cat === "monthly") periodLabel = "Month (select any day in month)";
+    if (checklist.category === "weekly") periodLabel = "Week Commencing (Monday)";
+    if (checklist.category === "monthly") periodLabel = "Month (select any day in month)";
     if (periodLabelEl) periodLabelEl.textContent = periodLabel;
 
-    if (cat === "daily") periodInput.value = todayISO();
-    if (cat === "weekly") periodInput.value = mondayOf(todayISO());
-    if (cat === "monthly") periodInput.value = monthISO();
-
-    // State
-    const state = {
-      checklistId: checklist.id,
-      category: cat,
-      title: checklist.title,
-      periodLabel,
-      items: checklist.items.map((it) => ({
-        key: it.key,
-        label: it.label,
-        hint: it.hint || "",
-        status: "",
-        note: "",
-      })),
-    };
-
-    // Render items
-    itemsWrap.innerHTML = "";
-    for (let i = 0; i < state.items.length; i++) {
-      const it = state.items[i];
-
-      const row = document.createElement("div");
-      row.className = "checkRow";
-
-      const pills = STATUS.map((s) => {
-        return `
-          <button class="pill" type="button" data-idx="${i}" data-state="${s.key}">
-            ${escapeHtml(s.label)}
-          </button>
-        `;
-      }).join("");
-
-      row.innerHTML = `
-        <div class="checkTop">
-          <div style="min-width:0;">
-            <div class="checkLabel">${escapeHtml(it.label)}</div>
-            ${it.hint ? `<div class="checkHint">${escapeHtml(it.hint)}</div>` : ``}
-          </div>
-          <div class="pills" aria-label="Status">${pills}</div>
-        </div>
-
-        <span class="noteToggle" data-idx="${i}">Add note</span>
-
-        <div class="noteRow" id="noteRow_${i}">
-          <textarea class="noteInput" rows="2" placeholder="Note (optional)"></textarea>
-        </div>
-      `;
-
-      itemsWrap.appendChild(row);
+    if (!periodInput.value) {
+      if (checklist.category === "daily") periodInput.value = todayISO();
+      if (checklist.category === "weekly") periodInput.value = mondayOf(todayISO());
+      if (checklist.category === "monthly") periodInput.value = monthISO();
     }
 
-    // Status click handlers
-    itemsWrap.addEventListener("click", (e) => {
-      const btn = e.target.closest(".pill");
-      if (btn) {
-        const idx = Number(btn.dataset.idx);
-        const st = btn.dataset.state;
+    function currentPeriod() {
+      return periodInput.value || "";
+    }
 
-        state.items[idx].status = st;
+    function loadAndPrefillMeta() {
+      const period = currentPeriod();
+      const pack = getPack(checklist.id, period);
 
-        // Update active styling for this row only
-        const row = btn.closest(".checkRow");
-        row.querySelectorAll(".pill").forEach((p) => {
-          p.classList.toggle("active", p.dataset.state === st);
-        });
-
-        // If not done, open note automatically
-        const noteRow = row.querySelector(".noteRow");
-        if (st === "not_done") noteRow.classList.add("show");
-      }
-
-      const toggle = e.target.closest(".noteToggle");
-      if (toggle) {
-        const idx = Number(toggle.dataset.idx);
-        const noteRow = $(`noteRow_${idx}`);
-        if (noteRow) noteRow.classList.toggle("show");
-      }
-    });
-
-    // Capture notes
-    itemsWrap.addEventListener("input", (e) => {
-      const row = e.target.closest(".checkRow");
-      if (!row) return;
-      const note = e.target.value || "";
-      const allRows = Array.from(itemsWrap.querySelectorAll(".checkRow"));
-      const idx = allRows.indexOf(row);
-      if (idx >= 0) state.items[idx].note = note;
-    });
-
-    // Mark all done
-    const markAllBtn = $("markAllDoneBtn");
-    if (markAllBtn) {
-      markAllBtn.addEventListener("click", () => {
-        const rows = itemsWrap.querySelectorAll(".checkRow");
-        rows.forEach((row, idx) => {
-          state.items[idx].status = "done";
-          row.querySelectorAll(".pill").forEach((p) => {
-            p.classList.toggle("active", p.dataset.state === "done");
-          });
-        });
+      // Prefill meta inputs if pack has values
+      const fields = ["project", "projectNo", "site", "supervisor", "completedBy"];
+      fields.forEach((f) => {
+        const el = $(`meta_${f}`);
+        if (el && !el.value && pack.meta?.[f]) el.value = pack.meta[f];
       });
     }
 
-    // Submit
+    function saveMetaToPack() {
+      const period = currentPeriod();
+      const pack = getPack(checklist.id, period);
+      pack.meta = {
+        project: $("meta_project")?.value?.trim() || "",
+        projectNo: $("meta_projectNo")?.value?.trim() || "",
+        site: $("meta_site")?.value?.trim() || "",
+        supervisor: $("meta_supervisor")?.value?.trim() || "",
+        completedBy: $("meta_completedBy")?.value?.trim() || "",
+      };
+      setPack(checklist.id, period, pack);
+    }
+
+    loadAndPrefillMeta();
+
+    // Save meta on change
+    ["meta_project","meta_projectNo","meta_site","meta_supervisor","meta_completedBy","meta_period"].forEach((id) => {
+      const el = $(id);
+      if (!el) return;
+      el.addEventListener("change", () => {
+        saveMetaToPack();
+        drawTasks();
+      });
+      el.addEventListener("input", () => {
+        saveMetaToPack();
+      });
+    });
+
+    function taskStatusBadge(st) {
+      if (st === "complete") return `<span class="badge ok">Completed</span>`;
+      if (st === "na") return `<span class="badge na">N/A</span>`;
+      return `<span class="badge">Not started</span>`;
+    }
+
+    function drawTasks() {
+      const period = currentPeriod();
+      const pack = getPack(checklist.id, period);
+
+      itemsWrap.innerHTML = "";
+
+      checklist.items.forEach((it) => {
+        const st = pack.tasks?.[it.key]?.status || "new";
+
+        const isPlant = it.key === "plant_check_sheet";
+
+        const card = document.createElement("div");
+        card.className = "taskCard";
+        card.innerHTML = `
+          <div style="min-width:0;">
+            <div class="itemTitle">${escapeHtml(it.label)}</div>
+            <div class="itemSub">Status: ${taskStatusBadge(st)}</div>
+          </div>
+          <div class="itemRight">
+            <a class="linkBtn" href="./task.html?pack=${encodeURIComponent(checklist.id)}&task=${encodeURIComponent(it.key)}&period=${encodeURIComponent(period)}">
+              Open
+            </a>
+          </div>
+        `;
+        itemsWrap.appendChild(card);
+      });
+    }
+
+    drawTasks();
+
+    // Submit (generate pack summary PDF + store history entry)
     const form = $("checkForm");
     const submitBtn = $("submitBtn");
 
     form.addEventListener("submit", (ev) => {
       ev.preventDefault();
+      if (errorBox) errorBox.style.display = "none";
 
-      if (errorBox) {
-        errorBox.style.display = "none";
-        errorBox.textContent = "";
-        errorBox.style.borderColor = "rgba(220,38,38,.35)";
-        errorBox.style.background = "rgba(220,38,38,.06)";
-        errorBox.style.color = "#7f1d1d";
-      }
-
-      const meta = {
-        project: $("meta_project")?.value?.trim() || "",
-        projectNo: $("meta_projectNo")?.value?.trim() || "",
-        site: $("meta_site")?.value?.trim() || "",
-        supervisor: $("meta_supervisor")?.value?.trim() || "",
-        period: $("meta_period")?.value || "",
-        completedBy: $("meta_completedBy")?.value?.trim() || "",
-      };
-
-      // Period prettify
-      let periodPretty = "";
-      if (cat === "monthly") {
-        const d = new Date((meta.period || monthISO()) + "T00:00:00");
-        const m = d.toLocaleString(undefined, { month: "long" });
-        periodPretty = `${m} ${d.getFullYear()}`;
-      } else {
-        periodPretty = prettyDate(meta.period);
-      }
-      meta.periodPretty = periodPretty;
-
-      const errors = [];
-      if (!meta.project) errors.push("Project is required.");
-      if (!meta.site) errors.push("Site is required.");
-      if (!meta.supervisor) errors.push("Supervisor is required.");
-      if (!meta.period) errors.push(`${periodLabel} is required.`);
-      if (!meta.completedBy) errors.push("Completed by is required.");
-
-      const missing = state.items.filter((it) => !it.status);
-      if (missing.length) errors.push("Please select a status for every item (Done / Not Done / N/A).");
-
-      if (errors.length) {
+      const period = currentPeriod();
+      if (!period) {
         if (errorBox) {
-          errorBox.textContent = errors.join(" ");
+          errorBox.textContent = `${periodLabel} is required.`;
           errorBox.style.display = "block";
         }
         return;
       }
 
-      const submission = {
-        uid: uid(),
-        createdAt: new Date().toISOString(),
-        checklistId: state.checklistId,
-        category: state.category,
-        title: state.title,
-        periodLabel: state.periodLabel,
-        meta: meta,
-        items: state.items.map((it) => ({
-          key: it.key,
-          label: it.label,
-          status: it.status,
-          statusLabel: STATUS.find((s) => s.key === it.status)?.label || it.status,
-          note: (it.note || "").trim(),
-        })),
-      };
+      saveMetaToPack();
+      const pack = getPack(checklist.id, period);
 
+      // Store to History as a “pack record”
+      const periodPretty = packPeriodPretty(checklist.category, pack.period);
+      const submission = {
+        uid: `${packKey(checklist.id, pack.period)}__${Date.now()}`,
+        createdAt: new Date().toISOString(),
+        checklistId: checklist.id,
+        category: checklist.category,
+        title: checklist.title,
+        meta: {
+          ...pack.meta,
+          period: pack.period,
+          periodPretty,
+        },
+        tasks: pack.tasks || {},
+      };
       addSubmission(submission);
 
       if (submitBtn) submitBtn.disabled = true;
       try {
-        generatePDF(submission);
+        generatePackPDF(checklist, pack);
       } finally {
         if (submitBtn) submitBtn.disabled = false;
       }
-
-      if (errorBox) {
-        errorBox.style.display = "block";
-        errorBox.style.borderColor = "rgba(22,163,74,.35)";
-        errorBox.style.background = "rgba(22,163,74,.06)";
-        errorBox.style.color = "#14532d";
-        errorBox.textContent = "Submitted and PDF downloaded. A copy is saved in History on this device.";
-      }
-      window.scrollTo({ top: 0, behavior: "smooth" });
     });
   }
 
-  // -------------- RENDER: HISTORY --------------
+  function renderTask() {
+    const buildTag = $("buildTag");
+    if (buildTag) buildTag.textContent = `BUILD ${BUILD} • by Aureliu Nica`;
+
+    const checklistId = getParam("pack");
+    const taskKey = getParam("task");
+    const period = getParam("period");
+
+    const checklist = getChecklistById(checklistId);
+    if (!checklist) return;
+
+    const taskDef = checklist.items.find((x) => x.key === taskKey);
+    const taskLabel = taskDef?.label || taskKey;
+
+    const pack = getPack(checklistId, period);
+
+    const backLink = $("backLink");
+    if (backLink) backLink.href = `./form.html?id=${encodeURIComponent(checklistId)}`;
+
+    const titleEl = $("taskTitle");
+    const descEl = $("taskDesc");
+    const crumb = $("taskBreadcrumb");
+    if (crumb) crumb.textContent = `${checklist.title} • ${taskLabel}`;
+
+    if (titleEl) titleEl.textContent = taskLabel;
+
+    const body = $("taskBody");
+    const msg = $("taskMsg");
+
+    function showMsg(text, ok = true) {
+      if (!msg) return;
+      msg.style.display = "block";
+      msg.className = ok ? "msg msgOk" : "msg msgErr";
+      msg.textContent = text;
+    }
+
+    // Choose module:
+    let moduleApi = null;
+
+    if (taskKey === "daily_brief") {
+      if (descEl) descEl.textContent = "Complete the morning briefing and download the PDF.";
+      moduleApi = renderDailyBriefTask(body, pack, checklistId, period);
+    } else if (taskKey === "plant_check_sheet") {
+      if (descEl) descEl.textContent = "Open Plant Checks (QR) and confirm completion.";
+      const existing = pack.tasks?.[taskKey]?.data || {};
+      moduleApi = renderPlantChecksTask(body, existing);
+    } else {
+      if (descEl) descEl.textContent = "Complete task details and download a simple record PDF.";
+      const existing = pack.tasks?.[taskKey]?.data || {};
+      moduleApi = renderGenericTask(body, taskKey, taskLabel, existing);
+    }
+
+    const saveBtn = $("saveTaskBtn");
+    const pdfBtn = $("pdfTaskBtn");
+    const naBtn = $("naTaskBtn");
+
+    function save(status = "complete") {
+      const collected = moduleApi.collect();
+      // persist collected
+      setTaskStatus(checklistId, period, taskKey, status, collected);
+      showMsg(status === "na" ? "Marked N/A and saved." : "Saved. You can now download/print the PDF.");
+    }
+
+    saveBtn?.addEventListener("click", () => save("complete"));
+
+    naBtn?.addEventListener("click", () => {
+      setTaskStatus(checklistId, period, taskKey, "na", pack.tasks?.[taskKey]?.data || {});
+      showMsg("Marked N/A and saved.");
+    });
+
+    pdfBtn?.addEventListener("click", () => {
+      const collected = moduleApi.collect();
+      // save as complete when generating pdf (safe default)
+      setTaskStatus(checklistId, period, taskKey, "complete", collected);
+      moduleApi.pdf(collected);
+      showMsg("PDF downloaded. Task saved as Completed.");
+    });
+  }
+
   function renderHistory() {
     const buildTag = $("buildTag");
     if (buildTag) buildTag.textContent = `BUILD ${BUILD} • by Aureliu Nica`;
@@ -605,37 +1104,16 @@
             <div class="itemSub">${escapeHtml((s.category || "").toUpperCase())} • ${escapeHtml(period)} • ${escapeHtml(when)}</div>
           </div>
           <div class="itemRight">
-            <button class="linkBtn" type="button" data-act="pdf" data-id="${escapeHtml(s.uid)}">Download PDF</button>
-            <button class="linkBtn" type="button" data-act="del" data-id="${escapeHtml(s.uid)}">Delete</button>
+            <a class="linkBtn" href="./form.html?id=${encodeURIComponent(s.checklistId || "")}">Open</a>
           </div>
         `;
         list.appendChild(card);
       }
     }
 
-    list.addEventListener("click", (e) => {
-      const btn = e.target.closest("button[data-act]");
-      if (!btn) return;
-
-      const act = btn.dataset.act;
-      const id = btn.dataset.id;
-
-      const subs = loadSubmissions();
-      const sub = subs.find((x) => x.uid === id);
-
-      if (act === "pdf" && sub) {
-        generatePDF(sub);
-      }
-
-      if (act === "del") {
-        deleteSubmission(id);
-        draw();
-      }
-    });
-
     if (clearBtn) {
       clearBtn.addEventListener("click", () => {
-        clearHistory();
+        localStorage.removeItem(SUBMISSIONS_KEY);
         draw();
       });
     }
@@ -643,12 +1121,12 @@
     draw();
   }
 
-  // -------------- INIT --------------
   function init() {
     const page = document.body?.dataset?.page || "";
     if (page === "home") return renderHome();
     if (page === "list") return renderList();
     if (page === "form") return renderForm();
+    if (page === "task") return renderTask();
     if (page === "history") return renderHistory();
   }
 
