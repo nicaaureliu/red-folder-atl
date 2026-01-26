@@ -1,9 +1,10 @@
 /* public/app.js */
 (() => {
-  const BUILD = "v1.1";
+  const BUILD = "v1.2";
   const APP_TITLE = "Red Folder ATL";
 
-  // Put your blank template PDFs in the repo here:
+  // Templates (served by Cloudflare Pages)
+  // Put your blank template PDFs here:
   // public/templates/daily-briefing.pdf
   const TEMPLATES = {
     dailyBrief: "./templates/daily-briefing.pdf",
@@ -12,7 +13,10 @@
   // Paste your Plant Checks URL (your existing QR Plant Checks app)
   const PLANT_CHECKS_URL = ""; // e.g. "https://plant-checks.pages.dev/"
 
+  // Storage keys
   const RECORDS_KEY = "RFATL_RECORDS_V1";
+  const PROJECTS_KEY = "RFATL_PROJECTS_V1";
+  const CURRENT_PROJECT_KEY = "RFATL_CURRENT_PROJECT_V1";
 
   const DAILY_BRIEF_POINTS = [
     "Confined Spaces / Access",
@@ -35,53 +39,18 @@
     "Trips / Falls",
   ];
 
-  // Category + forms (QR-style, but with Daily/Weekly/Monthly choice)
   const CATEGORIES = [
-    {
-      key: "daily",
-      title: "Daily Checks",
-      desc: "Daily paperwork and compliance checks. QR-friendly.",
-    },
-    {
-      key: "weekly",
-      title: "Weekly Checks",
-      desc: "Weekly inspections and records (one per WC).",
-    },
-    {
-      key: "monthly",
-      title: "Monthly Checks",
-      desc: "Monthly compliance checks and records.",
-    },
+    { key: "daily", title: "Daily Checks", desc: "Daily paperwork and compliance checks." },
+    { key: "weekly", title: "Weekly Checks", desc: "Weekly inspections and records (one per WC)." },
+    { key: "monthly", title: "Monthly Checks", desc: "Monthly compliance checks and records." },
   ];
 
-  // Each form has a route key. Direct QR can go to these routes.
   const FORMS = {
     daily: [
-      {
-        key: "daily-brief",
-        title: "Daily Morning Briefing",
-        desc: "Fill on the phone → generate PDF.",
-        blankPdf: TEMPLATES.dailyBrief,
-        type: "internal",
-      },
-      {
-        key: "plant-checks",
-        title: "Plant Checks",
-        desc: "Opens your existing Plant Checks QR app.",
-        type: "external",
-      },
-      {
-        key: "ground-disturbance",
-        title: "Ground Disturbance Permit",
-        desc: "Next to build (same flow as the QR app).",
-        type: "placeholder",
-      },
-      {
-        key: "hot-works",
-        title: "Hot Works Permit",
-        desc: "Next to build (same flow as the QR app).",
-        type: "placeholder",
-      },
+      { key: "daily-brief", title: "Daily Morning Briefing", desc: "Fill on the phone → generate PDF.", blankPdf: TEMPLATES.dailyBrief, type: "internal" },
+      { key: "plant-checks", title: "Plant Checks", desc: "Opens your existing Plant Checks QR app.", type: "external" },
+      { key: "ground-disturbance", title: "Ground Disturbance Permit", desc: "Next to build (same flow).", type: "placeholder" },
+      { key: "hot-works", title: "Hot Works Permit", desc: "Next to build (same flow).", type: "placeholder" },
     ],
     weekly: [
       { key: "weekly-safety", title: "Weekly Safety Site Inspection", desc: "To build next.", type: "placeholder" },
@@ -134,25 +103,100 @@
     return jspdfNS.jsPDF;
   }
 
-  function loadRecords() {
+  function loadJSON(key, fallback) {
     try {
-      const raw = localStorage.getItem(RECORDS_KEY);
-      return raw ? JSON.parse(raw) : [];
+      const raw = localStorage.getItem(key);
+      return raw ? JSON.parse(raw) : fallback;
     } catch {
-      return [];
+      return fallback;
     }
   }
 
+  function saveJSON(key, value) {
+    localStorage.setItem(key, JSON.stringify(value));
+  }
+
+  // ---------- Projects ----------
+  function loadProjects() {
+    const arr = loadJSON(PROJECTS_KEY, []);
+    return Array.isArray(arr) ? arr : [];
+  }
+
+  function saveProjects(arr) {
+    saveJSON(PROJECTS_KEY, arr);
+  }
+
+  function getCurrentProjectId() {
+    return localStorage.getItem(CURRENT_PROJECT_KEY) || "";
+  }
+
+  function setCurrentProjectId(id) {
+    if (!id) localStorage.removeItem(CURRENT_PROJECT_KEY);
+    else localStorage.setItem(CURRENT_PROJECT_KEY, id);
+    updateProjectPill();
+  }
+
+  function getProjectById(id) {
+    return loadProjects().find((p) => p.id === id) || null;
+  }
+
+  function getCurrentProject() {
+    const id = getCurrentProjectId();
+    return id ? getProjectById(id) : null;
+  }
+
+  function updateProjectPill() {
+    const pill = $("#projectPill");
+    const p = getCurrentProject();
+    if (!pill) return;
+    pill.textContent = p ? p.name : "No project";
+    pill.title = p ? `Current project: ${p.name}` : "No project selected";
+  }
+
+  function upsertProject(project) {
+    const projects = loadProjects();
+    const idx = projects.findIndex((p) => p.id === project.id);
+    if (idx >= 0) projects[idx] = project;
+    else projects.unshift(project);
+    saveProjects(projects);
+  }
+
+  function deleteProject(projectId) {
+    const projects = loadProjects().filter((p) => p.id !== projectId);
+    saveProjects(projects);
+    if (getCurrentProjectId() === projectId) setCurrentProjectId("");
+  }
+
+  function touchProjectLastUsed(projectId) {
+    const p = getProjectById(projectId);
+    if (!p) return;
+    p.lastUsedAt = new Date().toISOString();
+    p.updatedAt = p.updatedAt || p.lastUsedAt;
+    upsertProject(p);
+  }
+
+  // ---------- Records ----------
+  function loadRecords() {
+    const arr = loadJSON(RECORDS_KEY, []);
+    return Array.isArray(arr) ? arr : [];
+  }
+
   function saveRecords(records) {
-    localStorage.setItem(RECORDS_KEY, JSON.stringify(records));
+    saveJSON(RECORDS_KEY, records);
   }
 
   function addRecord(record) {
     const all = loadRecords();
     all.unshift(record);
-    saveRecords(all.slice(0, 200));
+    saveRecords(all.slice(0, 250));
   }
 
+  function findLastRecordByProject(projectId, type) {
+    const records = loadRecords();
+    return records.find((r) => r.projectId === projectId && r.type === type) || null;
+  }
+
+  // ---------- Routing ----------
   function route() {
     const h = (location.hash || "").replace("#", "").trim();
     return h || "home";
@@ -168,6 +212,7 @@
     const f = $("#footTag");
     if (b) b.textContent = `BUILD ${BUILD}`;
     if (f) f.textContent = `${APP_TITLE} • BUILD ${BUILD}`;
+    updateProjectPill();
   }
 
   function appRoot() {
@@ -182,7 +227,16 @@
     setTimeout(() => box.remove(), 4500);
   }
 
-  // ---------------- PDF: Daily Brief ----------------
+  function requireProjectOrRedirect(backRouteForMessage = "home") {
+    const p = getCurrentProject();
+    if (p) return p;
+    location.hash = "#home";
+    // message is shown on home render
+    sessionStorage.setItem("RFATL_NEED_PROJECT", backRouteForMessage);
+    return null;
+  }
+
+  // ---------- PDF: Daily Brief ----------
   function dailyBriefPdf(data) {
     const jsPDF = ensurePdf();
     if (!jsPDF) return;
@@ -297,10 +351,11 @@
     });
 
     const fileDate = sanitizeFileName(prettyDate(data.date));
-    doc.save(`Daily Morning Briefing - ${fileDate || "Record"}.pdf`);
+    const fileProj = sanitizeFileName(data.projectTitle || "Project");
+    doc.save(`Daily Morning Briefing - ${fileProj} - ${fileDate || "Record"}.pdf`);
   }
 
-  // ---------------- UI helpers ----------------
+  // ---------- UI Tiles ----------
   function tileHtml({ title, desc, openHref, blankPdfHref, openText = "Open", blankText = "Blank PDF" }) {
     const blankBtn = blankPdfHref
       ? `<a class="linkBtn" href="${escapeHtml(blankPdfHref)}" target="_blank" rel="noopener noreferrer">${escapeHtml(blankText)}</a>`
@@ -320,33 +375,81 @@
     `;
   }
 
-  // ---------------- Views ----------------
+  // ---------- Views ----------
   function renderHome() {
-    setSubtitle("Choose Daily / Weekly / Monthly");
     const root = appRoot();
+    const projects = loadProjects().slice().sort((a, b) => {
+      const ta = a.lastUsedAt || a.updatedAt || a.createdAt || "";
+      const tb = b.lastUsedAt || b.updatedAt || b.createdAt || "";
+      return tb.localeCompare(ta);
+    });
+
+    const current = getCurrentProject();
+
+    setSubtitle(current ? `Project: ${current.name}` : "Select a project");
+
+    const need = sessionStorage.getItem("RFATL_NEED_PROJECT");
+    sessionStorage.removeItem("RFATL_NEED_PROJECT");
 
     root.innerHTML = `
       <div class="card">
         <div class="cardHead">
           <div style="min-width:0;">
-            <h1 class="h1">Choose a section</h1>
-            <p class="sub">Daily / Weekly / Monthly. You can still use direct QR links to jump straight into a form.</p>
+            <h1 class="h1">${current ? "Current project" : "Choose a project"}</h1>
+            <p class="sub">${current ? "Now pick Daily / Weekly / Monthly." : "Projects are saved on this device. Create once, then it auto-fills your forms."}</p>
           </div>
           <div class="btnRow">
+            <button class="btnAlt" id="manageProjectsBtn">${current ? "Change project" : "Manage projects"}</button>
             <a class="btnGhost" href="#history">History</a>
           </div>
         </div>
 
-        <div class="cardBody">
-          <div class="tiles" id="catTiles"></div>
-
-          <div class="divider"></div>
-          <p class="muted">
-            Direct QR examples:
-            <b>#daily</b>, <b>#weekly</b>, <b>#monthly</b>, or straight to a form like <b>#daily-brief</b>.
-          </p>
-        </div>
+        <div class="cardBody" id="homeBody"></div>
       </div>
+    `;
+
+    const body = $("#homeBody");
+
+    if (need) {
+      showMsg(body.parentElement, "Select a project first (so forms can prefill site / crew / details).", false);
+    }
+
+    if (!current) {
+      body.innerHTML = `
+        <div class="tiles" id="projTiles"></div>
+        <div class="divider"></div>
+        <button class="btn" id="createProjectBtn">Create new project</button>
+        <p class="muted" style="margin-top:10px;">Tip: once a project is created, Daily Briefing will prefill site / location / lads automatically.</p>
+      `;
+
+      const tiles = $("#projTiles");
+      tiles.innerHTML = projects.length
+        ? projects.map((p) => tileHtml({
+            title: p.name,
+            desc: `${p.projectNo ? `Project No: ${p.projectNo} • ` : ""}${p.siteLocation ? `Site: ${p.siteLocation}` : "No site set yet"}`,
+            openHref: `#select-project:${encodeURIComponent(p.id)}`,
+            openText: "Select",
+          })).join("")
+        : `<p class="muted">No projects yet. Create one to get started.</p>`;
+
+      $("#createProjectBtn").addEventListener("click", () => {
+        location.hash = "#project-new";
+      });
+
+      $("#manageProjectsBtn").addEventListener("click", () => {
+        location.hash = "#projects";
+      });
+
+      return;
+    }
+
+    // If project selected: show categories
+    body.innerHTML = `
+      <div class="tiles" id="catTiles"></div>
+      <div class="divider"></div>
+      <p class="muted">
+        Current project is saved on this device. To switch sites, use “Change project”.
+      </p>
     `;
 
     const catTiles = $("#catTiles");
@@ -358,16 +461,203 @@
         openText: "Open",
       })
     ).join("");
+
+    $("#manageProjectsBtn").addEventListener("click", () => {
+      location.hash = "#projects";
+    });
+  }
+
+  function renderProjectsManager() {
+    const root = appRoot();
+    const projects = loadProjects().slice().sort((a, b) => {
+      const ta = a.lastUsedAt || a.updatedAt || a.createdAt || "";
+      const tb = b.lastUsedAt || b.updatedAt || b.createdAt || "";
+      return tb.localeCompare(ta);
+    });
+
+    setSubtitle("Manage projects");
+
+    root.innerHTML = `
+      <div class="card">
+        <div class="cardHead">
+          <div style="min-width:0;">
+            <h1 class="h1">Projects</h1>
+            <p class="sub">Create, edit, delete, or select a project.</p>
+          </div>
+          <div class="btnRow">
+            <a class="btnGhost" href="#home">Back</a>
+            <a class="btnAlt" href="#project-new">Create</a>
+          </div>
+        </div>
+
+        <div class="cardBody">
+          <div class="tiles" id="projList"></div>
+        </div>
+      </div>
+    `;
+
+    const list = $("#projList");
+    if (!projects.length) {
+      list.innerHTML = `<p class="muted">No projects yet.</p>`;
+      return;
+    }
+
+    list.innerHTML = projects.map((p) => `
+      <div class="tile">
+        <div class="tileLeft">
+          <p class="tileTitle">${escapeHtml(p.name)}</p>
+          <p class="tileSub">
+            ${p.projectNo ? `Project No: ${escapeHtml(p.projectNo)} • ` : ""}
+            ${p.siteLocation ? `Site: ${escapeHtml(p.siteLocation)}` : "No site set"}
+          </p>
+        </div>
+        <div class="tileRight">
+          <a class="btn" href="#select-project:${encodeURIComponent(p.id)}">Select</a>
+          <a class="btnAlt" href="#project-edit:${encodeURIComponent(p.id)}">Edit</a>
+          <button class="btnGhost" data-del="${escapeHtml(p.id)}">Delete</button>
+        </div>
+      </div>
+    `).join("");
+
+    root.querySelectorAll("button[data-del]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const id = btn.getAttribute("data-del");
+        const p = getProjectById(id);
+        if (!p) return;
+        const ok = confirm(`Delete project "${p.name}"? This does not delete saved PDFs, only the project profile.`);
+        if (!ok) return;
+        deleteProject(id);
+        renderProjectsManager();
+      });
+    });
+  }
+
+  function renderProjectForm(mode, projectId) {
+    const root = appRoot();
+    const isEdit = mode === "edit";
+    const existing = isEdit ? getProjectById(projectId) : null;
+
+    setSubtitle(isEdit ? "Edit project" : "Create project");
+
+    const init = existing || {
+      id: `p_${Date.now()}`,
+      name: "",
+      projectNo: "",
+      siteLocation: "",
+      workLocation: "",
+      defaultBriefingBy: "",
+      defaultJobTitle: "",
+      crew: [], // names only
+      createdAt: new Date().toISOString(),
+      updatedAt: "",
+      lastUsedAt: "",
+    };
+
+    const crewText = (init.crew || []).join("\n");
+
+    root.innerHTML = `
+      <div class="card">
+        <div class="cardHead">
+          <div style="min-width:0;">
+            <h1 class="h1">${isEdit ? "Edit project" : "Create project"}</h1>
+            <p class="sub">Set this once. Forms will prefill automatically for this project.</p>
+          </div>
+          <div class="btnRow">
+            <a class="btnGhost" href="#projects">Back</a>
+            <button class="btn" id="saveProjectBtn">Save</button>
+          </div>
+        </div>
+
+        <div class="cardBody">
+          <div class="grid2">
+            <div>
+              <label class="lbl">Project name (shown in list)</label>
+              <input class="inp" id="p_name" value="${escapeHtml(init.name)}" placeholder="e.g. Hinckley W1.035 / Site X">
+            </div>
+            <div>
+              <label class="lbl">Project number</label>
+              <input class="inp" id="p_projectNo" value="${escapeHtml(init.projectNo)}" placeholder="e.g. ATL-XXXX">
+            </div>
+
+            <div>
+              <label class="lbl">Site location (default)</label>
+              <input class="inp" id="p_siteLocation" value="${escapeHtml(init.siteLocation)}" placeholder="e.g. Hinckley">
+            </div>
+            <div>
+              <label class="lbl">Work location (default)</label>
+              <input class="inp" id="p_workLocation" value="${escapeHtml(init.workLocation)}" placeholder="e.g. Pit W1.035 / Compound">
+            </div>
+
+            <div>
+              <label class="lbl">Default briefing by</label>
+              <input class="inp" id="p_briefingBy" value="${escapeHtml(init.defaultBriefingBy)}" placeholder="e.g. Site Manager / Supervisor">
+            </div>
+            <div>
+              <label class="lbl">Default job title</label>
+              <input class="inp" id="p_jobTitle" value="${escapeHtml(init.defaultJobTitle)}" placeholder="e.g. Site Manager">
+            </div>
+          </div>
+
+          <div class="divider"></div>
+
+          <label class="lbl">Crew / lads list (one name per line)</label>
+          <textarea class="inp" rows="10" id="p_crew" placeholder="e.g.
+Aureliu Nica
+Alin Pop
+John Smith">${escapeHtml(crewText)}</textarea>
+
+          <p class="muted" style="margin-top:10px;">
+            This list will auto-create the sign-up lines in the Daily Briefing.
+          </p>
+        </div>
+      </div>
+    `;
+
+    $("#saveProjectBtn").addEventListener("click", () => {
+      const name = $("#p_name").value.trim();
+      if (!name) {
+        showMsg(root, "Project name is required.", false);
+        return;
+      }
+
+      const crewLines = $("#p_crew").value
+        .split("\n")
+        .map((s) => s.trim())
+        .filter(Boolean);
+
+      const saved = {
+        ...init,
+        name,
+        projectNo: $("#p_projectNo").value.trim(),
+        siteLocation: $("#p_siteLocation").value.trim(),
+        workLocation: $("#p_workLocation").value.trim(),
+        defaultBriefingBy: $("#p_briefingBy").value.trim(),
+        defaultJobTitle: $("#p_jobTitle").value.trim(),
+        crew: crewLines,
+        updatedAt: new Date().toISOString(),
+      };
+
+      upsertProject(saved);
+      showMsg(root, "Project saved.", true);
+
+      // auto-select after creating
+      if (!isEdit) setCurrentProjectId(saved.id);
+
+      location.hash = "#home";
+    });
   }
 
   function renderCategory(catKey) {
+    const project = requireProjectOrRedirect("home");
+    if (!project) return;
+
     const cat = CATEGORIES.find((c) => c.key === catKey);
     if (!cat) {
       location.hash = "#home";
       return;
     }
 
-    setSubtitle(cat.title);
+    setSubtitle(`${cat.title} • ${project.name}`);
     const root = appRoot();
 
     const forms = FORMS[catKey] || [];
@@ -377,11 +667,11 @@
         <div class="cardHead">
           <div style="min-width:0;">
             <h1 class="h1">${escapeHtml(cat.title)}</h1>
-            <p class="sub">${escapeHtml(cat.desc)}</p>
+            <p class="sub">${escapeHtml(cat.desc)} Prefill is active for: <b>${escapeHtml(project.name)}</b></p>
           </div>
           <div class="btnRow">
             <a class="btnGhost" href="#home">Back</a>
-            <a class="btnGhost" href="#history">History</a>
+            <a class="btnAlt" href="#projects">Change project</a>
           </div>
         </div>
 
@@ -395,7 +685,6 @@
     formTiles.innerHTML = forms
       .map((f) => {
         if (f.type === "external") {
-          // Render as tile with a button (not link) so we can validate URL
           return `
             <div class="tile">
               <div class="tileLeft">
@@ -418,7 +707,6 @@
           });
         }
 
-        // placeholder
         return tileHtml({
           title: f.title,
           desc: f.desc,
@@ -443,18 +731,30 @@
   }
 
   function renderDailyBrief() {
-    setSubtitle("Daily Morning Briefing");
+    const project = requireProjectOrRedirect("daily-brief");
+    if (!project) return;
+
+    touchProjectLastUsed(project.id);
+
+    setSubtitle(`Daily Briefing • ${project.name}`);
     const root = appRoot();
 
+    const last = findLastRecordByProject(project.id, "daily-brief");
+    const lastData = last?.data || {};
+
+    // Prefill priority:
+    // 1) Project profile values
+    // 2) Last completion values (where it makes sense)
+    // 3) Defaults
     const init = {
-      projectTitle: "",
-      workLocation: "",
-      siteLocation: "",
-      projectNo: "",
-      briefingBy: "",
-      jobTitle: "",
+      projectTitle: project.name || "",
+      projectNo: project.projectNo || "",
+      siteLocation: project.siteLocation || "",
+      workLocation: project.workLocation || "",
+      briefingBy: lastData.briefingBy || project.defaultBriefingBy || "",
+      jobTitle: lastData.jobTitle || project.defaultJobTitle || "",
       date: todayISO(),
-      personsAttending: "",
+      personsAttending: lastData.personsAttending || "",
       previousActivities: "",
       wentAsPlanned: "yes",
       concerns: "",
@@ -466,15 +766,28 @@
       attendees: [],
     };
 
+    // Prefill attendee rows from project crew list, else from last completion attendee names
+    const crewNames =
+      (project.crew && project.crew.length ? project.crew : null) ||
+      (Array.isArray(lastData.attendees) ? lastData.attendees.map((a) => a.name).filter(Boolean) : []) ||
+      [];
+
+    const attendees = crewNames.map((name) => ({
+      name,
+      date: prettyDate(init.date),
+      signature: "",
+    }));
+
     root.innerHTML = `
       <div class="card">
         <div class="cardHead">
           <div style="min-width:0;">
             <h1 class="h1">Daily Morning Briefing</h1>
-            <p class="sub">Fill the form, then generate a PDF. You can also open the blank template in the browser.</p>
+            <p class="sub">Project: <b>${escapeHtml(project.name)}</b> • Fields auto-filled from Project + last completion.</p>
           </div>
           <div class="btnRow">
             <a class="btnGhost" href="#daily">Back</a>
+            <a class="btnAlt" href="#projects">Change project</a>
             ${TEMPLATES.dailyBrief ? `<a class="linkBtn" href="${escapeHtml(TEMPLATES.dailyBrief)}" target="_blank" rel="noopener noreferrer">Blank PDF</a>` : ""}
             <button class="btnAlt" id="saveBtn">Save</button>
             <button class="btn" id="pdfBtn">Download PDF</button>
@@ -505,7 +818,7 @@
       <div class="divider"></div>
 
       <label class="lbl">Previous day’s activities</label>
-      <textarea class="inp" rows="3" id="db_previousActivities">${escapeHtml(init.previousActivities)}</textarea>
+      <textarea class="inp" rows="3" id="db_previousActivities"></textarea>
 
       <div class="grid2" style="margin-top:12px;">
         <div>
@@ -517,12 +830,12 @@
         </div>
         <div>
           <label class="lbl">Any concerns from the previous day?</label>
-          <input class="inp" id="db_concerns" value="${escapeHtml(init.concerns)}" placeholder="Short note (or leave blank)">
+          <input class="inp" id="db_concerns" value="" placeholder="Short note (or leave blank)">
         </div>
       </div>
 
       <label class="lbl" style="margin-top:12px;">Today’s planned activities briefing</label>
-      <textarea class="inp" rows="3" id="db_plannedActivities">${escapeHtml(init.plannedActivities)}</textarea>
+      <textarea class="inp" rows="3" id="db_plannedActivities"></textarea>
 
       <div class="divider"></div>
 
@@ -558,6 +871,7 @@
       <div class="divider"></div>
 
       <h3 class="h1" style="font-size:16px; margin:0 0 10px;">Attendees (sign-up)</h3>
+      <p class="muted" style="margin:0 0 10px;">Auto-filled from the Project crew list. Remove/add as needed.</p>
       <div id="db_attendees"></div>
       <button class="btnAlt" type="button" id="addAttendee">Add attendee</button>
     `;
@@ -567,14 +881,9 @@
     DAILY_BRIEF_POINTS.forEach((p, idx) => {
       const row = document.createElement("label");
       row.className = "tickRow";
-      row.innerHTML = `
-        <input type="checkbox" id="pt_${idx}">
-        <span>${escapeHtml(p)}</span>
-      `;
+      row.innerHTML = `<input type="checkbox" id="pt_${idx}"><span>${escapeHtml(p)}</span>`;
       pointsWrap.appendChild(row);
     });
-
-    const attendees = [];
 
     function renderAttendees() {
       const wrap = $("#db_attendees");
@@ -638,6 +947,13 @@
       renderAttendees();
     });
 
+    // keep attendee date aligned when date changes
+    $("#db_date").addEventListener("change", () => {
+      const d = prettyDate($("#db_date").value);
+      attendees.forEach((a) => (a.date = d));
+      renderAttendees();
+    });
+
     renderAttendees();
 
     function collect() {
@@ -672,57 +988,95 @@
       return data;
     }
 
+    function persistProjectCrewFromBriefing(collected) {
+      const p = getProjectById(project.id);
+      if (!p) return;
+
+      const names = (collected.attendees || [])
+        .map((a) => (a.name || "").trim())
+        .filter(Boolean);
+
+      // Update crew list to latest known names (so next time it prefills correctly)
+      if (names.length) {
+        p.crew = Array.from(new Set(names));
+        p.updatedAt = new Date().toISOString();
+        p.lastUsedAt = p.updatedAt;
+        upsertProject(p);
+      }
+    }
+
     $("#saveBtn").addEventListener("click", () => {
       const data = collect();
+
       addRecord({
         id: `db_${Date.now()}`,
         type: "daily-brief",
         title: "Daily Morning Briefing",
         createdAt: new Date().toISOString(),
+        projectId: project.id,
+        projectName: project.name,
         data,
       });
-      showMsg(root, "Saved to History.", true);
+
+      persistProjectCrewFromBriefing(data);
+      touchProjectLastUsed(project.id);
+
+      showMsg(root, "Saved. Next time this project will prefill from what you used today.", true);
     });
 
     $("#pdfBtn").addEventListener("click", () => {
       const data = collect();
+
       addRecord({
         id: `db_${Date.now()}`,
         type: "daily-brief",
         title: "Daily Morning Briefing",
         createdAt: new Date().toISOString(),
+        projectId: project.id,
+        projectName: project.name,
         data,
       });
+
+      persistProjectCrewFromBriefing(data);
+      touchProjectLastUsed(project.id);
+
       dailyBriefPdf(data);
       showMsg(root, "PDF downloaded and saved to History.", true);
     });
   }
 
   function renderPlaceholder(title, backHash) {
-    setSubtitle(title);
+    const project = requireProjectOrRedirect(title);
+    if (!project) return;
+
+    setSubtitle(`${title} • ${project.name}`);
     const root = appRoot();
+
     root.innerHTML = `
       <div class="card">
         <div class="cardHead">
           <div style="min-width:0;">
             <h1 class="h1">${escapeHtml(title)}</h1>
-            <p class="sub">We will build this next using the same QR-style “fill → PDF” workflow.</p>
+            <p class="sub">Project: <b>${escapeHtml(project.name)}</b> • We will build this next with prefill + PDF output.</p>
           </div>
           <div class="btnRow">
             <a class="btnGhost" href="${escapeHtml(backHash || "#home")}">Back</a>
+            <a class="btnAlt" href="#projects">Change project</a>
           </div>
         </div>
         <div class="cardBody">
-          <p class="muted">Send me the exact permit template you want as PDF (or the Word doc), and we’ll replicate it as a phone-friendly form that outputs a clean PDF.</p>
+          <p class="muted">Send me the exact permit template you want (PDF or Word) and we’ll replicate it as a phone-friendly form that generates a tidy PDF.</p>
         </div>
       </div>
     `;
   }
 
   function renderHistory() {
-    setSubtitle("Saved records");
     const root = appRoot();
     const records = loadRecords();
+
+    const current = getCurrentProject();
+    setSubtitle(current ? `History • ${current.name}` : "History");
 
     root.innerHTML = `
       <div class="card">
@@ -737,7 +1091,7 @@
           </div>
         </div>
         <div class="cardBody">
-          <div id="histList"></div>
+          <div class="tiles" id="histList"></div>
         </div>
       </div>
     `;
@@ -746,13 +1100,16 @@
     if (!records.length) {
       list.innerHTML = `<p class="muted">No records saved yet.</p>`;
     } else {
-      list.innerHTML = records
+      const filtered = current ? records.filter((r) => r.projectId === current.id) : records;
+
+      list.innerHTML = filtered
         .map((r) => {
           const when = r.createdAt ? new Date(r.createdAt).toLocaleString() : "";
+          const proj = r.projectName ? ` • ${r.projectName}` : "";
           return `
-            <div class="tile" style="margin-bottom:10px;">
+            <div class="tile">
               <div class="tileLeft">
-                <p class="tileTitle">${escapeHtml(r.title || r.type)}</p>
+                <p class="tileTitle">${escapeHtml(r.title || r.type)}${escapeHtml(proj)}</p>
                 <p class="tileSub">${escapeHtml(when)}</p>
               </div>
               <div class="tileRight">
@@ -774,35 +1131,58 @@
     }
 
     $("#clearBtn").addEventListener("click", () => {
+      const ok = confirm("Clear all saved records on this device?");
+      if (!ok) return;
       localStorage.removeItem(RECORDS_KEY);
       renderHistory();
     });
   }
 
+  // ---------- Router ----------
   function render() {
+    updateProjectPill();
+
     const r = route();
 
-    // Category pages
+    // actions
+    if (r.startsWith("select-project:")) {
+      const id = decodeURIComponent(r.split(":")[1] || "");
+      const p = getProjectById(id);
+      if (p) {
+        setCurrentProjectId(p.id);
+        touchProjectLastUsed(p.id);
+      }
+      location.hash = "#home";
+      return;
+    }
+
+    // projects
+    if (r === "projects") return renderProjectsManager();
+    if (r === "project-new") return renderProjectForm("new");
+    if (r.startsWith("project-edit:")) {
+      const id = decodeURIComponent(r.split(":")[1] || "");
+      return renderProjectForm("edit", id);
+    }
+
+    // home + categories
     if (r === "home") return renderHome();
     if (r === "daily") return renderCategory("daily");
     if (r === "weekly") return renderCategory("weekly");
     if (r === "monthly") return renderCategory("monthly");
 
-    // Forms
+    // forms
     if (r === "daily-brief") return renderDailyBrief();
     if (r === "ground-disturbance") return renderPlaceholder("Ground Disturbance Permit", "#daily");
     if (r === "hot-works") return renderPlaceholder("Hot Works Permit", "#daily");
 
-    // Weekly placeholders
     if (r === "weekly-safety") return renderPlaceholder("Weekly Safety Site Inspection", "#weekly");
     if (r === "weekly-ladder") return renderPlaceholder("Weekly Ladder Inspection", "#weekly");
     if (r === "weekly-tw") return renderPlaceholder("Weekly Temporary Works Inspection", "#weekly");
 
-    // Monthly placeholders
     if (r === "monthly-pat") return renderPlaceholder("PAT Testing Check", "#monthly");
     if (r === "monthly-lifting") return renderPlaceholder("Monthly Lifting Equipment Check", "#monthly");
 
-    // History
+    // history
     if (r === "history") return renderHistory();
 
     // fallback
