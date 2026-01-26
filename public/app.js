@@ -1,6 +1,6 @@
 /* public/app.js */
 (() => {
-  const BUILD = "v0.1";
+  const BUILD = "v0.2";
   const STORAGE_KEY = "RFATL_SUBMISSIONS_V1";
 
   const $ = (id) => document.getElementById(id);
@@ -140,7 +140,6 @@
   function addSubmission(sub) {
     const all = loadSubmissions();
     all.unshift(sub);
-    // Keep it tidy
     const trimmed = all.slice(0, 100);
     saveSubmissions(trimmed);
   }
@@ -191,7 +190,6 @@
     doc.setFontSize(10);
     doc.text(`Generated: ${createdAt.toLocaleString()}`, left, y + 16);
 
-    // Yellow accent line
     doc.setDrawColor(255, 214, 0);
     doc.setLineWidth(3);
     doc.line(left, y + 28, 555, y + 28);
@@ -208,7 +206,6 @@
     doc.text(submission.category ? `Frequency: ${submission.category.toUpperCase()}` : "", left, y);
     y += 18;
 
-    // Meta table
     const periodLabel = submission.periodLabel || "Date";
     const metaRows = [
       ["Project", meta.project || ""],
@@ -366,7 +363,13 @@
     if (titleEl) titleEl.textContent = checklist.title;
     if (descEl) descEl.textContent = checklist.description || "";
 
-    if (backLink) backLink.href = `./list.html?cat=${encodeURIComponent(cat)}`;
+    // Back behaviour:
+    // - If only 1 checklist exists for that category, go back to Home
+    // - If more than 1 exists, go back to the category list
+    if (backLink) {
+      const count = CHECKLISTS.filter((c) => c.category === cat).length;
+      backLink.href = count > 1 ? `./list.html?cat=${encodeURIComponent(cat)}` : `./index.html`;
+    }
 
     // Set period label + default value
     let periodLabel = "Date";
@@ -490,6 +493,10 @@
       if (errorBox) {
         errorBox.style.display = "none";
         errorBox.textContent = "";
+        // reset in case previous success state changed styling
+        errorBox.style.borderColor = "rgba(220,38,38,.35)";
+        errorBox.style.background = "rgba(220,38,38,.06)";
+        errorBox.style.color = "#7f1d1d";
       }
 
       const meta = {
@@ -504,7 +511,6 @@
       // Period prettify
       let periodPretty = "";
       if (cat === "monthly") {
-        // Show Month/Year
         const d = new Date((meta.period || monthISO()) + "T00:00:00");
         const m = d.toLocaleString(undefined, { month: "long" });
         periodPretty = `${m} ${d.getFullYear()}`;
@@ -548,10 +554,8 @@
         })),
       };
 
-      // Save locally
       addSubmission(submission);
 
-      // Download PDF
       if (submitBtn) submitBtn.disabled = true;
       try {
         generatePDF(submission);
@@ -559,7 +563,6 @@
         if (submitBtn) submitBtn.disabled = false;
       }
 
-      // Simple UX: scroll top & show confirmation via errorBox style (reuse)
       if (errorBox) {
         errorBox.style.display = "block";
         errorBox.style.borderColor = "rgba(22,163,74,.35)";
