@@ -103,16 +103,7 @@
       color:var(--muted);
       line-height:1.3;
     }
-    .cardBody{
-      padding:16px;
-    }
-
-    .grid2{ display:grid; grid-template-columns:1fr; gap:12px; }
-    .grid3{ display:grid; grid-template-columns:1fr; gap:12px; }
-    @media (min-width: 820px){
-      .grid2{ grid-template-columns:1fr 1fr; }
-      .grid3{ grid-template-columns:1fr 1fr 1fr; }
-    }
+    .cardBody{ padding:16px; }
 
     .btnRow{
       display:flex; flex-wrap:wrap;
@@ -166,10 +157,13 @@
     .tileSub{ color:var(--muted); margin:6px 0 0; font-size:13px; line-height:1.3; }
     .tileRight{ display:flex; gap:10px; align-items:center; justify-content:flex-end; flex-shrink:0; }
 
-    .divider{
-      height:1px;
-      background:var(--line);
-      margin:16px 0;
+    .divider{ height:1px; background:var(--line); margin:16px 0; }
+
+    .grid2{ display:grid; grid-template-columns:1fr; gap:12px; }
+    .grid3{ display:grid; grid-template-columns:1fr; gap:12px; }
+    @media (min-width: 820px){
+      .grid2{ grid-template-columns:1fr 1fr; }
+      .grid3{ grid-template-columns:1fr 1fr 1fr; }
     }
 
     .lbl{
@@ -244,7 +238,6 @@
     }
   </style>
 
-  <!-- PDF libraries -->
   <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
 </head>
@@ -256,7 +249,7 @@
         <div class="badge">RF</div>
         <div style="min-width:0;">
           <div class="brandTitle">Red Folder ATL</div>
-          <div class="brandSub" id="subTitle">Fast site forms • QR-friendly</div>
+          <div class="brandSub" id="subTitle">Choose Daily / Weekly / Monthly</div>
         </div>
       </div>
 

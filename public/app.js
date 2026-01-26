@@ -1,15 +1,15 @@
 /* public/app.js */
 (() => {
-  const BUILD = "v1.0";
+  const BUILD = "v1.1";
   const APP_TITLE = "Red Folder ATL";
 
-  // Put your blank template here in the repo:
+  // Put your blank template PDFs in the repo here:
   // public/templates/daily-briefing.pdf
   const TEMPLATES = {
     dailyBrief: "./templates/daily-briefing.pdf",
   };
 
-  // Paste your existing Plant Checks URL here (your QR app)
+  // Paste your Plant Checks URL (your existing QR Plant Checks app)
   const PLANT_CHECKS_URL = ""; // e.g. "https://plant-checks.pages.dev/"
 
   const RECORDS_KEY = "RFATL_RECORDS_V1";
@@ -34,6 +34,65 @@
     "Overhead / Underground Cable Strike",
     "Trips / Falls",
   ];
+
+  // Category + forms (QR-style, but with Daily/Weekly/Monthly choice)
+  const CATEGORIES = [
+    {
+      key: "daily",
+      title: "Daily Checks",
+      desc: "Daily paperwork and compliance checks. QR-friendly.",
+    },
+    {
+      key: "weekly",
+      title: "Weekly Checks",
+      desc: "Weekly inspections and records (one per WC).",
+    },
+    {
+      key: "monthly",
+      title: "Monthly Checks",
+      desc: "Monthly compliance checks and records.",
+    },
+  ];
+
+  // Each form has a route key. Direct QR can go to these routes.
+  const FORMS = {
+    daily: [
+      {
+        key: "daily-brief",
+        title: "Daily Morning Briefing",
+        desc: "Fill on the phone → generate PDF.",
+        blankPdf: TEMPLATES.dailyBrief,
+        type: "internal",
+      },
+      {
+        key: "plant-checks",
+        title: "Plant Checks",
+        desc: "Opens your existing Plant Checks QR app.",
+        type: "external",
+      },
+      {
+        key: "ground-disturbance",
+        title: "Ground Disturbance Permit",
+        desc: "Next to build (same flow as the QR app).",
+        type: "placeholder",
+      },
+      {
+        key: "hot-works",
+        title: "Hot Works Permit",
+        desc: "Next to build (same flow as the QR app).",
+        type: "placeholder",
+      },
+    ],
+    weekly: [
+      { key: "weekly-safety", title: "Weekly Safety Site Inspection", desc: "To build next.", type: "placeholder" },
+      { key: "weekly-ladder", title: "Weekly Ladder Inspection", desc: "To build next.", type: "placeholder" },
+      { key: "weekly-tw", title: "Weekly Temporary Works Inspection", desc: "To build next.", type: "placeholder" },
+    ],
+    monthly: [
+      { key: "monthly-pat", title: "PAT Testing Check", desc: "To build next.", type: "placeholder" },
+      { key: "monthly-lifting", title: "Monthly Lifting Equipment Check", desc: "To build next.", type: "placeholder" },
+    ],
+  };
 
   const $ = (sel, root = document) => root.querySelector(sel);
 
@@ -124,7 +183,7 @@
   }
 
   // ---------------- PDF: Daily Brief ----------------
-  function dailyBriefPdf(data, mode = "download") {
+  function dailyBriefPdf(data) {
     const jsPDF = ensurePdf();
     if (!jsPDF) return;
 
@@ -202,9 +261,9 @@
       startY: y,
       head: [["Compliance confirmations", "Answer"]],
       body: [
-        ["Activities covered by RAMS / Work Instruction?", (data.coveredByRAMS || "").toUpperCase()],
+        ["Covered by RAMS / Work Instruction?", (data.coveredByRAMS || "").toUpperCase()],
         ["All control measures in place?", (data.controlsInPlace || "").toUpperCase()],
-        ["Operatives compliant with PPE?", (data.ppeCompliant || "").toUpperCase()],
+        ["PPE compliant?", (data.ppeCompliant || "").toUpperCase()],
       ],
       theme: "grid",
       styles: { font: "helvetica", fontSize: 9, cellPadding: 4 },
@@ -238,30 +297,40 @@
     });
 
     const fileDate = sanitizeFileName(prettyDate(data.date));
-    const name = `Daily Morning Briefing - ${fileDate || "Record"}.pdf`;
+    doc.save(`Daily Morning Briefing - ${fileDate || "Record"}.pdf`);
+  }
 
-    if (mode === "download") {
-      doc.save(name);
-      return;
-    }
+  // ---------------- UI helpers ----------------
+  function tileHtml({ title, desc, openHref, blankPdfHref, openText = "Open", blankText = "Blank PDF" }) {
+    const blankBtn = blankPdfHref
+      ? `<a class="linkBtn" href="${escapeHtml(blankPdfHref)}" target="_blank" rel="noopener noreferrer">${escapeHtml(blankText)}</a>`
+      : "";
 
-    // mode === "open" (preview in browser)
-    const blob = doc.output("blob");
-    const url = URL.createObjectURL(blob);
-    window.open(url, "_blank", "noopener,noreferrer");
-    setTimeout(() => URL.revokeObjectURL(url), 15000);
+    return `
+      <div class="tile">
+        <div class="tileLeft">
+          <p class="tileTitle">${escapeHtml(title)}</p>
+          <p class="tileSub">${escapeHtml(desc || "")}</p>
+        </div>
+        <div class="tileRight">
+          ${openHref ? `<a class="btn" href="${escapeHtml(openHref)}">${escapeHtml(openText)}</a>` : ""}
+          ${blankBtn}
+        </div>
+      </div>
+    `;
   }
 
   // ---------------- Views ----------------
   function renderHome() {
-    setSubtitle("Choose a form (QR-friendly)");
+    setSubtitle("Choose Daily / Weekly / Monthly");
     const root = appRoot();
+
     root.innerHTML = `
       <div class="card">
         <div class="cardHead">
           <div style="min-width:0;">
-            <h1 class="h1">Forms</h1>
-            <p class="sub">Tap a form to start immediately. Each link can become its own QR code.</p>
+            <h1 class="h1">Choose a section</h1>
+            <p class="sub">Daily / Weekly / Monthly. You can still use direct QR links to jump straight into a form.</p>
           </div>
           <div class="btnRow">
             <a class="btnGhost" href="#history">History</a>
@@ -269,63 +338,107 @@
         </div>
 
         <div class="cardBody">
-          <div class="tiles">
-            <div class="tile">
-              <div class="tileLeft">
-                <p class="tileTitle">Daily Morning Briefing</p>
-                <p class="tileSub">Fill on the phone → generate PDF.</p>
-              </div>
-              <div class="tileRight">
-                <a class="btn" href="#daily-brief">Open</a>
-                <a class="linkBtn" href="${TEMPLATES.dailyBrief}" target="_blank" rel="noopener noreferrer">Blank PDF</a>
-              </div>
-            </div>
-
-            <div class="tile">
-              <div class="tileLeft">
-                <p class="tileTitle">Plant Checks</p>
-                <p class="tileSub">Opens your existing Plant Checks QR app.</p>
-              </div>
-              <div class="tileRight">
-                <button class="btn" id="openPlantChecks">Open</button>
-              </div>
-            </div>
-
-            <div class="tile">
-              <div class="tileLeft">
-                <p class="tileTitle">Ground Disturbance Permit</p>
-                <p class="tileSub">Next to build (same flow as Plant Checks).</p>
-              </div>
-              <div class="tileRight">
-                <a class="btnAlt" href="#ground-disturbance">Open</a>
-              </div>
-            </div>
-
-            <div class="tile">
-              <div class="tileLeft">
-                <p class="tileTitle">Hot Works Permit</p>
-                <p class="tileSub">Next to build (same flow as Plant Checks).</p>
-              </div>
-              <div class="tileRight">
-                <a class="btnAlt" href="#hot-works">Open</a>
-              </div>
-            </div>
-          </div>
+          <div class="tiles" id="catTiles"></div>
 
           <div class="divider"></div>
           <p class="muted">
-            Tip: QR codes can point straight to a form, e.g. <b>#daily-brief</b> so the user opens the exact page.
+            Direct QR examples:
+            <b>#daily</b>, <b>#weekly</b>, <b>#monthly</b>, or straight to a form like <b>#daily-brief</b>.
           </p>
         </div>
       </div>
     `;
 
-    $("#openPlantChecks")?.addEventListener("click", () => {
-      if (!PLANT_CHECKS_URL) {
-        alert("Plant Checks URL is not set yet in app.js (PLANT_CHECKS_URL).");
-        return;
-      }
-      window.open(PLANT_CHECKS_URL, "_blank", "noopener,noreferrer");
+    const catTiles = $("#catTiles");
+    catTiles.innerHTML = CATEGORIES.map((c) =>
+      tileHtml({
+        title: c.title,
+        desc: c.desc,
+        openHref: `#${c.key}`,
+        openText: "Open",
+      })
+    ).join("");
+  }
+
+  function renderCategory(catKey) {
+    const cat = CATEGORIES.find((c) => c.key === catKey);
+    if (!cat) {
+      location.hash = "#home";
+      return;
+    }
+
+    setSubtitle(cat.title);
+    const root = appRoot();
+
+    const forms = FORMS[catKey] || [];
+
+    root.innerHTML = `
+      <div class="card">
+        <div class="cardHead">
+          <div style="min-width:0;">
+            <h1 class="h1">${escapeHtml(cat.title)}</h1>
+            <p class="sub">${escapeHtml(cat.desc)}</p>
+          </div>
+          <div class="btnRow">
+            <a class="btnGhost" href="#home">Back</a>
+            <a class="btnGhost" href="#history">History</a>
+          </div>
+        </div>
+
+        <div class="cardBody">
+          <div class="tiles" id="formTiles"></div>
+        </div>
+      </div>
+    `;
+
+    const formTiles = $("#formTiles");
+    formTiles.innerHTML = forms
+      .map((f) => {
+        if (f.type === "external") {
+          // Render as tile with a button (not link) so we can validate URL
+          return `
+            <div class="tile">
+              <div class="tileLeft">
+                <p class="tileTitle">${escapeHtml(f.title)}</p>
+                <p class="tileSub">${escapeHtml(f.desc || "")}</p>
+              </div>
+              <div class="tileRight">
+                <button class="btn" data-open-external="${escapeHtml(f.key)}">Open</button>
+              </div>
+            </div>
+          `;
+        }
+
+        if (f.type === "internal") {
+          return tileHtml({
+            title: f.title,
+            desc: f.desc,
+            openHref: `#${f.key}`,
+            blankPdfHref: f.blankPdf,
+          });
+        }
+
+        // placeholder
+        return tileHtml({
+          title: f.title,
+          desc: f.desc,
+          openHref: `#${f.key}`,
+          openText: "Open",
+        });
+      })
+      .join("");
+
+    root.querySelectorAll("button[data-open-external]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const key = btn.getAttribute("data-open-external");
+        if (key === "plant-checks") {
+          if (!PLANT_CHECKS_URL) {
+            alert("Plant Checks URL is not set yet in app.js (PLANT_CHECKS_URL).");
+            return;
+          }
+          window.open(PLANT_CHECKS_URL, "_blank", "noopener,noreferrer");
+        }
+      });
     });
   }
 
@@ -361,8 +474,8 @@
             <p class="sub">Fill the form, then generate a PDF. You can also open the blank template in the browser.</p>
           </div>
           <div class="btnRow">
-            <a class="btnGhost" href="#home">Back</a>
-            <a class="linkBtn" href="${TEMPLATES.dailyBrief}" target="_blank" rel="noopener noreferrer">Open blank PDF</a>
+            <a class="btnGhost" href="#daily">Back</a>
+            ${TEMPLATES.dailyBrief ? `<a class="linkBtn" href="${escapeHtml(TEMPLATES.dailyBrief)}" target="_blank" rel="noopener noreferrer">Blank PDF</a>` : ""}
             <button class="btnAlt" id="saveBtn">Save</button>
             <button class="btn" id="pdfBtn">Download PDF</button>
           </div>
@@ -373,6 +486,7 @@
     `;
 
     const body = $("#dbBody");
+
     body.innerHTML = `
       <div class="grid2">
         <div><label class="lbl">Project title</label><input class="inp" id="db_projectTitle" value="${escapeHtml(init.projectTitle)}"></div>
@@ -579,12 +693,12 @@
         createdAt: new Date().toISOString(),
         data,
       });
-      dailyBriefPdf(data, "download");
+      dailyBriefPdf(data);
       showMsg(root, "PDF downloaded and saved to History.", true);
     });
   }
 
-  function renderPlaceholder(formKey, title) {
+  function renderPlaceholder(title, backHash) {
     setSubtitle(title);
     const root = appRoot();
     root.innerHTML = `
@@ -592,16 +706,14 @@
         <div class="cardHead">
           <div style="min-width:0;">
             <h1 class="h1">${escapeHtml(title)}</h1>
-            <p class="sub">We’ll build this next using the exact same “fill → PDF” flow.</p>
+            <p class="sub">We will build this next using the same QR-style “fill → PDF” workflow.</p>
           </div>
           <div class="btnRow">
-            <a class="btnGhost" href="#home">Back</a>
+            <a class="btnGhost" href="${escapeHtml(backHash || "#home")}">Back</a>
           </div>
         </div>
         <div class="cardBody">
-          <p class="muted">
-            When you’re ready, we’ll convert your permit template into a clean on-phone form and generate a PDF record.
-          </p>
+          <p class="muted">Send me the exact permit template you want as PDF (or the Word doc), and we’ll replicate it as a phone-friendly form that outputs a clean PDF.</p>
         </div>
       </div>
     `;
@@ -644,11 +756,7 @@
                 <p class="tileSub">${escapeHtml(when)}</p>
               </div>
               <div class="tileRight">
-                ${
-                  r.type === "daily-brief"
-                    ? `<button class="btn" data-dl="${escapeHtml(r.id)}">Download PDF</button>`
-                    : ``
-                }
+                ${r.type === "daily-brief" ? `<button class="btn" data-dl="${escapeHtml(r.id)}">Download PDF</button>` : ""}
               </div>
             </div>
           `;
@@ -660,7 +768,7 @@
           const id = btn.dataset.dl;
           const rec = records.find((x) => x.id === id);
           if (!rec) return;
-          if (rec.type === "daily-brief") dailyBriefPdf(rec.data, "download");
+          if (rec.type === "daily-brief") dailyBriefPdf(rec.data);
         });
       });
     }
@@ -674,10 +782,27 @@
   function render() {
     const r = route();
 
+    // Category pages
     if (r === "home") return renderHome();
+    if (r === "daily") return renderCategory("daily");
+    if (r === "weekly") return renderCategory("weekly");
+    if (r === "monthly") return renderCategory("monthly");
+
+    // Forms
     if (r === "daily-brief") return renderDailyBrief();
-    if (r === "ground-disturbance") return renderPlaceholder("ground-disturbance", "Ground Disturbance Permit");
-    if (r === "hot-works") return renderPlaceholder("hot-works", "Hot Works Permit");
+    if (r === "ground-disturbance") return renderPlaceholder("Ground Disturbance Permit", "#daily");
+    if (r === "hot-works") return renderPlaceholder("Hot Works Permit", "#daily");
+
+    // Weekly placeholders
+    if (r === "weekly-safety") return renderPlaceholder("Weekly Safety Site Inspection", "#weekly");
+    if (r === "weekly-ladder") return renderPlaceholder("Weekly Ladder Inspection", "#weekly");
+    if (r === "weekly-tw") return renderPlaceholder("Weekly Temporary Works Inspection", "#weekly");
+
+    // Monthly placeholders
+    if (r === "monthly-pat") return renderPlaceholder("PAT Testing Check", "#monthly");
+    if (r === "monthly-lifting") return renderPlaceholder("Monthly Lifting Equipment Check", "#monthly");
+
+    // History
     if (r === "history") return renderHistory();
 
     // fallback
