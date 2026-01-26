@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>Red Folder ATL</title>
+  <link rel="stylesheet" href="./style.css" />
+  <script src="./app.js" defer></script>
+</head>
+
+<body data-page="home">
+  <header class="topbar">
+    <div class="brand">
+      <div class="brandMark" aria-hidden="true"></div>
+      <div>
+        <div class="brandTitle">Red Folder ATL</div>
+        <div class="brandSub">Daily, weekly, and monthly compliance checks — PDF on submit</div>
+      </div>
+    </div>
+
+    <nav class="topActions">
+      <a class="linkBtn" href="./history.html">History</a>
+    </nav>
+  </header>
+
+  <main class="wrap">
+    <section class="card">
+      <h1 class="h1">Choose a check frequency</h1>
+      <p class="p">Start by selecting the frequency, then pick the checklist you want to complete.</p>
+
+      <div class="grid3">
+        <a class="bigBtn" href="./list.html?cat=daily">
+          <div class="bigBtnTitle">Daily Checks</div>
+          <div class="bigBtnSub">Complete today’s checks and download the PDF.</div>
+        </a>
+
+        <a class="bigBtn" href="./list.html?cat=weekly">
+          <div class="bigBtnTitle">Weekly Checks</div>
+          <div class="bigBtnSub">One submission per Week Commencing.</div>
+        </a>
+
+        <a class="bigBtn" href="./list.html?cat=monthly">
+          <div class="bigBtnTitle">Monthly Checks</div>
+          <div class="bigBtnSub">One submission per calendar month.</div>
+        </a>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="rowBetween">
+        <h2 class="h2">Recent submissions</h2>
+        <a class="linkBtn" href="./history.html">Open history</a>
+      </div>
+      <div id="recentList" class="list"></div>
+      <div id="recentEmpty" class="muted" style="display:none;">No submissions yet.</div>
+    </section>
+
+    <footer class="footer">
+      <span id="buildTag" class="muted"></span>
+    </footer>
+  </main>
+</body>
+</html>

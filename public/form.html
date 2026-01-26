@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>Red Folder ATL • Checklist</title>
+  <link rel="stylesheet" href="./style.css" />
+
+  <!-- jsPDF + AutoTable (CDN) -->
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
+
+  <script src="./app.js" defer></script>
+</head>
+
+<body data-page="form">
+  <header class="topbar">
+    <div class="brand">
+      <a class="backBtn" id="backLink" href="./index.html" aria-label="Back">←</a>
+      <div>
+        <div class="brandTitle">Red Folder ATL</div>
+        <div id="formSubtitle" class="brandSub">Checklist</div>
+      </div>
+    </div>
+
+    <nav class="topActions">
+      <a class="linkBtn" href="./history.html">History</a>
+    </nav>
+  </header>
+
+  <main class="wrap">
+    <section class="card">
+      <div class="rowBetween">
+        <div>
+          <h1 id="formTitle" class="h1">Checklist</h1>
+          <p id="formDesc" class="p"></p>
+        </div>
+
+        <div class="row">
+          <button id="markAllDoneBtn" class="btn btnAlt" type="button">Mark all Done</button>
+        </div>
+      </div>
+
+      <div id="errorBox" class="errorBox" style="display:none;"></div>
+
+      <form id="checkForm" autocomplete="off" novalidate>
+        <div class="metaGrid">
+          <label class="field">
+            <span class="label">Project</span>
+            <input id="meta_project" class="input" type="text" placeholder="e.g., Hinckley W1.0xx" required />
+          </label>
+
+          <label class="field">
+            <span class="label">Project No.</span>
+            <input id="meta_projectNo" class="input" type="text" placeholder="Optional" />
+          </label>
+
+          <label class="field">
+            <span class="label">Site</span>
+            <input id="meta_site" class="input" type="text" placeholder="e.g., W1.035" required />
+          </label>
+
+          <label class="field">
+            <span class="label">Supervisor</span>
+            <input id="meta_supervisor" class="input" type="text" placeholder="Name" required />
+          </label>
+
+          <label class="field">
+            <span id="periodLabel" class="label">Date</span>
+            <input id="meta_period" class="input" type="date" required />
+          </label>
+
+          <label class="field">
+            <span class="label">Completed by</span>
+            <input id="meta_completedBy" class="input" type="text" placeholder="Name" required />
+          </label>
+        </div>
+
+        <div class="divider"></div>
+
+        <div id="itemsWrap" class="itemsWrap"></div>
+
+        <div class="divider"></div>
+
+        <div class="rowBetween">
+          <div class="mutedSmall">
+            Tip: Use “Not Done” with a short note so the PDF is defensible in audits.
+          </div>
+          <button id="submitBtn" class="btn btnPrimary" type="submit">Submit & Download PDF</button>
+        </div>
+      </form>
+    </section>
+
+    <footer class="footer">
+      <span id="buildTag" class="muted"></span>
+    </footer>
+  </main>
+</body>
+</html>

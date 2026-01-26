@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>Red Folder ATL • History</title>
+  <link rel="stylesheet" href="./style.css" />
+
+  <!-- jsPDF + AutoTable (for re-download) -->
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
+
+  <script src="./app.js" defer></script>
+</head>
+
+<body data-page="history">
+  <header class="topbar">
+    <div class="brand">
+      <a class="backBtn" href="./index.html" aria-label="Back">←</a>
+      <div>
+        <div class="brandTitle">Red Folder ATL</div>
+        <div class="brandSub">Submission History</div>
+      </div>
+    </div>
+
+    <nav class="topActions">
+      <button id="clearHistoryBtn" class="linkBtn" type="button">Clear</button>
+    </nav>
+  </header>
+
+  <main class="wrap">
+    <section class="card">
+      <h1 class="h1">History</h1>
+      <p class="p">Re-download PDFs from saved submissions (stored locally on this device).</p>
+
+      <div id="historyList" class="list"></div>
+      <div id="historyEmpty" class="muted" style="display:none;">No submissions saved on this device.</div>
+    </section>
+
+    <footer class="footer">
+      <span id="buildTag" class="muted"></span>
+    </footer>
+  </main>
+</body>
+</html>
