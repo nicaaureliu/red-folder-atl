@@ -1,11 +1,9 @@
 /* public/app.js */
 (() => {
-  const BUILD = "v1.3";
+  const BUILD = "v1.4";
   const APP_TITLE = "Red Folder ATL";
 
   // Templates (served by Cloudflare Pages)
-  // Put your blank template PDFs here:
-  // public/templates/daily-briefing.pdf
   const TEMPLATES = {
     dailyBrief: "./templates/daily-briefing.pdf",
   };
@@ -17,9 +15,7 @@
   const RECORDS_KEY = "RFATL_RECORDS_V1";
   const PROJECTS_KEY = "RFATL_PROJECTS_V1";
 
-  // IMPORTANT:
-  // Use sessionStorage so when you close the tab/browser and reopen the link,
-  // it forces choosing a project again.
+  // Session-only project selection (forces choose-project again when reopening)
   const CURRENT_PROJECT_KEY = "RFATL_CURRENT_PROJECT_V1";
 
   const DAILY_BRIEF_POINTS = [
@@ -244,7 +240,6 @@
   }
 
   function headerHomeButtonHtml() {
-    // Always show a Home button that forces user back to project selection.
     return `<button class="btnGhost" id="homeBtn" type="button">Home</button>`;
   }
 
@@ -252,10 +247,174 @@
     const btn = $("#homeBtn");
     if (!btn) return;
     btn.addEventListener("click", () => {
-      // Home = choose project again (but projects are still saved on device)
       clearCurrentProject();
       location.hash = "#home";
     });
+  }
+
+  // ---------- Signature Pad (Modal) ----------
+  function openSignaturePad({ initialDataUrl = "", onSave }) {
+    // Remove any existing modal
+    const old = document.getElementById("sigModal");
+    if (old) old.remove();
+
+    const modal = document.createElement("div");
+    modal.id = "sigModal";
+    modal.innerHTML = `
+      <div style="
+        position:fixed; inset:0; background:rgba(0,0,0,.45);
+        display:flex; align-items:center; justify-content:center; padding:16px; z-index:9999;">
+        <div style="
+          width:min(720px, 100%); background:#fff; border-radius:16px;
+          box-shadow:0 10px 30px rgba(0,0,0,.25); overflow:hidden;">
+          <div style="padding:14px 16px; border-bottom:1px solid #e5e7eb; display:flex; align-items:center; justify-content:space-between; gap:12px;">
+            <div style="min-width:0;">
+              <div style="font-weight:700;">Draw signature</div>
+              <div style="font-size:12px; color:#6b7280;">Use finger/mouse. Tap Clear to redo.</div>
+            </div>
+            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+              <button id="sigClear" class="btnAlt" type="button">Clear</button>
+              <button id="sigCancel" class="btnGhost" type="button">Cancel</button>
+              <button id="sigSave" class="btn" type="button">Save</button>
+            </div>
+          </div>
+
+          <div style="padding:14px 16px;">
+            <div style="border:1px solid #e5e7eb; border-radius:12px; overflow:hidden; background:#fff;">
+              <canvas id="sigCanvas" style="width:100%; height:220px; display:block; touch-action:none;"></canvas>
+            </div>
+            <div style="margin-top:10px; font-size:12px; color:#6b7280;">
+              Tip: sign bigger than you think — it will scale nicely onto the PDF.
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+
+    const canvas = document.getElementById("sigCanvas");
+    const ctx = canvas.getContext("2d");
+
+    // Fit canvas to container with DPR
+    function resizeCanvas() {
+      const rect = canvas.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = Math.floor(rect.width * dpr);
+      canvas.height = Math.floor(rect.height * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0); // draw in CSS pixels
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      ctx.lineWidth = 2.2;
+      ctx.strokeStyle = "#111";
+    }
+    resizeCanvas();
+
+    // Load existing signature if any
+    if (initialDataUrl) {
+      const img = new Image();
+      img.onload = () => {
+        // draw image scaled to fit
+        const rect = canvas.getBoundingClientRect();
+        ctx.clearRect(0, 0, rect.width, rect.height);
+        const iw = img.width;
+        const ih = img.height;
+        const scale = Math.min(rect.width / iw, rect.height / ih);
+        const w = iw * scale;
+        const h = ih * scale;
+        const x = (rect.width - w) / 2;
+        const y = (rect.height - h) / 2;
+        ctx.drawImage(img, x, y, w, h);
+      };
+      img.src = initialDataUrl;
+    }
+
+    let drawing = false;
+    let lastX = 0;
+    let lastY = 0;
+
+    function getPos(e) {
+      const rect = canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      return { x, y };
+    }
+
+    function startDraw(e) {
+      drawing = true;
+      const p = getPos(e);
+      lastX = p.x;
+      lastY = p.y;
+      ctx.beginPath();
+      ctx.moveTo(lastX, lastY);
+    }
+
+    function moveDraw(e) {
+      if (!drawing) return;
+      const p = getPos(e);
+      ctx.lineTo(p.x, p.y);
+      ctx.stroke();
+      lastX = p.x;
+      lastY = p.y;
+    }
+
+    function endDraw() {
+      drawing = false;
+      ctx.closePath();
+    }
+
+    // Pointer events
+    canvas.addEventListener("pointerdown", (e) => {
+      e.preventDefault();
+      canvas.setPointerCapture?.(e.pointerId);
+      startDraw(e);
+    });
+    canvas.addEventListener("pointermove", (e) => {
+      e.preventDefault();
+      moveDraw(e);
+    });
+    canvas.addEventListener("pointerup", (e) => {
+      e.preventDefault();
+      endDraw();
+      canvas.releasePointerCapture?.(e.pointerId);
+    });
+    canvas.addEventListener("pointercancel", (e) => {
+      e.preventDefault();
+      endDraw();
+    });
+
+    function close() {
+      modal.remove();
+    }
+
+    document.getElementById("sigCancel").addEventListener("click", close);
+    document.getElementById("sigClear").addEventListener("click", () => {
+      const rect = canvas.getBoundingClientRect();
+      ctx.clearRect(0, 0, rect.width, rect.height);
+    });
+
+    document.getElementById("sigSave").addEventListener("click", () => {
+      // Export at a sensible size to keep localStorage small
+      const exportW = 520;
+      const exportH = 180;
+      const tmp = document.createElement("canvas");
+      tmp.width = exportW;
+      tmp.height = exportH;
+      const tctx = tmp.getContext("2d");
+
+      // Keep transparent background; draw current canvas scaled to tmp
+      const img = new Image();
+      img.onload = () => {
+        tctx.clearRect(0, 0, exportW, exportH);
+        tctx.drawImage(img, 0, 0, exportW, exportH);
+        const dataUrl = tmp.toDataURL("image/png");
+        onSave?.(dataUrl);
+        close();
+      };
+      img.src = canvas.toDataURL("image/png");
+    });
+
+    // Handle responsive changes
+    window.addEventListener("resize", resizeCanvas, { once: true });
   }
 
   // ---------- PDF: Daily Brief ----------
@@ -348,6 +507,7 @@
       columnStyles: { 0: { cellWidth: 445 }, 1: { cellWidth: 70 } },
     });
 
+    // Page 2: Sign-up
     doc.addPage();
     doc.setFont("helvetica", "bold");
     doc.setFontSize(14);
@@ -356,20 +516,43 @@
     doc.setLineWidth(3);
     doc.line(left, 58, 555, 58);
 
-    const att = (data.attendees || []).filter((a) => a.name || a.signature);
+    const att = (data.attendees || []).filter((a) => a.name || a.signatureDataUrl);
     const attRows = att.length
-      ? att.map((a) => [a.name || "", a.date || prettyDate(data.date), a.signature || ""])
+      ? att.map((a) => [a.name || "", a.date || prettyDate(data.date), ""]) // signature cell drawn as image
       : [["", "", ""]];
+
+    // Map signature data by row index (body rows)
+    const sigByRow = att.map((a) => a.signatureDataUrl || "");
 
     doc.autoTable({
       startY: 78,
       head: [["Name", "Date", "Signature"]],
       body: attRows,
       theme: "grid",
-      styles: { font: "helvetica", fontSize: 9, cellPadding: 4 },
+      styles: { font: "helvetica", fontSize: 9, cellPadding: 4, minCellHeight: 36 },
       headStyles: { fillColor: [255, 214, 0], textColor: 17 },
       margin: { left, right: 40 },
       columnStyles: { 0: { cellWidth: 200 }, 1: { cellWidth: 110 }, 2: { cellWidth: 205 } },
+      didDrawCell: (hookData) => {
+        // Draw signature image into body cells of the Signature column
+        if (hookData.section !== "body") return;
+        if (hookData.column.index !== 2) return;
+
+        const rowIndex = hookData.row.index;
+        const dataUrl = sigByRow[rowIndex];
+        if (!dataUrl) return;
+
+        const x = hookData.cell.x + 4;
+        const y = hookData.cell.y + 4;
+        const w = hookData.cell.width - 8;
+        const h = hookData.cell.height - 8;
+
+        try {
+          doc.addImage(dataUrl, "PNG", x, y, w, h, undefined, "FAST");
+        } catch {
+          // If addImage fails for any reason, just skip the image
+        }
+      },
     });
 
     const fileDate = sanitizeFileName(prettyDate(data.date));
@@ -407,7 +590,6 @@
       return tb.localeCompare(ta);
     });
 
-    // Home always means "choose project"
     setSubtitle("Choose a project");
 
     const need = sessionStorage.getItem("RFATL_NEED_PROJECT");
@@ -445,12 +627,14 @@
 
     const tiles = $("#projTiles");
     tiles.innerHTML = projects.length
-      ? projects.map((p) => tileHtml({
-          title: p.name,
-          desc: `${p.projectNo ? `Project No: ${p.projectNo} • ` : ""}${p.siteLocation ? `Site: ${p.siteLocation}` : "No site set yet"}`,
-          openHref: `#select-project:${encodeURIComponent(p.id)}`,
-          openText: "Select",
-        })).join("")
+      ? projects.map((p) =>
+          tileHtml({
+            title: p.name,
+            desc: `${p.projectNo ? `Project No: ${p.projectNo} • ` : ""}${p.siteLocation ? `Site: ${p.siteLocation}` : "No site set yet"}`,
+            openHref: `#select-project:${encodeURIComponent(p.id)}`,
+            openText: "Select",
+          })
+        ).join("")
       : `<p class="muted">No projects yet. Create one to get started.</p>`;
 
     $("#createProjectBtn").addEventListener("click", () => {
@@ -494,7 +678,9 @@
       return;
     }
 
-    list.innerHTML = projects.map((p) => `
+    list.innerHTML = projects
+      .map(
+        (p) => `
       <div class="tile">
         <div class="tileLeft">
           <p class="tileTitle">${escapeHtml(p.name)}</p>
@@ -509,7 +695,9 @@
           <button class="btnGhost" data-del="${escapeHtml(p.id)}">Delete</button>
         </div>
       </div>
-    `).join("");
+    `
+      )
+      .join("");
 
     root.querySelectorAll("button[data-del]").forEach((btn) => {
       btn.addEventListener("click", () => {
@@ -634,9 +822,7 @@ John Smith">${escapeHtml(crewText)}</textarea>
       upsertProject(saved);
       showMsg(root, "Project saved.", true);
 
-      // Auto-select AFTER saving (but only for this session)
       setCurrentProjectId(saved.id);
-
       location.hash = "#dashboard";
     });
   }
@@ -808,7 +994,7 @@ John Smith">${escapeHtml(crewText)}</textarea>
     const attendees = crewNames.map((name) => ({
       name,
       date: prettyDate(init.date),
-      signature: "",
+      signatureDataUrl: "",
     }));
 
     root.innerHTML = `
@@ -932,6 +1118,8 @@ John Smith">${escapeHtml(crewText)}</textarea>
       }
 
       attendees.forEach((a, i) => {
+        const hasSig = !!a.signatureDataUrl;
+
         const block = document.createElement("div");
         block.innerHTML = `
           <div class="grid3">
@@ -944,8 +1132,15 @@ John Smith">${escapeHtml(crewText)}</textarea>
               <input class="inp" data-i="${i}" data-f="date" value="${escapeHtml(a.date || "")}">
             </div>
             <div>
-              <label class="lbl">Signature (type)</label>
-              <input class="inp" data-i="${i}" data-f="sig" value="${escapeHtml(a.signature || "")}">
+              <label class="lbl">Signature (draw)</label>
+              <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                <button class="btnAlt" type="button" data-sig="${i}">${hasSig ? "Edit signature" : "Draw signature"}</button>
+                ${hasSig ? `<button class="btnGhost" type="button" data-sig-clear="${i}">Clear</button>` : ""}
+                <div style="display:flex; align-items:center; gap:8px;">
+                  ${hasSig ? `<img src="${escapeHtml(a.signatureDataUrl)}" alt="signature" style="height:34px; width:auto; border:1px solid #e5e7eb; border-radius:8px; background:#fff; padding:2px;">`
+                            : `<span style="font-size:12px; color:#6b7280;">No signature</span>`}
+                </div>
+              </div>
             </div>
           </div>
           <div style="margin-top:10px;">
@@ -963,7 +1158,28 @@ John Smith">${escapeHtml(crewText)}</textarea>
           attendees[i] = attendees[i] || {};
           if (f === "name") attendees[i].name = e.target.value;
           if (f === "date") attendees[i].date = e.target.value;
-          if (f === "sig") attendees[i].signature = e.target.value;
+        });
+      });
+
+      wrap.querySelectorAll("button[data-sig]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const i = Number(btn.getAttribute("data-sig"));
+          const current = attendees[i]?.signatureDataUrl || "";
+          openSignaturePad({
+            initialDataUrl: current,
+            onSave: (dataUrl) => {
+              attendees[i].signatureDataUrl = dataUrl;
+              renderAttendees();
+            },
+          });
+        });
+      });
+
+      wrap.querySelectorAll("button[data-sig-clear]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const i = Number(btn.getAttribute("data-sig-clear"));
+          attendees[i].signatureDataUrl = "";
+          renderAttendees();
         });
       });
 
@@ -977,7 +1193,7 @@ John Smith">${escapeHtml(crewText)}</textarea>
     }
 
     $("#addAttendee").addEventListener("click", () => {
-      attendees.push({ name: "", date: prettyDate($("#db_date").value), signature: "" });
+      attendees.push({ name: "", date: prettyDate($("#db_date").value), signatureDataUrl: "" });
       renderAttendees();
     });
 
@@ -1010,7 +1226,7 @@ John Smith">${escapeHtml(crewText)}</textarea>
         attendees: attendees.map((a) => ({
           name: (a.name || "").trim(),
           date: (a.date || "").trim(),
-          signature: (a.signature || "").trim(),
+          signatureDataUrl: a.signatureDataUrl || "",
         })),
       };
 
@@ -1176,7 +1392,6 @@ John Smith">${escapeHtml(crewText)}</textarea>
   // ---------- Router ----------
   function render() {
     updateProjectPill();
-
     const r = route();
 
     if (r.startsWith("select-project:")) {
@@ -1197,10 +1412,7 @@ John Smith">${escapeHtml(crewText)}</textarea>
       return renderProjectForm("edit", id);
     }
 
-    // Home now ALWAYS means choose project
     if (r === "home") return renderHome();
-
-    // Dashboard is the current project landing page
     if (r === "dashboard") return renderDashboard();
 
     if (r === "daily") return renderCategory("daily");
@@ -1220,20 +1432,12 @@ John Smith">${escapeHtml(crewText)}</textarea>
 
     if (r === "history") return renderHistory();
 
-    // default: go to home (choose project)
     location.hash = "#home";
   }
 
   function init() {
     setBuild();
-
-    // If someone had the old version that stored current project in localStorage,
-    // ignore it completely. (We now use sessionStorage only.)
-    // No action needed beyond not reading localStorage.
-
     window.addEventListener("hashchange", render);
-
-    // First load should always land on Home (choose project)
     if (!location.hash) location.hash = "#home";
     render();
   }
