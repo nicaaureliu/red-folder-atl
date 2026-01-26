@@ -1,3 +1,4 @@
+<!-- public/task.html -->
 <!doctype html>
 <html lang="en">
 <head>
@@ -7,52 +8,51 @@
 
   <link rel="stylesheet" href="./style.css" />
 
-  <!-- PDF libs -->
+  <!-- PDF libraries (match what app.js expects) -->
   <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
-
-  <script src="./app.js" defer></script>
 </head>
 
 <body data-page="task">
   <header class="topbar">
-    <div class="brand">
-      <a id="taskBackLink" class="linkBtn" href="./index.html">Back</a>
+    <div class="topLeft">
+      <a class="iconBtn" id="backLink" href="./index.html" aria-label="Back">←</a>
       <div>
         <div class="brandTitle">Red Folder ATL</div>
-        <div id="taskSubtitle" class="brandSub"></div>
+        <div class="brandSub" id="taskBreadcrumb">Checklist • Task</div>
       </div>
     </div>
 
-    <nav class="topActions">
-      <a class="linkBtn" href="./history.html">History</a>
-    </nav>
+    <div class="topRight">
+      <a class="pillBtn" href="./history.html">History</a>
+    </div>
   </header>
 
   <main class="wrap">
     <section class="card">
-      <div class="rowBetween">
-        <div>
-          <h1 id="taskTitle" class="h1">Task</h1>
-          <p id="taskDesc" class="p"></p>
+      <div class="cardHead">
+        <div style="min-width:0;">
+          <h1 class="h1" id="taskTitle">Task</h1>
+          <p class="sub" id="taskDesc">Complete the task and download the PDF.</p>
         </div>
-        <div class="rightStack">
-          <button id="taskPdfBtn" class="btnAlt" type="button">Download Task PDF</button>
-          <button id="taskSaveBtn" class="btnAlt" type="button">Save</button>
-          <button id="taskCompleteBtn" class="btn" type="button">Save & Mark Complete</button>
+
+        <div class="actions">
+          <button class="btn btnAlt" type="button" id="naTaskBtn">Mark N/A</button>
+          <button class="btn btnAlt" type="button" id="saveTaskBtn">Save</button>
+          <button class="btn" type="button" id="pdfTaskBtn">Download PDF</button>
         </div>
       </div>
 
-      <div id="taskMsg" class="successBox" style="display:none;"></div>
-
-      <div id="taskContext" class="contextBox"></div>
+      <div id="taskMsg" class="msg" style="display:none;"></div>
 
       <div id="taskBody"></div>
     </section>
 
-    <footer class="footer">
-      <span id="buildTag" class="muted"></span>
+    <footer class="foot">
+      <span id="buildTag"></span>
     </footer>
   </main>
+
+  <script src="./app.js"></script>
 </body>
 </html>
