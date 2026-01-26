@@ -1,6 +1,6 @@
 /* public/app.js */
 (() => {
-  const BUILD = "v0.4";
+  const BUILD = "v0.5";
   const SUBMISSIONS_KEY = "RFATL_SUBMISSIONS_V1";
   const PACKSTATE_KEY = "RFATL_PACKSTATE_V1";
 
@@ -21,11 +21,11 @@
   // If you want Plant Checks to open your existing QR Plant Checks site, paste it here:
   const PLANT_CHECKS_URL = ""; // e.g. "https://your-plant-checks.pages.dev/"
 
-  // Option A: template PDFs (blank reference forms)
-  // Put files inside: /public/templates/  (so they are served by Cloudflare Pages)
+  // Blank template PDFs served by the site (Option A)
+  // Put files inside: /public/templates/  (so Cloudflare Pages serves them)
   const TASK_TEMPLATES = {
     daily_brief: "./templates/daily-briefing.pdf",
-    // future (when you upload them):
+    // future:
     // ground_disturbance_permit: "./templates/ground-disturbance-permit.pdf",
     // hot_work_permit: "./templates/hot-works-permit.pdf",
   };
@@ -35,7 +35,7 @@
     return t ? String(t) : "";
   }
 
-  // Starter checklists (from your Excel screenshot)
+  // Starter checklists
   const CHECKLISTS = [
     {
       id: "sm_daily_pack",
@@ -110,8 +110,8 @@
 
   function mondayOf(dateISO) {
     const d = new Date(dateISO + "T00:00:00");
-    const day = d.getDay(); // 0 Sun ... 6 Sat
-    const diff = (day === 0 ? -6 : 1) - day; // Monday
+    const day = d.getDay();
+    const diff = (day === 0 ? -6 : 1) - day;
     d.setDate(d.getDate() + diff);
     const z = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
     return z.toISOString().slice(0, 10);
@@ -176,7 +176,7 @@
         checklistId,
         period,
         meta: {},
-        tasks: {}, // key -> { status: "new|complete|na", data: {}, updatedAt }
+        tasks: {},
         createdAt: new Date().toISOString(),
       };
       savePackState(all);
@@ -297,9 +297,7 @@
       return [
         it.label,
         label,
-        pack.tasks?.[it.key]?.updatedAt
-          ? new Date(pack.tasks[it.key].updatedAt).toLocaleString()
-          : "",
+        pack.tasks?.[it.key]?.updatedAt ? new Date(pack.tasks[it.key].updatedAt).toLocaleString() : "",
       ];
     });
 
@@ -367,7 +365,6 @@
     };
 
     const data = Object.assign({}, defaultData, existing);
-
     const templateUrl = templateForTask("daily_brief");
 
     container.innerHTML = `
@@ -375,72 +372,56 @@
         templateUrl
           ? `
         <div class="actions" style="justify-content:flex-start; gap:10px; margin: 0 0 12px;">
-          <button class="btn btnAlt" type="button" id="db_openBlank">Open blank template PDF</button>
+          <button class="btn btnAlt" type="button" id="db_togglePreview">Preview blank PDF</button>
+          <button class="btn btnAlt" type="button" id="db_openBlank">Open blank PDF (new tab)</button>
+        </div>
+
+        <div id="db_pdfPane" style="display:none; margin: 0 0 14px;">
+          <iframe
+            src="${templateUrl}#view=FitH"
+            style="width:100%; height:650px; border:1px solid var(--line,#e5e7eb); border-radius:12px;"
+            loading="lazy"></iframe>
         </div>
       `
           : ""
       }
 
       <div class="grid2">
-        <div><label class="lbl">Project title</label><input class="inp" id="db_projectTitle" value="${escapeHtml(
-          data.projectTitle
-        )}"></div>
-        <div><label class="lbl">Site location</label><input class="inp" id="db_siteLocation" value="${escapeHtml(
-          data.siteLocation
-        )}"></div>
+        <div><label class="lbl">Project title</label><input class="inp" id="db_projectTitle" value="${escapeHtml(data.projectTitle)}"></div>
+        <div><label class="lbl">Site location</label><input class="inp" id="db_siteLocation" value="${escapeHtml(data.siteLocation)}"></div>
 
-        <div><label class="lbl">Work location</label><input class="inp" id="db_workLocation" value="${escapeHtml(
-          data.workLocation
-        )}"></div>
-        <div><label class="lbl">Project no</label><input class="inp" id="db_projectNo" value="${escapeHtml(
-          data.projectNo
-        )}"></div>
+        <div><label class="lbl">Work location</label><input class="inp" id="db_workLocation" value="${escapeHtml(data.workLocation)}"></div>
+        <div><label class="lbl">Project no</label><input class="inp" id="db_projectNo" value="${escapeHtml(data.projectNo)}"></div>
 
-        <div><label class="lbl">Name of person giving briefing</label><input class="inp" id="db_briefingBy" value="${escapeHtml(
-          data.briefingBy
-        )}"></div>
-        <div><label class="lbl">Job title</label><input class="inp" id="db_jobTitle" value="${escapeHtml(
-          data.jobTitle
-        )}"></div>
+        <div><label class="lbl">Name of person giving briefing</label><input class="inp" id="db_briefingBy" value="${escapeHtml(data.briefingBy)}"></div>
+        <div><label class="lbl">Job title</label><input class="inp" id="db_jobTitle" value="${escapeHtml(data.jobTitle)}"></div>
 
-        <div><label class="lbl">Date</label><input class="inp" type="date" id="db_date" value="${escapeHtml(
-          data.date
-        )}"></div>
-        <div><label class="lbl">No. persons attending</label><input class="inp" id="db_personsAttending" value="${escapeHtml(
-          data.personsAttending
-        )}"></div>
+        <div><label class="lbl">Date</label><input class="inp" type="date" id="db_date" value="${escapeHtml(data.date)}"></div>
+        <div><label class="lbl">No. persons attending</label><input class="inp" id="db_personsAttending" value="${escapeHtml(data.personsAttending)}"></div>
       </div>
 
       <div class="divider"></div>
 
       <div>
         <label class="lbl">Previous day’s activities</label>
-        <textarea class="inp" rows="3" id="db_previousActivities">${escapeHtml(
-          data.previousActivities
-        )}</textarea>
+        <textarea class="inp" rows="3" id="db_previousActivities">${escapeHtml(data.previousActivities)}</textarea>
 
         <div class="grid2" style="margin-top:10px;">
           <div>
             <label class="lbl">Did they go as planned?</label>
             <select class="inp" id="db_wentAsPlanned">
-              <option value="yes" ${
-                data.wentAsPlanned === "yes" ? "selected" : ""
-              }>Yes</option>
-              <option value="no" ${data.wentAsPlanned === "no" ? "selected" : ""}>No</option>
+              <option value="yes" ${data.wentAsPlanned==="yes"?"selected":""}>Yes</option>
+              <option value="no" ${data.wentAsPlanned==="no"?"selected":""}>No</option>
             </select>
           </div>
           <div>
             <label class="lbl">Any concerns from the previous day?</label>
-            <input class="inp" id="db_concerns" value="${escapeHtml(
-              data.concerns
-            )}" placeholder="Short note (or leave blank)">
+            <input class="inp" id="db_concerns" value="${escapeHtml(data.concerns)}" placeholder="Short note (or leave blank)">
           </div>
         </div>
 
         <label class="lbl" style="margin-top:10px;">Today’s planned activities briefing</label>
-        <textarea class="inp" rows="3" id="db_plannedActivities">${escapeHtml(
-          data.plannedActivities
-        )}</textarea>
+        <textarea class="inp" rows="3" id="db_plannedActivities">${escapeHtml(data.plannedActivities)}</textarea>
       </div>
 
       <div class="divider"></div>
@@ -454,22 +435,22 @@
         <div>
           <label class="lbl">Activities covered by RAMS / Work Instruction?</label>
           <select class="inp" id="db_coveredByRAMS">
-            <option value="yes" ${data.coveredByRAMS === "yes" ? "selected" : ""}>Yes</option>
-            <option value="no" ${data.coveredByRAMS === "no" ? "selected" : ""}>No</option>
+            <option value="yes" ${data.coveredByRAMS==="yes"?"selected":""}>Yes</option>
+            <option value="no" ${data.coveredByRAMS==="no"?"selected":""}>No</option>
           </select>
         </div>
         <div>
           <label class="lbl">All control measures in place?</label>
           <select class="inp" id="db_controlsInPlace">
-            <option value="yes" ${data.controlsInPlace === "yes" ? "selected" : ""}>Yes</option>
-            <option value="no" ${data.controlsInPlace === "no" ? "selected" : ""}>No</option>
+            <option value="yes" ${data.controlsInPlace==="yes"?"selected":""}>Yes</option>
+            <option value="no" ${data.controlsInPlace==="no"?"selected":""}>No</option>
           </select>
         </div>
         <div>
           <label class="lbl">Operatives compliant with PPE?</label>
           <select class="inp" id="db_ppeCompliant">
-            <option value="yes" ${data.ppeCompliant === "yes" ? "selected" : ""}>Yes</option>
-            <option value="no" ${data.ppeCompliant === "no" ? "selected" : ""}>No</option>
+            <option value="yes" ${data.ppeCompliant==="yes"?"selected":""}>Yes</option>
+            <option value="no" ${data.ppeCompliant==="no"?"selected":""}>No</option>
           </select>
         </div>
       </div>
@@ -482,12 +463,19 @@
     `;
 
     if (templateUrl) {
-      const btn = container.querySelector("#db_openBlank");
-      if (btn) {
-        btn.addEventListener("click", () => {
-          window.open(templateUrl, "_blank", "noopener,noreferrer");
-        });
-      }
+      const openBtn = container.querySelector("#db_openBlank");
+      const toggleBtn = container.querySelector("#db_togglePreview");
+      const pane = container.querySelector("#db_pdfPane");
+
+      openBtn?.addEventListener("click", () => {
+        window.open(templateUrl, "_blank", "noopener,noreferrer");
+      });
+
+      toggleBtn?.addEventListener("click", () => {
+        const showing = pane.style.display !== "none";
+        pane.style.display = showing ? "none" : "block";
+        toggleBtn.textContent = showing ? "Preview blank PDF" : "Hide blank PDF";
+      });
     }
 
     // render points
@@ -528,15 +516,11 @@
             </div>
             <div>
               <label class="lbl">Date</label>
-              <input class="inp" data-att="date" data-i="${i}" value="${escapeHtml(
-                a.date || prettyDate(data.date)
-              )}" />
+              <input class="inp" data-att="date" data-i="${i}" value="${escapeHtml(a.date || prettyDate(data.date))}" />
             </div>
             <div>
               <label class="lbl">Signature (type)</label>
-              <input class="inp" data-att="sig" data-i="${i}" value="${escapeHtml(
-                a.signature || ""
-              )}" placeholder="Type signature" />
+              <input class="inp" data-att="sig" data-i="${i}" value="${escapeHtml(a.signature || "")}" placeholder="Type signature" />
             </div>
           </div>
           <div style="margin-top:8px;">
@@ -739,9 +723,7 @@
 
     container.innerHTML = `
       <label class="lbl">Notes / Details</label>
-      <textarea class="inp" rows="4" id="gen_note" placeholder="Add anything useful (optional)">${escapeHtml(
-        data.note || ""
-      )}</textarea>
+      <textarea class="inp" rows="4" id="gen_note" placeholder="Add anything useful (optional)">${escapeHtml(data.note || "")}</textarea>
       <p class="muted" style="margin-top:10px;">
         This task is a placeholder for now. We will replace it with the full form (questions + proper PDF) next.
       </p>
@@ -828,81 +810,11 @@
   function renderHome() {
     const buildTag = $("buildTag");
     if (buildTag) buildTag.textContent = `BUILD ${BUILD} • by Aureliu Nica`;
-
-    const recentList = $("recentList");
-    const recentEmpty = $("recentEmpty");
-    if (!recentList || !recentEmpty) return;
-
-    const subs = loadSubmissions().slice(0, 5);
-    recentList.innerHTML = "";
-
-    if (!subs.length) {
-      recentEmpty.style.display = "block";
-      return;
-    }
-    recentEmpty.style.display = "none";
-
-    for (const s of subs) {
-      const when = s.createdAt ? new Date(s.createdAt).toLocaleString() : "";
-      const period = s?.meta?.periodPretty || s?.meta?.period || "";
-      const card = document.createElement("div");
-      card.className = "itemCard";
-      card.innerHTML = `
-        <div style="min-width:0;">
-          <div class="itemTitle">${escapeHtml(s.title || "Checklist")}</div>
-          <div class="itemSub">${escapeHtml((s.category || "").toUpperCase())} • ${escapeHtml(
-        period
-      )} • ${escapeHtml(when)}</div>
-        </div>
-        <div class="itemRight">
-          <a class="linkBtn" href="./history.html">Open</a>
-        </div>
-      `;
-      recentList.appendChild(card);
-    }
   }
 
   function renderList() {
     const buildTag = $("buildTag");
     if (buildTag) buildTag.textContent = `BUILD ${BUILD} • by Aureliu Nica`;
-
-    const cat = (getParam("cat") || "").toLowerCase();
-    const listTitle = $("listTitle");
-    const listSubtitle = $("listSubtitle");
-    const listHint = $("listHint");
-    const listEmpty = $("listEmpty");
-    const checklistList = $("checklistList");
-
-    const label = CAT_LABELS[cat] || "Checklists";
-    if (listTitle) listTitle.textContent = label;
-    if (listSubtitle) listSubtitle.textContent = label;
-    if (listHint) listHint.textContent = CAT_HINTS[cat] || "";
-
-    if (!checklistList || !listEmpty) return;
-
-    const items = CHECKLISTS.filter((c) => c.category === cat);
-    checklistList.innerHTML = "";
-
-    if (!items.length) {
-      listEmpty.style.display = "block";
-      return;
-    }
-    listEmpty.style.display = "none";
-
-    for (const c of items) {
-      const card = document.createElement("div");
-      card.className = "itemCard";
-      card.innerHTML = `
-        <div style="min-width:0;">
-          <div class="itemTitle">${escapeHtml(c.title)}</div>
-          <div class="itemSub">${escapeHtml(c.description || "")}</div>
-        </div>
-        <div class="itemRight">
-          <a class="linkBtn" href="./form.html?id=${encodeURIComponent(c.id)}">Open</a>
-        </div>
-      `;
-      checklistList.appendChild(card);
-    }
   }
 
   function renderForm() {
@@ -912,30 +824,12 @@
     const id = getParam("id");
     const checklist = getChecklistById(id);
 
-    const titleEl = $("formTitle");
-    const descEl = $("formDesc");
-    const subEl = $("formSubtitle");
     const itemsWrap = $("itemsWrap");
-    const periodLabelEl = $("periodLabel");
     const periodInput = $("meta_period");
-    const backLink = $("backLink");
     const errorBox = $("errorBox");
+    const submitBtn = $("submitBtn");
 
     if (!checklist || !itemsWrap || !periodInput) return;
-
-    if (subEl) subEl.textContent = `${CAT_LABELS[checklist.category] || "Checks"} • ${checklist.title}`;
-    if (titleEl) titleEl.textContent = checklist.title;
-    if (descEl) descEl.textContent = checklist.description || "";
-
-    if (backLink) {
-      const count = CHECKLISTS.filter((c) => c.category === checklist.category).length;
-      backLink.href = count > 1 ? `./list.html?cat=${encodeURIComponent(checklist.category)}` : `./index.html`;
-    }
-
-    let periodLabel = "Date";
-    if (checklist.category === "weekly") periodLabel = "Week Commencing (Monday)";
-    if (checklist.category === "monthly") periodLabel = "Month (select any day in month)";
-    if (periodLabelEl) periodLabelEl.textContent = periodLabel;
 
     if (!periodInput.value) {
       if (checklist.category === "daily") periodInput.value = todayISO();
@@ -945,17 +839,6 @@
 
     function currentPeriod() {
       return periodInput.value || "";
-    }
-
-    function loadAndPrefillMeta() {
-      const period = currentPeriod();
-      const pack = getPack(checklist.id, period);
-
-      const fields = ["project", "projectNo", "site", "supervisor", "completedBy"];
-      fields.forEach((f) => {
-        const el = $(`meta_${f}`);
-        if (el && !el.value && pack.meta?.[f]) el.value = pack.meta[f];
-      });
     }
 
     function saveMetaToPack() {
@@ -971,8 +854,6 @@
       setPack(checklist.id, period, pack);
     }
 
-    loadAndPrefillMeta();
-
     ["meta_project", "meta_projectNo", "meta_site", "meta_supervisor", "meta_completedBy", "meta_period"].forEach(
       (id) => {
         const el = $(id);
@@ -981,9 +862,7 @@
           saveMetaToPack();
           drawTasks();
         });
-        el.addEventListener("input", () => {
-          saveMetaToPack();
-        });
+        el.addEventListener("input", () => saveMetaToPack());
       }
     );
 
@@ -996,7 +875,6 @@
     function drawTasks() {
       const period = currentPeriod();
       const pack = getPack(checklist.id, period);
-
       itemsWrap.innerHTML = "";
 
       checklist.items.forEach((it) => {
@@ -1028,16 +906,14 @@
     drawTasks();
 
     const form = $("checkForm");
-    const submitBtn = $("submitBtn");
-
-    form.addEventListener("submit", (ev) => {
+    form?.addEventListener("submit", (ev) => {
       ev.preventDefault();
       if (errorBox) errorBox.style.display = "none";
 
       const period = currentPeriod();
       if (!period) {
         if (errorBox) {
-          errorBox.textContent = `${periodLabel} is required.`;
+          errorBox.textContent = "Date / Period is required.";
           errorBox.style.display = "block";
         }
         return;
@@ -1094,7 +970,6 @@
     const descEl = $("taskDesc");
     const crumb = $("taskBreadcrumb");
     if (crumb) crumb.textContent = `${checklist.title} • ${taskLabel}`;
-
     if (titleEl) titleEl.textContent = taskLabel;
 
     const body = $("taskBody");
@@ -1150,52 +1025,6 @@
   function renderHistory() {
     const buildTag = $("buildTag");
     if (buildTag) buildTag.textContent = `BUILD ${BUILD} • by Aureliu Nica`;
-
-    const list = $("historyList");
-    const empty = $("historyEmpty");
-    const clearBtn = $("clearHistoryBtn");
-
-    if (!list || !empty) return;
-
-    function draw() {
-      const subs = loadSubmissions();
-      list.innerHTML = "";
-
-      if (!subs.length) {
-        empty.style.display = "block";
-        return;
-      }
-      empty.style.display = "none";
-
-      for (const s of subs) {
-        const when = s.createdAt ? new Date(s.createdAt).toLocaleString() : "";
-        const period = s?.meta?.periodPretty || s?.meta?.period || "";
-
-        const card = document.createElement("div");
-        card.className = "itemCard";
-        card.innerHTML = `
-          <div style="min-width:0;">
-            <div class="itemTitle">${escapeHtml(s.title || "Checklist")}</div>
-            <div class="itemSub">${escapeHtml((s.category || "").toUpperCase())} • ${escapeHtml(
-          period
-        )} • ${escapeHtml(when)}</div>
-          </div>
-          <div class="itemRight">
-            <a class="linkBtn" href="./form.html?id=${encodeURIComponent(s.checklistId || "")}">Open</a>
-          </div>
-        `;
-        list.appendChild(card);
-      }
-    }
-
-    if (clearBtn) {
-      clearBtn.addEventListener("click", () => {
-        localStorage.removeItem(SUBMISSIONS_KEY);
-        draw();
-      });
-    }
-
-    draw();
   }
 
   function init() {
