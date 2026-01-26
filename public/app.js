@@ -1,6 +1,6 @@
 /* public/app.js */
 (() => {
-  const BUILD = "v0.3";
+  const BUILD = "v0.4";
   const SUBMISSIONS_KEY = "RFATL_SUBMISSIONS_V1";
   const PACKSTATE_KEY = "RFATL_PACKSTATE_V1";
 
@@ -20,6 +20,20 @@
 
   // If you want Plant Checks to open your existing QR Plant Checks site, paste it here:
   const PLANT_CHECKS_URL = ""; // e.g. "https://your-plant-checks.pages.dev/"
+
+  // Option A: template PDFs (blank reference forms)
+  // Put files inside: /public/templates/  (so they are served by Cloudflare Pages)
+  const TASK_TEMPLATES = {
+    daily_brief: "./templates/daily-briefing.pdf",
+    // future (when you upload them):
+    // ground_disturbance_permit: "./templates/ground-disturbance-permit.pdf",
+    // hot_work_permit: "./templates/hot-works-permit.pdf",
+  };
+
+  function templateForTask(taskKey) {
+    const t = TASK_TEMPLATES[taskKey];
+    return t ? String(t) : "";
+  }
 
   // Starter checklists (from your Excel screenshot)
   const CHECKLISTS = [
@@ -254,7 +268,14 @@
       ["Project No.", pack.meta.projectNo || ""],
       ["Site", pack.meta.site || ""],
       ["Supervisor", pack.meta.supervisor || ""],
-      [checklist.category === "weekly" ? "Week Commencing" : (checklist.category === "monthly" ? "Month" : "Date"), periodPretty || pack.period || ""],
+      [
+        checklist.category === "weekly"
+          ? "Week Commencing"
+          : checklist.category === "monthly"
+          ? "Month"
+          : "Date",
+        periodPretty || pack.period || "",
+      ],
       ["Completed by", pack.meta.completedBy || ""],
     ];
 
@@ -272,8 +293,14 @@
 
     const rows = checklist.items.map((it) => {
       const st = pack.tasks?.[it.key]?.status || "new";
-      const label = st === "complete" ? "COMPLETED" : (st === "na" ? "N/A" : "NOT STARTED");
-      return [it.label, label, pack.tasks?.[it.key]?.updatedAt ? new Date(pack.tasks[it.key].updatedAt).toLocaleString() : ""];
+      const label = st === "complete" ? "COMPLETED" : st === "na" ? "N/A" : "NOT STARTED";
+      return [
+        it.label,
+        label,
+        pack.tasks?.[it.key]?.updatedAt
+          ? new Date(pack.tasks[it.key].updatedAt).toLocaleString()
+          : "",
+      ];
     });
 
     doc.autoTable({
@@ -332,52 +359,88 @@
       wentAsPlanned: "yes",
       concerns: "",
       plannedActivities: "",
-      points: DAILY_BRIEF_POINTS.reduce((acc, p) => (acc[p] = false, acc), {}),
+      points: DAILY_BRIEF_POINTS.reduce((acc, p) => ((acc[p] = false), acc), {}),
       coveredByRAMS: "yes",
       controlsInPlace: "yes",
       ppeCompliant: "yes",
-      attendees: [], // [{name, date, signature}]
+      attendees: [],
     };
 
     const data = Object.assign({}, defaultData, existing);
 
+    const templateUrl = templateForTask("daily_brief");
+
     container.innerHTML = `
+      ${
+        templateUrl
+          ? `
+        <div class="actions" style="justify-content:flex-start; gap:10px; margin: 0 0 12px;">
+          <button class="btn btnAlt" type="button" id="db_openBlank">Open blank template PDF</button>
+        </div>
+      `
+          : ""
+      }
+
       <div class="grid2">
-        <div><label class="lbl">Project title</label><input class="inp" id="db_projectTitle" value="${escapeHtml(data.projectTitle)}"></div>
-        <div><label class="lbl">Site location</label><input class="inp" id="db_siteLocation" value="${escapeHtml(data.siteLocation)}"></div>
+        <div><label class="lbl">Project title</label><input class="inp" id="db_projectTitle" value="${escapeHtml(
+          data.projectTitle
+        )}"></div>
+        <div><label class="lbl">Site location</label><input class="inp" id="db_siteLocation" value="${escapeHtml(
+          data.siteLocation
+        )}"></div>
 
-        <div><label class="lbl">Work location</label><input class="inp" id="db_workLocation" value="${escapeHtml(data.workLocation)}"></div>
-        <div><label class="lbl">Project no</label><input class="inp" id="db_projectNo" value="${escapeHtml(data.projectNo)}"></div>
+        <div><label class="lbl">Work location</label><input class="inp" id="db_workLocation" value="${escapeHtml(
+          data.workLocation
+        )}"></div>
+        <div><label class="lbl">Project no</label><input class="inp" id="db_projectNo" value="${escapeHtml(
+          data.projectNo
+        )}"></div>
 
-        <div><label class="lbl">Name of person giving briefing</label><input class="inp" id="db_briefingBy" value="${escapeHtml(data.briefingBy)}"></div>
-        <div><label class="lbl">Job title</label><input class="inp" id="db_jobTitle" value="${escapeHtml(data.jobTitle)}"></div>
+        <div><label class="lbl">Name of person giving briefing</label><input class="inp" id="db_briefingBy" value="${escapeHtml(
+          data.briefingBy
+        )}"></div>
+        <div><label class="lbl">Job title</label><input class="inp" id="db_jobTitle" value="${escapeHtml(
+          data.jobTitle
+        )}"></div>
 
-        <div><label class="lbl">Date</label><input class="inp" type="date" id="db_date" value="${escapeHtml(data.date)}"></div>
-        <div><label class="lbl">No. persons attending</label><input class="inp" id="db_personsAttending" value="${escapeHtml(data.personsAttending)}"></div>
+        <div><label class="lbl">Date</label><input class="inp" type="date" id="db_date" value="${escapeHtml(
+          data.date
+        )}"></div>
+        <div><label class="lbl">No. persons attending</label><input class="inp" id="db_personsAttending" value="${escapeHtml(
+          data.personsAttending
+        )}"></div>
       </div>
 
       <div class="divider"></div>
 
       <div>
         <label class="lbl">Previous day’s activities</label>
-        <textarea class="inp" rows="3" id="db_previousActivities">${escapeHtml(data.previousActivities)}</textarea>
+        <textarea class="inp" rows="3" id="db_previousActivities">${escapeHtml(
+          data.previousActivities
+        )}</textarea>
 
         <div class="grid2" style="margin-top:10px;">
           <div>
             <label class="lbl">Did they go as planned?</label>
             <select class="inp" id="db_wentAsPlanned">
-              <option value="yes" ${data.wentAsPlanned==="yes"?"selected":""}>Yes</option>
-              <option value="no" ${data.wentAsPlanned==="no"?"selected":""}>No</option>
+              <option value="yes" ${
+                data.wentAsPlanned === "yes" ? "selected" : ""
+              }>Yes</option>
+              <option value="no" ${data.wentAsPlanned === "no" ? "selected" : ""}>No</option>
             </select>
           </div>
           <div>
             <label class="lbl">Any concerns from the previous day?</label>
-            <input class="inp" id="db_concerns" value="${escapeHtml(data.concerns)}" placeholder="Short note (or leave blank)">
+            <input class="inp" id="db_concerns" value="${escapeHtml(
+              data.concerns
+            )}" placeholder="Short note (or leave blank)">
           </div>
         </div>
 
         <label class="lbl" style="margin-top:10px;">Today’s planned activities briefing</label>
-        <textarea class="inp" rows="3" id="db_plannedActivities">${escapeHtml(data.plannedActivities)}</textarea>
+        <textarea class="inp" rows="3" id="db_plannedActivities">${escapeHtml(
+          data.plannedActivities
+        )}</textarea>
       </div>
 
       <div class="divider"></div>
@@ -391,22 +454,22 @@
         <div>
           <label class="lbl">Activities covered by RAMS / Work Instruction?</label>
           <select class="inp" id="db_coveredByRAMS">
-            <option value="yes" ${data.coveredByRAMS==="yes"?"selected":""}>Yes</option>
-            <option value="no" ${data.coveredByRAMS==="no"?"selected":""}>No</option>
+            <option value="yes" ${data.coveredByRAMS === "yes" ? "selected" : ""}>Yes</option>
+            <option value="no" ${data.coveredByRAMS === "no" ? "selected" : ""}>No</option>
           </select>
         </div>
         <div>
           <label class="lbl">All control measures in place?</label>
           <select class="inp" id="db_controlsInPlace">
-            <option value="yes" ${data.controlsInPlace==="yes"?"selected":""}>Yes</option>
-            <option value="no" ${data.controlsInPlace==="no"?"selected":""}>No</option>
+            <option value="yes" ${data.controlsInPlace === "yes" ? "selected" : ""}>Yes</option>
+            <option value="no" ${data.controlsInPlace === "no" ? "selected" : ""}>No</option>
           </select>
         </div>
         <div>
           <label class="lbl">Operatives compliant with PPE?</label>
           <select class="inp" id="db_ppeCompliant">
-            <option value="yes" ${data.ppeCompliant==="yes"?"selected":""}>Yes</option>
-            <option value="no" ${data.ppeCompliant==="no"?"selected":""}>No</option>
+            <option value="yes" ${data.ppeCompliant === "yes" ? "selected" : ""}>Yes</option>
+            <option value="no" ${data.ppeCompliant === "no" ? "selected" : ""}>No</option>
           </select>
         </div>
       </div>
@@ -417,6 +480,15 @@
       <div id="db_attendees"></div>
       <button class="btn btnAlt" type="button" id="db_addAttendee">Add attendee</button>
     `;
+
+    if (templateUrl) {
+      const btn = container.querySelector("#db_openBlank");
+      if (btn) {
+        btn.addEventListener("click", () => {
+          window.open(templateUrl, "_blank", "noopener,noreferrer");
+        });
+      }
+    }
 
     // render points
     const pointsWrap = container.querySelector("#db_points");
@@ -456,11 +528,15 @@
             </div>
             <div>
               <label class="lbl">Date</label>
-              <input class="inp" data-att="date" data-i="${i}" value="${escapeHtml(a.date || prettyDate(data.date))}" />
+              <input class="inp" data-att="date" data-i="${i}" value="${escapeHtml(
+                a.date || prettyDate(data.date)
+              )}" />
             </div>
             <div>
               <label class="lbl">Signature (type)</label>
-              <input class="inp" data-att="sig" data-i="${i}" value="${escapeHtml(a.signature || "")}" placeholder="Type signature" />
+              <input class="inp" data-att="sig" data-i="${i}" value="${escapeHtml(
+                a.signature || ""
+              )}" placeholder="Type signature" />
             </div>
           </div>
           <div style="margin-top:8px;">
@@ -471,13 +547,17 @@
         wrap.appendChild(row);
       });
 
-      wrap.addEventListener("click", (e) => {
-        const btn = e.target.closest("button[data-del]");
-        if (!btn) return;
-        const idx = Number(btn.dataset.del);
-        data.attendees.splice(idx, 1);
-        renderAttendees();
-      }, { once: true });
+      wrap.addEventListener(
+        "click",
+        (e) => {
+          const btn = e.target.closest("button[data-del]");
+          if (!btn) return;
+          const idx = Number(btn.dataset.del);
+          data.attendees.splice(idx, 1);
+          renderAttendees();
+        },
+        { once: true }
+      );
 
       wrap.addEventListener("input", (e) => {
         const inp = e.target.closest("input[data-att]");
@@ -499,7 +579,6 @@
       renderAttendees();
     });
 
-    // return collectors + pdf generator for this module
     return {
       collect: () => {
         const collected = {
@@ -625,7 +704,6 @@
           columnStyles: { 0: { cellWidth: 445 }, 1: { cellWidth: 70 } },
         });
 
-        // Page 2 (attendees)
         doc.addPage();
         doc.setFont("helvetica", "bold");
         doc.setFontSize(14);
@@ -661,7 +739,9 @@
 
     container.innerHTML = `
       <label class="lbl">Notes / Details</label>
-      <textarea class="inp" rows="4" id="gen_note" placeholder="Add anything useful (optional)">${escapeHtml(data.note || "")}</textarea>
+      <textarea class="inp" rows="4" id="gen_note" placeholder="Add anything useful (optional)">${escapeHtml(
+        data.note || ""
+      )}</textarea>
       <p class="muted" style="margin-top:10px;">
         This task is a placeholder for now. We will replace it with the full form (questions + proper PDF) next.
       </p>
@@ -705,9 +785,6 @@
       </div>
       <label class="lbl">Notes (optional)</label>
       <textarea class="inp" rows="3" id="pc_note">${escapeHtml(data.note || "")}</textarea>
-      <p class="muted" style="margin-top:10px;">
-        Once you confirm the Plant Checks URL, I can embed it more tightly (or route you directly into the exact machine checks page).
-      </p>
     `;
 
     container.querySelector("#pc_open").addEventListener("click", () => {
@@ -748,7 +825,6 @@
   }
 
   // ---------------- pages ----------------
-
   function renderHome() {
     const buildTag = $("buildTag");
     if (buildTag) buildTag.textContent = `BUILD ${BUILD} • by Aureliu Nica`;
@@ -774,7 +850,9 @@
       card.innerHTML = `
         <div style="min-width:0;">
           <div class="itemTitle">${escapeHtml(s.title || "Checklist")}</div>
-          <div class="itemSub">${escapeHtml((s.category || "").toUpperCase())} • ${escapeHtml(period)} • ${escapeHtml(when)}</div>
+          <div class="itemSub">${escapeHtml((s.category || "").toUpperCase())} • ${escapeHtml(
+        period
+      )} • ${escapeHtml(when)}</div>
         </div>
         <div class="itemRight">
           <a class="linkBtn" href="./history.html">Open</a>
@@ -849,13 +927,11 @@
     if (titleEl) titleEl.textContent = checklist.title;
     if (descEl) descEl.textContent = checklist.description || "";
 
-    // Back: to list if multiple packs in category; else home
     if (backLink) {
       const count = CHECKLISTS.filter((c) => c.category === checklist.category).length;
       backLink.href = count > 1 ? `./list.html?cat=${encodeURIComponent(checklist.category)}` : `./index.html`;
     }
 
-    // Period label + default
     let periodLabel = "Date";
     if (checklist.category === "weekly") periodLabel = "Week Commencing (Monday)";
     if (checklist.category === "monthly") periodLabel = "Month (select any day in month)";
@@ -875,7 +951,6 @@
       const period = currentPeriod();
       const pack = getPack(checklist.id, period);
 
-      // Prefill meta inputs if pack has values
       const fields = ["project", "projectNo", "site", "supervisor", "completedBy"];
       fields.forEach((f) => {
         const el = $(`meta_${f}`);
@@ -898,18 +973,19 @@
 
     loadAndPrefillMeta();
 
-    // Save meta on change
-    ["meta_project","meta_projectNo","meta_site","meta_supervisor","meta_completedBy","meta_period"].forEach((id) => {
-      const el = $(id);
-      if (!el) return;
-      el.addEventListener("change", () => {
-        saveMetaToPack();
-        drawTasks();
-      });
-      el.addEventListener("input", () => {
-        saveMetaToPack();
-      });
-    });
+    ["meta_project", "meta_projectNo", "meta_site", "meta_supervisor", "meta_completedBy", "meta_period"].forEach(
+      (id) => {
+        const el = $(id);
+        if (!el) return;
+        el.addEventListener("change", () => {
+          saveMetaToPack();
+          drawTasks();
+        });
+        el.addEventListener("input", () => {
+          saveMetaToPack();
+        });
+      }
+    );
 
     function taskStatusBadge(st) {
       if (st === "complete") return `<span class="badge ok">Completed</span>`;
@@ -925,8 +1001,11 @@
 
       checklist.items.forEach((it) => {
         const st = pack.tasks?.[it.key]?.status || "new";
+        const templateUrl = templateForTask(it.key);
 
-        const isPlant = it.key === "plant_check_sheet";
+        const blankBtn = templateUrl
+          ? `<a class="linkBtn" href="${templateUrl}" target="_blank" rel="noopener noreferrer">Blank PDF</a>`
+          : "";
 
         const card = document.createElement("div");
         card.className = "taskCard";
@@ -935,10 +1014,11 @@
             <div class="itemTitle">${escapeHtml(it.label)}</div>
             <div class="itemSub">Status: ${taskStatusBadge(st)}</div>
           </div>
-          <div class="itemRight">
-            <a class="linkBtn" href="./task.html?pack=${encodeURIComponent(checklist.id)}&task=${encodeURIComponent(it.key)}&period=${encodeURIComponent(period)}">
-              Open
-            </a>
+          <div class="itemRight" style="display:flex; gap:10px; align-items:center; justify-content:flex-end;">
+            ${blankBtn}
+            <a class="linkBtn" href="./task.html?pack=${encodeURIComponent(checklist.id)}&task=${encodeURIComponent(
+          it.key
+        )}&period=${encodeURIComponent(period)}">Open</a>
           </div>
         `;
         itemsWrap.appendChild(card);
@@ -947,7 +1027,6 @@
 
     drawTasks();
 
-    // Submit (generate pack summary PDF + store history entry)
     const form = $("checkForm");
     const submitBtn = $("submitBtn");
 
@@ -967,7 +1046,6 @@
       saveMetaToPack();
       const pack = getPack(checklist.id, period);
 
-      // Store to History as a “pack record”
       const periodPretty = packPeriodPretty(checklist.category, pack.period);
       const submission = {
         uid: `${packKey(checklist.id, pack.period)}__${Date.now()}`,
@@ -1029,7 +1107,6 @@
       msg.textContent = text;
     }
 
-    // Choose module:
     let moduleApi = null;
 
     if (taskKey === "daily_brief") {
@@ -1051,7 +1128,6 @@
 
     function save(status = "complete") {
       const collected = moduleApi.collect();
-      // persist collected
       setTaskStatus(checklistId, period, taskKey, status, collected);
       showMsg(status === "na" ? "Marked N/A and saved." : "Saved. You can now download/print the PDF.");
     }
@@ -1065,7 +1141,6 @@
 
     pdfBtn?.addEventListener("click", () => {
       const collected = moduleApi.collect();
-      // save as complete when generating pdf (safe default)
       setTaskStatus(checklistId, period, taskKey, "complete", collected);
       moduleApi.pdf(collected);
       showMsg("PDF downloaded. Task saved as Completed.");
@@ -1101,7 +1176,9 @@
         card.innerHTML = `
           <div style="min-width:0;">
             <div class="itemTitle">${escapeHtml(s.title || "Checklist")}</div>
-            <div class="itemSub">${escapeHtml((s.category || "").toUpperCase())} • ${escapeHtml(period)} • ${escapeHtml(when)}</div>
+            <div class="itemSub">${escapeHtml((s.category || "").toUpperCase())} • ${escapeHtml(
+          period
+        )} • ${escapeHtml(when)}</div>
           </div>
           <div class="itemRight">
             <a class="linkBtn" href="./form.html?id=${encodeURIComponent(s.checklistId || "")}">Open</a>
