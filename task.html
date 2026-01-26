@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>Red Folder ATL • Task</title>
+
+  <link rel="stylesheet" href="./style.css" />
+
+  <!-- PDF libs -->
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
+
+  <script src="./app.js" defer></script>
+</head>
+
+<body data-page="task">
+  <header class="topbar">
+    <div class="brand">
+      <a id="taskBackLink" class="linkBtn" href="./index.html">Back</a>
+      <div>
+        <div class="brandTitle">Red Folder ATL</div>
+        <div id="taskSubtitle" class="brandSub"></div>
+      </div>
+    </div>
+
+    <nav class="topActions">
+      <a class="linkBtn" href="./history.html">History</a>
+    </nav>
+  </header>
+
+  <main class="wrap">
+    <section class="card">
+      <div class="rowBetween">
+        <div>
+          <h1 id="taskTitle" class="h1">Task</h1>
+          <p id="taskDesc" class="p"></p>
+        </div>
+        <div class="rightStack">
+          <button id="taskPdfBtn" class="btnAlt" type="button">Download Task PDF</button>
+          <button id="taskSaveBtn" class="btnAlt" type="button">Save</button>
+          <button id="taskCompleteBtn" class="btn" type="button">Save & Mark Complete</button>
+        </div>
+      </div>
+
+      <div id="taskMsg" class="successBox" style="display:none;"></div>
+
+      <div id="taskContext" class="contextBox"></div>
+
+      <div id="taskBody"></div>
+    </section>
+
+    <footer class="footer">
+      <span id="buildTag" class="muted"></span>
+    </footer>
+  </main>
+</body>
+</html>

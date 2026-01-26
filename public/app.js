@@ -17,7 +17,7 @@
     monthly: "Complete once per calendar month and download the PDF record.",
   };
 
-  // Starter checklists based on your Excel screenshot (we can expand any time)
+  // Starter checklists (from your Excel screenshot)
   const CHECKLISTS = [
     {
       id: "sm_daily_pack",
@@ -140,8 +140,7 @@
   function addSubmission(sub) {
     const all = loadSubmissions();
     all.unshift(sub);
-    const trimmed = all.slice(0, 100);
-    saveSubmissions(trimmed);
+    saveSubmissions(all.slice(0, 100));
   }
 
   function deleteSubmission(id) {
@@ -493,7 +492,6 @@
       if (errorBox) {
         errorBox.style.display = "none";
         errorBox.textContent = "";
-        // reset in case previous success state changed styling
         errorBox.style.borderColor = "rgba(220,38,38,.35)";
         errorBox.style.background = "rgba(220,38,38,.06)";
         errorBox.style.color = "#7f1d1d";

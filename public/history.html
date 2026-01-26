@@ -4,9 +4,10 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <title>Red Folder ATL • History</title>
+
   <link rel="stylesheet" href="./style.css" />
 
-  <!-- jsPDF + AutoTable (for re-download) -->
+  <!-- PDF libs -->
   <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
 
@@ -16,10 +17,10 @@
 <body data-page="history">
   <header class="topbar">
     <div class="brand">
-      <a class="backBtn" href="./index.html" aria-label="Back">←</a>
+      <a class="linkBtn" href="./index.html">Back</a>
       <div>
         <div class="brandTitle">Red Folder ATL</div>
-        <div class="brandSub">Submission History</div>
+        <div class="brandSub">Submitted packs saved on this device</div>
       </div>
     </div>
 
@@ -31,10 +32,10 @@
   <main class="wrap">
     <section class="card">
       <h1 class="h1">History</h1>
-      <p class="p">Re-download PDFs from saved submissions (stored locally on this device).</p>
+      <p class="p">Open a pack to continue editing tasks, or download the pack PDF.</p>
 
       <div id="historyList" class="list"></div>
-      <div id="historyEmpty" class="muted" style="display:none;">No submissions saved on this device.</div>
+      <div id="historyEmpty" class="muted" style="display:none;">No submitted packs yet.</div>
     </section>
 
     <footer class="footer">
