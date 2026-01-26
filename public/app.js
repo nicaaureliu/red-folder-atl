@@ -1,323 +1,18 @@
 /* public/app.js */
 (() => {
-  const BUILD = "v0.5";
-  const SUBMISSIONS_KEY = "RFATL_SUBMISSIONS_V1";
-  const PACKSTATE_KEY = "RFATL_PACKSTATE_V1";
+  const BUILD = "v1.0";
+  const APP_TITLE = "Red Folder ATL";
 
-  const $ = (id) => document.getElementById(id);
-
-  const CAT_LABELS = {
-    daily: "Daily Checks",
-    weekly: "Weekly Checks",
-    monthly: "Monthly Checks",
+  // Put your blank template here in the repo:
+  // public/templates/daily-briefing.pdf
+  const TEMPLATES = {
+    dailyBrief: "./templates/daily-briefing.pdf",
   };
 
-  const CAT_HINTS = {
-    daily: "Complete the daily checks and download records.",
-    weekly: "Complete once per Week Commencing (WC) and download records.",
-    monthly: "Complete once per calendar month and download records.",
-  };
+  // Paste your existing Plant Checks URL here (your QR app)
+  const PLANT_CHECKS_URL = ""; // e.g. "https://plant-checks.pages.dev/"
 
-  // If you want Plant Checks to open your existing QR Plant Checks site, paste it here:
-  const PLANT_CHECKS_URL = ""; // e.g. "https://your-plant-checks.pages.dev/"
-
-  // Blank template PDFs served by the site (Option A)
-  // Put files inside: /public/templates/  (so Cloudflare Pages serves them)
-  const TASK_TEMPLATES = {
-    daily_brief: "./templates/daily-briefing.pdf",
-    // future:
-    // ground_disturbance_permit: "./templates/ground-disturbance-permit.pdf",
-    // hot_work_permit: "./templates/hot-works-permit.pdf",
-  };
-
-  function templateForTask(taskKey) {
-    const t = TASK_TEMPLATES[taskKey];
-    return t ? String(t) : "";
-  }
-
-  // Starter checklists
-  const CHECKLISTS = [
-    {
-      id: "sm_daily_pack",
-      category: "daily",
-      title: "Site Manager Daily Pack",
-      description: "Daily compliance and paperwork checks.",
-      items: [
-        { key: "daily_brief", label: "Daily brief completed" },
-        { key: "plant_check_sheet", label: "Plant operative check sheet completed" },
-        { key: "ground_disturbance_permit", label: "Ground disturbance permit (if required)" },
-        { key: "hot_work_permit", label: "Hot work permit (if required)" },
-        { key: "confined_space_permit", label: "Confined space permit (if required)" },
-        { key: "excavation_inspection", label: "Excavation inspection checks completed" },
-        { key: "daily_diary", label: "Daily diary completed" },
-        { key: "photos", label: "Photos recorded (if required)" },
-        { key: "permit_to_pump", label: "Permit to pump (if required)" },
-        { key: "havs", label: "HAVS assessment checked (if applicable)" },
-        { key: "safety_equipment_daily", label: "Safety equipment daily inspection completed" },
-        { key: "sinking_records", label: "Sinking records updated (if applicable)" },
-        { key: "auger_bore_record", label: "Auger bore record updated (if applicable)" },
-        { key: "pipe_jacking_record", label: "Pipe jacking record updated (if applicable)" },
-      ],
-    },
-    {
-      id: "sm_weekly_pack",
-      category: "weekly",
-      title: "Site Manager Weekly Pack",
-      description: "Weekly checks (one record per WC).",
-      items: [
-        { key: "safety_site_inspection", label: "Safety site inspection completed" },
-        { key: "toolbox_talk", label: "Toolbox talk delivered and recorded" },
-        { key: "loler", label: "LOLER checks up to date" },
-        { key: "puwer", label: "PUWER checks up to date" },
-        { key: "ladder_inspection", label: "Ladder inspection completed" },
-        { key: "tw_inspection", label: "Temporary Works inspection completed" },
-        { key: "fire_extinguishers", label: "Fire extinguisher inspection completed" },
-        { key: "survey_calibration", label: "Survey calibration equipment checked" },
-      ],
-    },
-    {
-      id: "sm_monthly_pack",
-      category: "monthly",
-      title: "Site Manager Monthly Pack",
-      description: "Monthly checks (one record per calendar month).",
-      items: [
-        { key: "lifting_equipment", label: "Lifting equipment checks up to date" },
-        { key: "pat_testing", label: "PAT testing of electrical tools up to date" },
-      ],
-    },
-  ];
-
-  // ---------------- helpers ----------------
-  function getParam(name) {
-    const u = new URL(window.location.href);
-    return u.searchParams.get(name) || "";
-  }
-
-  function escapeHtml(s) {
-    return String(s ?? "")
-      .replaceAll("&", "&amp;")
-      .replaceAll("<", "&lt;")
-      .replaceAll(">", "&gt;")
-      .replaceAll('"', "&quot;")
-      .replaceAll("'", "&#039;");
-  }
-
-  function todayISO() {
-    const d = new Date();
-    const z = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
-    return z.toISOString().slice(0, 10);
-  }
-
-  function mondayOf(dateISO) {
-    const d = new Date(dateISO + "T00:00:00");
-    const day = d.getDay();
-    const diff = (day === 0 ? -6 : 1) - day;
-    d.setDate(d.getDate() + diff);
-    const z = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
-    return z.toISOString().slice(0, 10);
-  }
-
-  function monthISO() {
-    const d = new Date();
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, "0");
-    return `${y}-${m}-01`;
-  }
-
-  function prettyDate(iso) {
-    if (!iso) return "";
-    const [y, m, d] = iso.split("-");
-    if (!y || !m || !d) return iso;
-    return `${d}/${m}/${y}`;
-  }
-
-  function sanitizeFileName(s) {
-    return String(s || "")
-      .replaceAll(/[\/\\:*?"<>|]/g, "-")
-      .replaceAll(/\s+/g, " ")
-      .trim();
-  }
-
-  function getChecklistById(id) {
-    return CHECKLISTS.find((c) => c.id === id) || null;
-  }
-
-  function loadJSON(key, fallback) {
-    try {
-      const raw = localStorage.getItem(key);
-      return raw ? JSON.parse(raw) : fallback;
-    } catch {
-      return fallback;
-    }
-  }
-
-  function saveJSON(key, value) {
-    localStorage.setItem(key, JSON.stringify(value));
-  }
-
-  // ---------------- pack state (draft) ----------------
-  function packKey(checklistId, period) {
-    return `${checklistId}__${period || ""}`;
-  }
-
-  function loadPackState() {
-    return loadJSON(PACKSTATE_KEY, {});
-  }
-
-  function savePackState(state) {
-    saveJSON(PACKSTATE_KEY, state);
-  }
-
-  function getPack(checklistId, period) {
-    const all = loadPackState();
-    const key = packKey(checklistId, period);
-    if (!all[key]) {
-      all[key] = {
-        checklistId,
-        period,
-        meta: {},
-        tasks: {},
-        createdAt: new Date().toISOString(),
-      };
-      savePackState(all);
-    }
-    return all[key];
-  }
-
-  function setPack(checklistId, period, packObj) {
-    const all = loadPackState();
-    all[packKey(checklistId, period)] = packObj;
-    savePackState(all);
-  }
-
-  function setTaskStatus(checklistId, period, taskKey, status, data = null) {
-    const pack = getPack(checklistId, period);
-    pack.tasks[taskKey] = pack.tasks[taskKey] || { status: "new", data: {}, updatedAt: "" };
-    pack.tasks[taskKey].status = status;
-    if (data !== null) pack.tasks[taskKey].data = data;
-    pack.tasks[taskKey].updatedAt = new Date().toISOString();
-    setPack(checklistId, period, pack);
-  }
-
-  // ---------------- submissions (history) ----------------
-  function loadSubmissions() {
-    return loadJSON(SUBMISSIONS_KEY, []);
-  }
-
-  function saveSubmissions(arr) {
-    saveJSON(SUBMISSIONS_KEY, arr);
-  }
-
-  function addSubmission(sub) {
-    const all = loadSubmissions();
-    all.unshift(sub);
-    saveSubmissions(all.slice(0, 100));
-  }
-
-  // ---------------- PDF (generic) ----------------
-  function ensurePdf() {
-    const jspdfNS = window.jspdf;
-    if (!jspdfNS?.jsPDF) {
-      alert("PDF library not loaded. Please refresh the page.");
-      return null;
-    }
-    return jspdfNS.jsPDF;
-  }
-
-  function packPeriodPretty(category, periodISO) {
-    if (!periodISO) return "";
-    if (category === "monthly") {
-      const d = new Date(periodISO + "T00:00:00");
-      const m = d.toLocaleString(undefined, { month: "long" });
-      return `${m} ${d.getFullYear()}`;
-    }
-    return prettyDate(periodISO);
-  }
-
-  function generatePackPDF(checklist, pack) {
-    const jsPDF = ensurePdf();
-    if (!jsPDF) return;
-
-    const doc = new jsPDF({ unit: "pt", format: "a4" });
-    const left = 40;
-    let y = 46;
-
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(16);
-    doc.text("RED FOLDER ATL", left, y);
-
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(10);
-    doc.text(`Generated: ${new Date().toLocaleString()}`, left, y + 16);
-
-    doc.setDrawColor(255, 214, 0);
-    doc.setLineWidth(3);
-    doc.line(left, y + 28, 555, y + 28);
-
-    y += 54;
-
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(13);
-    doc.text(checklist.title, left, y);
-    y += 14;
-
-    const periodPretty = packPeriodPretty(checklist.category, pack.period);
-
-    const metaRows = [
-      ["Project", pack.meta.project || ""],
-      ["Project No.", pack.meta.projectNo || ""],
-      ["Site", pack.meta.site || ""],
-      ["Supervisor", pack.meta.supervisor || ""],
-      [
-        checklist.category === "weekly"
-          ? "Week Commencing"
-          : checklist.category === "monthly"
-          ? "Month"
-          : "Date",
-        periodPretty || pack.period || "",
-      ],
-      ["Completed by", pack.meta.completedBy || ""],
-    ];
-
-    doc.autoTable({
-      startY: y,
-      head: [["Field", "Value"]],
-      body: metaRows,
-      theme: "grid",
-      styles: { font: "helvetica", fontSize: 9, cellPadding: 4 },
-      headStyles: { fillColor: [255, 214, 0], textColor: 17 },
-      margin: { left, right: 40 },
-    });
-
-    y = doc.lastAutoTable.finalY + 14;
-
-    const rows = checklist.items.map((it) => {
-      const st = pack.tasks?.[it.key]?.status || "new";
-      const label = st === "complete" ? "COMPLETED" : st === "na" ? "N/A" : "NOT STARTED";
-      return [
-        it.label,
-        label,
-        pack.tasks?.[it.key]?.updatedAt ? new Date(pack.tasks[it.key].updatedAt).toLocaleString() : "",
-      ];
-    });
-
-    doc.autoTable({
-      startY: y,
-      head: [["Task", "Status", "Last updated"]],
-      body: rows,
-      theme: "grid",
-      styles: { font: "helvetica", fontSize: 9, cellPadding: 4 },
-      headStyles: { fillColor: [17, 24, 39], textColor: 255 },
-      margin: { left, right: 40 },
-      columnStyles: { 0: { cellWidth: 310 }, 1: { cellWidth: 110 }, 2: { cellWidth: 135 } },
-    });
-
-    const filePeriod = sanitizeFileName(periodPretty || pack.period || "");
-    const fileTitle = sanitizeFileName(checklist.title);
-    doc.save(`RedFolderATL - ${fileTitle} - ${filePeriod || "Record"}.pdf`);
-  }
-
-  // ---------------- TASK MODULES ----------------
+  const RECORDS_KEY = "RFATL_RECORDS_V1";
 
   const DAILY_BRIEF_POINTS = [
     "Confined Spaces / Access",
@@ -340,18 +35,312 @@
     "Trips / Falls",
   ];
 
-  function renderDailyBriefTask(container, pack, checklistId, period) {
-    const meta = pack.meta || {};
-    const existing = pack.tasks?.daily_brief?.data || {};
+  const $ = (sel, root = document) => root.querySelector(sel);
 
-    const defaultData = {
-      projectTitle: meta.project || "",
+  function escapeHtml(s) {
+    return String(s ?? "")
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#039;");
+  }
+
+  function todayISO() {
+    const d = new Date();
+    const z = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
+    return z.toISOString().slice(0, 10);
+  }
+
+  function prettyDate(iso) {
+    if (!iso) return "";
+    const [y, m, d] = iso.split("-");
+    if (!y || !m || !d) return iso;
+    return `${d}/${m}/${y}`;
+  }
+
+  function sanitizeFileName(s) {
+    return String(s || "")
+      .replaceAll(/[\/\\:*?"<>|]/g, "-")
+      .replaceAll(/\s+/g, " ")
+      .trim();
+  }
+
+  function ensurePdf() {
+    const jspdfNS = window.jspdf;
+    if (!jspdfNS?.jsPDF) {
+      alert("PDF library not loaded. Refresh the page.");
+      return null;
+    }
+    return jspdfNS.jsPDF;
+  }
+
+  function loadRecords() {
+    try {
+      const raw = localStorage.getItem(RECORDS_KEY);
+      return raw ? JSON.parse(raw) : [];
+    } catch {
+      return [];
+    }
+  }
+
+  function saveRecords(records) {
+    localStorage.setItem(RECORDS_KEY, JSON.stringify(records));
+  }
+
+  function addRecord(record) {
+    const all = loadRecords();
+    all.unshift(record);
+    saveRecords(all.slice(0, 200));
+  }
+
+  function route() {
+    const h = (location.hash || "").replace("#", "").trim();
+    return h || "home";
+  }
+
+  function setSubtitle(text) {
+    const el = $("#subTitle");
+    if (el) el.textContent = text;
+  }
+
+  function setBuild() {
+    const b = $("#buildTag");
+    const f = $("#footTag");
+    if (b) b.textContent = `BUILD ${BUILD}`;
+    if (f) f.textContent = `${APP_TITLE} • BUILD ${BUILD}`;
+  }
+
+  function appRoot() {
+    return $("#app");
+  }
+
+  function showMsg(root, text, ok = true) {
+    const box = document.createElement("div");
+    box.className = `msg ${ok ? "msgOk" : "msgErr"}`;
+    box.textContent = text;
+    root.prepend(box);
+    setTimeout(() => box.remove(), 4500);
+  }
+
+  // ---------------- PDF: Daily Brief ----------------
+  function dailyBriefPdf(data, mode = "download") {
+    const jsPDF = ensurePdf();
+    if (!jsPDF) return;
+
+    const doc = new jsPDF({ unit: "pt", format: "a4" });
+    const left = 40;
+    let y = 46;
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(14);
+    doc.text("HEALTH & SAFETY • MORNING BRIEFING", left, y);
+
+    doc.setDrawColor(255, 214, 0);
+    doc.setLineWidth(3);
+    doc.line(left, y + 12, 555, y + 12);
+
+    y += 28;
+
+    const metaRows = [
+      ["Project Title", data.projectTitle || ""],
+      ["Site Location", data.siteLocation || ""],
+      ["Work Location", data.workLocation || ""],
+      ["Project No", data.projectNo || ""],
+      ["Briefing by", data.briefingBy || ""],
+      ["Job title", data.jobTitle || ""],
+      ["Date", prettyDate(data.date) || ""],
+      ["No. persons attending", data.personsAttending || ""],
+      ["Went as planned?", (data.wentAsPlanned || "").toUpperCase()],
+    ];
+
+    doc.autoTable({
+      startY: y,
+      head: [["Field", "Value"]],
+      body: metaRows,
+      theme: "grid",
+      styles: { font: "helvetica", fontSize: 9, cellPadding: 4 },
+      headStyles: { fillColor: [255, 214, 0], textColor: 17 },
+      margin: { left, right: 40 },
+      columnStyles: { 0: { cellWidth: 140 }, 1: { cellWidth: 375 } },
+    });
+
+    y = doc.lastAutoTable.finalY + 10;
+
+    doc.autoTable({
+      startY: y,
+      head: [["Section", "Notes"]],
+      body: [
+        ["Previous day’s activities", data.previousActivities || ""],
+        ["Concerns from previous day", data.concerns || ""],
+        ["Today’s planned activities briefing", data.plannedActivities || ""],
+      ],
+      theme: "grid",
+      styles: { font: "helvetica", fontSize: 9, cellPadding: 4, valign: "top" },
+      headStyles: { fillColor: [17, 24, 39], textColor: 255 },
+      margin: { left, right: 40 },
+      columnStyles: { 0: { cellWidth: 180 }, 1: { cellWidth: 335 } },
+    });
+
+    y = doc.lastAutoTable.finalY + 10;
+
+    const pointsRows = DAILY_BRIEF_POINTS.map((p) => [p, data.points?.[p] ? "✓" : ""]);
+    doc.autoTable({
+      startY: y,
+      head: [["Points discussed", ""]],
+      body: pointsRows,
+      theme: "grid",
+      styles: { font: "helvetica", fontSize: 9, cellPadding: 4 },
+      headStyles: { fillColor: [255, 214, 0], textColor: 17 },
+      margin: { left, right: 40 },
+      columnStyles: { 0: { cellWidth: 445 }, 1: { cellWidth: 70 } },
+    });
+
+    y = doc.lastAutoTable.finalY + 10;
+
+    doc.autoTable({
+      startY: y,
+      head: [["Compliance confirmations", "Answer"]],
+      body: [
+        ["Activities covered by RAMS / Work Instruction?", (data.coveredByRAMS || "").toUpperCase()],
+        ["All control measures in place?", (data.controlsInPlace || "").toUpperCase()],
+        ["Operatives compliant with PPE?", (data.ppeCompliant || "").toUpperCase()],
+      ],
+      theme: "grid",
+      styles: { font: "helvetica", fontSize: 9, cellPadding: 4 },
+      headStyles: { fillColor: [17, 24, 39], textColor: 255 },
+      margin: { left, right: 40 },
+      columnStyles: { 0: { cellWidth: 445 }, 1: { cellWidth: 70 } },
+    });
+
+    doc.addPage();
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(14);
+    doc.text("MORNING BRIEFING SIGN-UP SHEET", left, 46);
+    doc.setDrawColor(255, 214, 0);
+    doc.setLineWidth(3);
+    doc.line(left, 58, 555, 58);
+
+    const att = (data.attendees || []).filter((a) => a.name || a.signature);
+    const attRows = att.length
+      ? att.map((a) => [a.name || "", a.date || prettyDate(data.date), a.signature || ""])
+      : [["", "", ""]];
+
+    doc.autoTable({
+      startY: 78,
+      head: [["Name", "Date", "Signature"]],
+      body: attRows,
+      theme: "grid",
+      styles: { font: "helvetica", fontSize: 9, cellPadding: 4 },
+      headStyles: { fillColor: [255, 214, 0], textColor: 17 },
+      margin: { left, right: 40 },
+      columnStyles: { 0: { cellWidth: 200 }, 1: { cellWidth: 110 }, 2: { cellWidth: 205 } },
+    });
+
+    const fileDate = sanitizeFileName(prettyDate(data.date));
+    const name = `Daily Morning Briefing - ${fileDate || "Record"}.pdf`;
+
+    if (mode === "download") {
+      doc.save(name);
+      return;
+    }
+
+    // mode === "open" (preview in browser)
+    const blob = doc.output("blob");
+    const url = URL.createObjectURL(blob);
+    window.open(url, "_blank", "noopener,noreferrer");
+    setTimeout(() => URL.revokeObjectURL(url), 15000);
+  }
+
+  // ---------------- Views ----------------
+  function renderHome() {
+    setSubtitle("Choose a form (QR-friendly)");
+    const root = appRoot();
+    root.innerHTML = `
+      <div class="card">
+        <div class="cardHead">
+          <div style="min-width:0;">
+            <h1 class="h1">Forms</h1>
+            <p class="sub">Tap a form to start immediately. Each link can become its own QR code.</p>
+          </div>
+          <div class="btnRow">
+            <a class="btnGhost" href="#history">History</a>
+          </div>
+        </div>
+
+        <div class="cardBody">
+          <div class="tiles">
+            <div class="tile">
+              <div class="tileLeft">
+                <p class="tileTitle">Daily Morning Briefing</p>
+                <p class="tileSub">Fill on the phone → generate PDF.</p>
+              </div>
+              <div class="tileRight">
+                <a class="btn" href="#daily-brief">Open</a>
+                <a class="linkBtn" href="${TEMPLATES.dailyBrief}" target="_blank" rel="noopener noreferrer">Blank PDF</a>
+              </div>
+            </div>
+
+            <div class="tile">
+              <div class="tileLeft">
+                <p class="tileTitle">Plant Checks</p>
+                <p class="tileSub">Opens your existing Plant Checks QR app.</p>
+              </div>
+              <div class="tileRight">
+                <button class="btn" id="openPlantChecks">Open</button>
+              </div>
+            </div>
+
+            <div class="tile">
+              <div class="tileLeft">
+                <p class="tileTitle">Ground Disturbance Permit</p>
+                <p class="tileSub">Next to build (same flow as Plant Checks).</p>
+              </div>
+              <div class="tileRight">
+                <a class="btnAlt" href="#ground-disturbance">Open</a>
+              </div>
+            </div>
+
+            <div class="tile">
+              <div class="tileLeft">
+                <p class="tileTitle">Hot Works Permit</p>
+                <p class="tileSub">Next to build (same flow as Plant Checks).</p>
+              </div>
+              <div class="tileRight">
+                <a class="btnAlt" href="#hot-works">Open</a>
+              </div>
+            </div>
+          </div>
+
+          <div class="divider"></div>
+          <p class="muted">
+            Tip: QR codes can point straight to a form, e.g. <b>#daily-brief</b> so the user opens the exact page.
+          </p>
+        </div>
+      </div>
+    `;
+
+    $("#openPlantChecks")?.addEventListener("click", () => {
+      if (!PLANT_CHECKS_URL) {
+        alert("Plant Checks URL is not set yet in app.js (PLANT_CHECKS_URL).");
+        return;
+      }
+      window.open(PLANT_CHECKS_URL, "_blank", "noopener,noreferrer");
+    });
+  }
+
+  function renderDailyBrief() {
+    setSubtitle("Daily Morning Briefing");
+    const root = appRoot();
+
+    const init = {
+      projectTitle: "",
       workLocation: "",
-      siteLocation: meta.site || "",
-      projectNo: meta.projectNo || "",
-      briefingBy: meta.supervisor || "",
+      siteLocation: "",
+      projectNo: "",
+      briefingBy: "",
       jobTitle: "",
-      date: period || todayISO(),
+      date: todayISO(),
       personsAttending: "",
       previousActivities: "",
       wentAsPlanned: "yes",
@@ -364,676 +353,341 @@
       attendees: [],
     };
 
-    const data = Object.assign({}, defaultData, existing);
-    const templateUrl = templateForTask("daily_brief");
-
-    container.innerHTML = `
-      ${
-        templateUrl
-          ? `
-        <div class="actions" style="justify-content:flex-start; gap:10px; margin: 0 0 12px;">
-          <button class="btn btnAlt" type="button" id="db_togglePreview">Preview blank PDF</button>
-          <button class="btn btnAlt" type="button" id="db_openBlank">Open blank PDF (new tab)</button>
+    root.innerHTML = `
+      <div class="card">
+        <div class="cardHead">
+          <div style="min-width:0;">
+            <h1 class="h1">Daily Morning Briefing</h1>
+            <p class="sub">Fill the form, then generate a PDF. You can also open the blank template in the browser.</p>
+          </div>
+          <div class="btnRow">
+            <a class="btnGhost" href="#home">Back</a>
+            <a class="linkBtn" href="${TEMPLATES.dailyBrief}" target="_blank" rel="noopener noreferrer">Open blank PDF</a>
+            <button class="btnAlt" id="saveBtn">Save</button>
+            <button class="btn" id="pdfBtn">Download PDF</button>
+          </div>
         </div>
 
-        <div id="db_pdfPane" style="display:none; margin: 0 0 14px;">
-          <iframe
-            src="${templateUrl}#view=FitH"
-            style="width:100%; height:650px; border:1px solid var(--line,#e5e7eb); border-radius:12px;"
-            loading="lazy"></iframe>
-        </div>
-      `
-          : ""
-      }
+        <div class="cardBody" id="dbBody"></div>
+      </div>
+    `;
 
+    const body = $("#dbBody");
+    body.innerHTML = `
       <div class="grid2">
-        <div><label class="lbl">Project title</label><input class="inp" id="db_projectTitle" value="${escapeHtml(data.projectTitle)}"></div>
-        <div><label class="lbl">Site location</label><input class="inp" id="db_siteLocation" value="${escapeHtml(data.siteLocation)}"></div>
+        <div><label class="lbl">Project title</label><input class="inp" id="db_projectTitle" value="${escapeHtml(init.projectTitle)}"></div>
+        <div><label class="lbl">Site location</label><input class="inp" id="db_siteLocation" value="${escapeHtml(init.siteLocation)}"></div>
 
-        <div><label class="lbl">Work location</label><input class="inp" id="db_workLocation" value="${escapeHtml(data.workLocation)}"></div>
-        <div><label class="lbl">Project no</label><input class="inp" id="db_projectNo" value="${escapeHtml(data.projectNo)}"></div>
+        <div><label class="lbl">Work location</label><input class="inp" id="db_workLocation" value="${escapeHtml(init.workLocation)}"></div>
+        <div><label class="lbl">Project no</label><input class="inp" id="db_projectNo" value="${escapeHtml(init.projectNo)}"></div>
 
-        <div><label class="lbl">Name of person giving briefing</label><input class="inp" id="db_briefingBy" value="${escapeHtml(data.briefingBy)}"></div>
-        <div><label class="lbl">Job title</label><input class="inp" id="db_jobTitle" value="${escapeHtml(data.jobTitle)}"></div>
+        <div><label class="lbl">Briefing by</label><input class="inp" id="db_briefingBy" value="${escapeHtml(init.briefingBy)}"></div>
+        <div><label class="lbl">Job title</label><input class="inp" id="db_jobTitle" value="${escapeHtml(init.jobTitle)}"></div>
 
-        <div><label class="lbl">Date</label><input class="inp" type="date" id="db_date" value="${escapeHtml(data.date)}"></div>
-        <div><label class="lbl">No. persons attending</label><input class="inp" id="db_personsAttending" value="${escapeHtml(data.personsAttending)}"></div>
+        <div><label class="lbl">Date</label><input class="inp" type="date" id="db_date" value="${escapeHtml(init.date)}"></div>
+        <div><label class="lbl">No. persons attending</label><input class="inp" id="db_personsAttending" value="${escapeHtml(init.personsAttending)}"></div>
       </div>
 
       <div class="divider"></div>
 
-      <div>
-        <label class="lbl">Previous day’s activities</label>
-        <textarea class="inp" rows="3" id="db_previousActivities">${escapeHtml(data.previousActivities)}</textarea>
+      <label class="lbl">Previous day’s activities</label>
+      <textarea class="inp" rows="3" id="db_previousActivities">${escapeHtml(init.previousActivities)}</textarea>
 
-        <div class="grid2" style="margin-top:10px;">
-          <div>
-            <label class="lbl">Did they go as planned?</label>
-            <select class="inp" id="db_wentAsPlanned">
-              <option value="yes" ${data.wentAsPlanned==="yes"?"selected":""}>Yes</option>
-              <option value="no" ${data.wentAsPlanned==="no"?"selected":""}>No</option>
-            </select>
-          </div>
-          <div>
-            <label class="lbl">Any concerns from the previous day?</label>
-            <input class="inp" id="db_concerns" value="${escapeHtml(data.concerns)}" placeholder="Short note (or leave blank)">
-          </div>
+      <div class="grid2" style="margin-top:12px;">
+        <div>
+          <label class="lbl">Did they go as planned?</label>
+          <select class="inp" id="db_wentAsPlanned">
+            <option value="yes" selected>Yes</option>
+            <option value="no">No</option>
+          </select>
         </div>
-
-        <label class="lbl" style="margin-top:10px;">Today’s planned activities briefing</label>
-        <textarea class="inp" rows="3" id="db_plannedActivities">${escapeHtml(data.plannedActivities)}</textarea>
+        <div>
+          <label class="lbl">Any concerns from the previous day?</label>
+          <input class="inp" id="db_concerns" value="${escapeHtml(init.concerns)}" placeholder="Short note (or leave blank)">
+        </div>
       </div>
+
+      <label class="lbl" style="margin-top:12px;">Today’s planned activities briefing</label>
+      <textarea class="inp" rows="3" id="db_plannedActivities">${escapeHtml(init.plannedActivities)}</textarea>
 
       <div class="divider"></div>
 
-      <h3 class="h3">Points discussed for today’s operation</h3>
+      <h3 class="h1" style="font-size:16px; margin:0 0 10px;">Points discussed</h3>
       <div class="checkGrid" id="db_points"></div>
 
       <div class="divider"></div>
 
       <div class="grid3">
         <div>
-          <label class="lbl">Activities covered by RAMS / Work Instruction?</label>
+          <label class="lbl">Covered by RAMS / Work Instruction?</label>
           <select class="inp" id="db_coveredByRAMS">
-            <option value="yes" ${data.coveredByRAMS==="yes"?"selected":""}>Yes</option>
-            <option value="no" ${data.coveredByRAMS==="no"?"selected":""}>No</option>
+            <option value="yes" selected>Yes</option>
+            <option value="no">No</option>
           </select>
         </div>
         <div>
           <label class="lbl">All control measures in place?</label>
           <select class="inp" id="db_controlsInPlace">
-            <option value="yes" ${data.controlsInPlace==="yes"?"selected":""}>Yes</option>
-            <option value="no" ${data.controlsInPlace==="no"?"selected":""}>No</option>
+            <option value="yes" selected>Yes</option>
+            <option value="no">No</option>
           </select>
         </div>
         <div>
-          <label class="lbl">Operatives compliant with PPE?</label>
+          <label class="lbl">PPE compliant?</label>
           <select class="inp" id="db_ppeCompliant">
-            <option value="yes" ${data.ppeCompliant==="yes"?"selected":""}>Yes</option>
-            <option value="no" ${data.ppeCompliant==="no"?"selected":""}>No</option>
+            <option value="yes" selected>Yes</option>
+            <option value="no">No</option>
           </select>
         </div>
       </div>
 
       <div class="divider"></div>
 
-      <h3 class="h3">Attendees (sign-up)</h3>
+      <h3 class="h1" style="font-size:16px; margin:0 0 10px;">Attendees (sign-up)</h3>
       <div id="db_attendees"></div>
-      <button class="btn btnAlt" type="button" id="db_addAttendee">Add attendee</button>
+      <button class="btnAlt" type="button" id="addAttendee">Add attendee</button>
     `;
 
-    if (templateUrl) {
-      const openBtn = container.querySelector("#db_openBlank");
-      const toggleBtn = container.querySelector("#db_togglePreview");
-      const pane = container.querySelector("#db_pdfPane");
-
-      openBtn?.addEventListener("click", () => {
-        window.open(templateUrl, "_blank", "noopener,noreferrer");
-      });
-
-      toggleBtn?.addEventListener("click", () => {
-        const showing = pane.style.display !== "none";
-        pane.style.display = showing ? "none" : "block";
-        toggleBtn.textContent = showing ? "Preview blank PDF" : "Hide blank PDF";
-      });
-    }
-
-    // render points
-    const pointsWrap = container.querySelector("#db_points");
+    // points
+    const pointsWrap = $("#db_points");
     DAILY_BRIEF_POINTS.forEach((p, idx) => {
-      const checked = !!data.points?.[p];
-      const el = document.createElement("label");
-      el.className = "tickRow";
-      el.innerHTML = `
-        <input type="checkbox" id="db_point_${idx}" ${checked ? "checked" : ""} />
+      const row = document.createElement("label");
+      row.className = "tickRow";
+      row.innerHTML = `
+        <input type="checkbox" id="pt_${idx}">
         <span>${escapeHtml(p)}</span>
       `;
-      pointsWrap.appendChild(el);
+      pointsWrap.appendChild(row);
     });
 
+    const attendees = [];
+
     function renderAttendees() {
-      const wrap = container.querySelector("#db_attendees");
+      const wrap = $("#db_attendees");
       wrap.innerHTML = "";
 
-      if (!Array.isArray(data.attendees)) data.attendees = [];
-
-      if (!data.attendees.length) {
-        const p = document.createElement("div");
-        p.className = "muted";
-        p.textContent = "No attendees added yet.";
-        wrap.appendChild(p);
+      if (!attendees.length) {
+        const d = document.createElement("div");
+        d.className = "muted";
+        d.textContent = "No attendees added yet.";
+        wrap.appendChild(d);
         return;
       }
 
-      data.attendees.forEach((a, i) => {
-        const row = document.createElement("div");
-        row.className = "attRow";
-        row.innerHTML = `
+      attendees.forEach((a, i) => {
+        const block = document.createElement("div");
+        block.innerHTML = `
           <div class="grid3">
             <div>
               <label class="lbl">Name</label>
-              <input class="inp" data-att="name" data-i="${i}" value="${escapeHtml(a.name || "")}" />
+              <input class="inp" data-i="${i}" data-f="name" value="${escapeHtml(a.name || "")}">
             </div>
             <div>
               <label class="lbl">Date</label>
-              <input class="inp" data-att="date" data-i="${i}" value="${escapeHtml(a.date || prettyDate(data.date))}" />
+              <input class="inp" data-i="${i}" data-f="date" value="${escapeHtml(a.date || "")}">
             </div>
             <div>
               <label class="lbl">Signature (type)</label>
-              <input class="inp" data-att="sig" data-i="${i}" value="${escapeHtml(a.signature || "")}" placeholder="Type signature" />
+              <input class="inp" data-i="${i}" data-f="sig" value="${escapeHtml(a.signature || "")}">
             </div>
           </div>
-          <div style="margin-top:8px;">
-            <button class="btn btnAlt" type="button" data-del="${i}">Remove</button>
+          <div style="margin-top:10px;">
+            <button class="btnGhost" type="button" data-del="${i}">Remove</button>
           </div>
-          <div class="divider" style="margin:12px 0;"></div>
+          <div class="divider"></div>
         `;
-        wrap.appendChild(row);
+        wrap.appendChild(block);
       });
 
-      wrap.addEventListener(
-        "click",
-        (e) => {
-          const btn = e.target.closest("button[data-del]");
-          if (!btn) return;
-          const idx = Number(btn.dataset.del);
-          data.attendees.splice(idx, 1);
-          renderAttendees();
-        },
-        { once: true }
-      );
+      wrap.querySelectorAll("input[data-i]").forEach((inp) => {
+        inp.addEventListener("input", (e) => {
+          const i = Number(e.target.dataset.i);
+          const f = e.target.dataset.f;
+          attendees[i] = attendees[i] || {};
+          if (f === "name") attendees[i].name = e.target.value;
+          if (f === "date") attendees[i].date = e.target.value;
+          if (f === "sig") attendees[i].signature = e.target.value;
+        });
+      });
 
-      wrap.addEventListener("input", (e) => {
-        const inp = e.target.closest("input[data-att]");
-        if (!inp) return;
-        const i = Number(inp.dataset.i);
-        const f = inp.dataset.att;
-        data.attendees[i] = data.attendees[i] || {};
-        if (f === "name") data.attendees[i].name = inp.value;
-        if (f === "date") data.attendees[i].date = inp.value;
-        if (f === "sig") data.attendees[i].signature = inp.value;
+      wrap.querySelectorAll("button[data-del]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const i = Number(btn.dataset.del);
+          attendees.splice(i, 1);
+          renderAttendees();
+        });
       });
     }
 
-    renderAttendees();
-
-    container.querySelector("#db_addAttendee").addEventListener("click", () => {
-      data.attendees = data.attendees || [];
-      data.attendees.push({ name: "", date: prettyDate(data.date), signature: "" });
+    $("#addAttendee").addEventListener("click", () => {
+      attendees.push({ name: "", date: prettyDate($("#db_date").value), signature: "" });
       renderAttendees();
     });
 
-    return {
-      collect: () => {
-        const collected = {
-          projectTitle: container.querySelector("#db_projectTitle").value.trim(),
-          siteLocation: container.querySelector("#db_siteLocation").value.trim(),
-          workLocation: container.querySelector("#db_workLocation").value.trim(),
-          projectNo: container.querySelector("#db_projectNo").value.trim(),
-          briefingBy: container.querySelector("#db_briefingBy").value.trim(),
-          jobTitle: container.querySelector("#db_jobTitle").value.trim(),
-          date: container.querySelector("#db_date").value,
-          personsAttending: container.querySelector("#db_personsAttending").value.trim(),
-          previousActivities: container.querySelector("#db_previousActivities").value.trim(),
-          wentAsPlanned: container.querySelector("#db_wentAsPlanned").value,
-          concerns: container.querySelector("#db_concerns").value.trim(),
-          plannedActivities: container.querySelector("#db_plannedActivities").value.trim(),
-          points: {},
-          coveredByRAMS: container.querySelector("#db_coveredByRAMS").value,
-          controlsInPlace: container.querySelector("#db_controlsInPlace").value,
-          ppeCompliant: container.querySelector("#db_ppeCompliant").value,
-          attendees: (data.attendees || []).map((a) => ({
-            name: (a.name || "").trim(),
-            date: (a.date || "").trim(),
-            signature: (a.signature || "").trim(),
-          })),
-        };
+    renderAttendees();
 
-        DAILY_BRIEF_POINTS.forEach((p, idx) => {
-          const chk = container.querySelector(`#db_point_${idx}`);
-          collected.points[p] = !!chk?.checked;
-        });
-
-        return collected;
-      },
-
-      pdf: (collected) => {
-        const jsPDF = ensurePdf();
-        if (!jsPDF) return;
-
-        const doc = new jsPDF({ unit: "pt", format: "a4" });
-        const left = 40;
-        let y = 46;
-
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(14);
-        doc.text("HEALTH & SAFETY • MORNING BRIEFING", left, y);
-
-        doc.setDrawColor(255, 214, 0);
-        doc.setLineWidth(3);
-        doc.line(left, y + 12, 555, y + 12);
-
-        y += 28;
-
-        const metaRows = [
-          ["Project Title", collected.projectTitle],
-          ["Site Location", collected.siteLocation],
-          ["Work Location", collected.workLocation],
-          ["Project No", collected.projectNo],
-          ["Briefing by", collected.briefingBy],
-          ["Job title", collected.jobTitle],
-          ["Date", prettyDate(collected.date)],
-          ["No. persons attending", collected.personsAttending],
-          ["Went as planned?", (collected.wentAsPlanned || "").toUpperCase()],
-        ];
-
-        doc.autoTable({
-          startY: y,
-          head: [["Field", "Value"]],
-          body: metaRows,
-          theme: "grid",
-          styles: { font: "helvetica", fontSize: 9, cellPadding: 4 },
-          headStyles: { fillColor: [255, 214, 0], textColor: 17 },
-          margin: { left, right: 40 },
-          columnStyles: { 0: { cellWidth: 140 }, 1: { cellWidth: 375 } },
-        });
-
-        y = doc.lastAutoTable.finalY + 10;
-
-        const textRows = [
-          ["Previous day’s activities", collected.previousActivities || ""],
-          ["Concerns from previous day", collected.concerns || ""],
-          ["Today’s planned activities briefing", collected.plannedActivities || ""],
-        ];
-
-        doc.autoTable({
-          startY: y,
-          head: [["Section", "Notes"]],
-          body: textRows,
-          theme: "grid",
-          styles: { font: "helvetica", fontSize: 9, cellPadding: 4, valign: "top" },
-          headStyles: { fillColor: [17, 24, 39], textColor: 255 },
-          margin: { left, right: 40 },
-          columnStyles: { 0: { cellWidth: 180 }, 1: { cellWidth: 335 } },
-        });
-
-        y = doc.lastAutoTable.finalY + 10;
-
-        const pointsRows = DAILY_BRIEF_POINTS.map((p) => [p, collected.points?.[p] ? "✓" : ""]);
-        doc.autoTable({
-          startY: y,
-          head: [["Points discussed", ""]],
-          body: pointsRows,
-          theme: "grid",
-          styles: { font: "helvetica", fontSize: 9, cellPadding: 4 },
-          headStyles: { fillColor: [255, 214, 0], textColor: 17 },
-          margin: { left, right: 40 },
-          columnStyles: { 0: { cellWidth: 445 }, 1: { cellWidth: 70 } },
-        });
-
-        y = doc.lastAutoTable.finalY + 10;
-
-        doc.autoTable({
-          startY: y,
-          head: [["Compliance confirmations", "Answer"]],
-          body: [
-            ["Activities covered by RAMS / Work Instruction?", (collected.coveredByRAMS || "").toUpperCase()],
-            ["All control measures in place?", (collected.controlsInPlace || "").toUpperCase()],
-            ["Operatives compliant with PPE?", (collected.ppeCompliant || "").toUpperCase()],
-          ],
-          theme: "grid",
-          styles: { font: "helvetica", fontSize: 9, cellPadding: 4 },
-          headStyles: { fillColor: [17, 24, 39], textColor: 255 },
-          margin: { left, right: 40 },
-          columnStyles: { 0: { cellWidth: 445 }, 1: { cellWidth: 70 } },
-        });
-
-        doc.addPage();
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(14);
-        doc.text("MORNING BRIEFING SIGN-UP SHEET", left, 46);
-        doc.setDrawColor(255, 214, 0);
-        doc.setLineWidth(3);
-        doc.line(left, 58, 555, 58);
-
-        const att = (collected.attendees || []).filter((a) => a.name || a.signature);
-        const attRows = att.length
-          ? att.map((a) => [a.name || "", a.date || prettyDate(collected.date), a.signature || ""])
-          : [["", "", ""]];
-
-        doc.autoTable({
-          startY: 78,
-          head: [["Name", "Date", "Signature"]],
-          body: attRows,
-          theme: "grid",
-          styles: { font: "helvetica", fontSize: 9, cellPadding: 4 },
-          headStyles: { fillColor: [255, 214, 0], textColor: 17 },
-          margin: { left, right: 40 },
-          columnStyles: { 0: { cellWidth: 200 }, 1: { cellWidth: 110 }, 2: { cellWidth: 205 } },
-        });
-
-        const fileDate = sanitizeFileName(prettyDate(collected.date));
-        doc.save(`Daily Morning Briefing - ${fileDate || "Record"}.pdf`);
-      },
-    };
-  }
-
-  function renderGenericTask(container, taskKey, taskLabel, existingData = {}) {
-    const data = Object.assign({ note: "" }, existingData);
-
-    container.innerHTML = `
-      <label class="lbl">Notes / Details</label>
-      <textarea class="inp" rows="4" id="gen_note" placeholder="Add anything useful (optional)">${escapeHtml(data.note || "")}</textarea>
-      <p class="muted" style="margin-top:10px;">
-        This task is a placeholder for now. We will replace it with the full form (questions + proper PDF) next.
-      </p>
-    `;
-
-    return {
-      collect: () => ({ note: container.querySelector("#gen_note").value.trim() }),
-      pdf: (collected) => {
-        const jsPDF = ensurePdf();
-        if (!jsPDF) return;
-        const doc = new jsPDF({ unit: "pt", format: "a4" });
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(14);
-        doc.text(`Task: ${taskLabel}`, 40, 50);
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(10);
-        doc.text(`Generated: ${new Date().toLocaleString()}`, 40, 68);
-        doc.autoTable({
-          startY: 90,
-          head: [["Field", "Value"]],
-          body: [["Notes", collected.note || ""]],
-          theme: "grid",
-          styles: { font: "helvetica", fontSize: 9, cellPadding: 4, valign: "top" },
-          margin: { left: 40, right: 40 },
-          columnStyles: { 0: { cellWidth: 110 }, 1: { cellWidth: 405 } },
-        });
-        doc.save(`${sanitizeFileName(taskLabel)}.pdf`);
-      },
-    };
-  }
-
-  function renderPlantChecksTask(container, existingData = {}) {
-    const data = Object.assign({ note: "" }, existingData);
-
-    container.innerHTML = `
-      <p class="sub">
-        This will open your Plant Checks (QR) system. When done, come back and press Save to mark this task completed.
-      </p>
-      <div class="actions" style="justify-content:flex-start; gap:10px; margin: 10px 0 14px;">
-        <button class="btn" type="button" id="pc_open">Open Plant Checks</button>
-      </div>
-      <label class="lbl">Notes (optional)</label>
-      <textarea class="inp" rows="3" id="pc_note">${escapeHtml(data.note || "")}</textarea>
-    `;
-
-    container.querySelector("#pc_open").addEventListener("click", () => {
-      if (!PLANT_CHECKS_URL) {
-        alert("Plant Checks URL not set yet in app.js (PLANT_CHECKS_URL).");
-        return;
-      }
-      window.open(PLANT_CHECKS_URL, "_blank", "noopener,noreferrer");
-    });
-
-    return {
-      collect: () => ({ note: container.querySelector("#pc_note").value.trim() }),
-      pdf: (collected) => {
-        const jsPDF = ensurePdf();
-        if (!jsPDF) return;
-        const doc = new jsPDF({ unit: "pt", format: "a4" });
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(14);
-        doc.text("Plant Operative Check Sheet", 40, 50);
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(10);
-        doc.text("This record confirms Plant Checks were completed via the Plant Checks system.", 40, 70);
-        doc.autoTable({
-          startY: 90,
-          head: [["Field", "Value"]],
-          body: [
-            ["Plant Checks URL", PLANT_CHECKS_URL || "Not set"],
-            ["Notes", collected.note || ""],
-          ],
-          theme: "grid",
-          styles: { font: "helvetica", fontSize: 9, cellPadding: 4, valign: "top" },
-          margin: { left: 40, right: 40 },
-          columnStyles: { 0: { cellWidth: 140 }, 1: { cellWidth: 375 } },
-        });
-        doc.save("Plant Operative Check Sheet - Record.pdf");
-      },
-    };
-  }
-
-  // ---------------- pages ----------------
-  function renderHome() {
-    const buildTag = $("buildTag");
-    if (buildTag) buildTag.textContent = `BUILD ${BUILD} • by Aureliu Nica`;
-  }
-
-  function renderList() {
-    const buildTag = $("buildTag");
-    if (buildTag) buildTag.textContent = `BUILD ${BUILD} • by Aureliu Nica`;
-  }
-
-  function renderForm() {
-    const buildTag = $("buildTag");
-    if (buildTag) buildTag.textContent = `BUILD ${BUILD} • by Aureliu Nica`;
-
-    const id = getParam("id");
-    const checklist = getChecklistById(id);
-
-    const itemsWrap = $("itemsWrap");
-    const periodInput = $("meta_period");
-    const errorBox = $("errorBox");
-    const submitBtn = $("submitBtn");
-
-    if (!checklist || !itemsWrap || !periodInput) return;
-
-    if (!periodInput.value) {
-      if (checklist.category === "daily") periodInput.value = todayISO();
-      if (checklist.category === "weekly") periodInput.value = mondayOf(todayISO());
-      if (checklist.category === "monthly") periodInput.value = monthISO();
-    }
-
-    function currentPeriod() {
-      return periodInput.value || "";
-    }
-
-    function saveMetaToPack() {
-      const period = currentPeriod();
-      const pack = getPack(checklist.id, period);
-      pack.meta = {
-        project: $("meta_project")?.value?.trim() || "",
-        projectNo: $("meta_projectNo")?.value?.trim() || "",
-        site: $("meta_site")?.value?.trim() || "",
-        supervisor: $("meta_supervisor")?.value?.trim() || "",
-        completedBy: $("meta_completedBy")?.value?.trim() || "",
+    function collect() {
+      const data = {
+        projectTitle: $("#db_projectTitle").value.trim(),
+        siteLocation: $("#db_siteLocation").value.trim(),
+        workLocation: $("#db_workLocation").value.trim(),
+        projectNo: $("#db_projectNo").value.trim(),
+        briefingBy: $("#db_briefingBy").value.trim(),
+        jobTitle: $("#db_jobTitle").value.trim(),
+        date: $("#db_date").value,
+        personsAttending: $("#db_personsAttending").value.trim(),
+        previousActivities: $("#db_previousActivities").value.trim(),
+        wentAsPlanned: $("#db_wentAsPlanned").value,
+        concerns: $("#db_concerns").value.trim(),
+        plannedActivities: $("#db_plannedActivities").value.trim(),
+        points: {},
+        coveredByRAMS: $("#db_coveredByRAMS").value,
+        controlsInPlace: $("#db_controlsInPlace").value,
+        ppeCompliant: $("#db_ppeCompliant").value,
+        attendees: attendees.map((a) => ({
+          name: (a.name || "").trim(),
+          date: (a.date || "").trim(),
+          signature: (a.signature || "").trim(),
+        })),
       };
-      setPack(checklist.id, period, pack);
-    }
 
-    ["meta_project", "meta_projectNo", "meta_site", "meta_supervisor", "meta_completedBy", "meta_period"].forEach(
-      (id) => {
-        const el = $(id);
-        if (!el) return;
-        el.addEventListener("change", () => {
-          saveMetaToPack();
-          drawTasks();
-        });
-        el.addEventListener("input", () => saveMetaToPack());
-      }
-    );
-
-    function taskStatusBadge(st) {
-      if (st === "complete") return `<span class="badge ok">Completed</span>`;
-      if (st === "na") return `<span class="badge na">N/A</span>`;
-      return `<span class="badge">Not started</span>`;
-    }
-
-    function drawTasks() {
-      const period = currentPeriod();
-      const pack = getPack(checklist.id, period);
-      itemsWrap.innerHTML = "";
-
-      checklist.items.forEach((it) => {
-        const st = pack.tasks?.[it.key]?.status || "new";
-        const templateUrl = templateForTask(it.key);
-
-        const blankBtn = templateUrl
-          ? `<a class="linkBtn" href="${templateUrl}" target="_blank" rel="noopener noreferrer">Blank PDF</a>`
-          : "";
-
-        const card = document.createElement("div");
-        card.className = "taskCard";
-        card.innerHTML = `
-          <div style="min-width:0;">
-            <div class="itemTitle">${escapeHtml(it.label)}</div>
-            <div class="itemSub">Status: ${taskStatusBadge(st)}</div>
-          </div>
-          <div class="itemRight" style="display:flex; gap:10px; align-items:center; justify-content:flex-end;">
-            ${blankBtn}
-            <a class="linkBtn" href="./task.html?pack=${encodeURIComponent(checklist.id)}&task=${encodeURIComponent(
-          it.key
-        )}&period=${encodeURIComponent(period)}">Open</a>
-          </div>
-        `;
-        itemsWrap.appendChild(card);
+      DAILY_BRIEF_POINTS.forEach((p, idx) => {
+        data.points[p] = !!$(`#pt_${idx}`).checked;
       });
+
+      return data;
     }
 
-    drawTasks();
-
-    const form = $("checkForm");
-    form?.addEventListener("submit", (ev) => {
-      ev.preventDefault();
-      if (errorBox) errorBox.style.display = "none";
-
-      const period = currentPeriod();
-      if (!period) {
-        if (errorBox) {
-          errorBox.textContent = "Date / Period is required.";
-          errorBox.style.display = "block";
-        }
-        return;
-      }
-
-      saveMetaToPack();
-      const pack = getPack(checklist.id, period);
-
-      const periodPretty = packPeriodPretty(checklist.category, pack.period);
-      const submission = {
-        uid: `${packKey(checklist.id, pack.period)}__${Date.now()}`,
+    $("#saveBtn").addEventListener("click", () => {
+      const data = collect();
+      addRecord({
+        id: `db_${Date.now()}`,
+        type: "daily-brief",
+        title: "Daily Morning Briefing",
         createdAt: new Date().toISOString(),
-        checklistId: checklist.id,
-        category: checklist.category,
-        title: checklist.title,
-        meta: {
-          ...pack.meta,
-          period: pack.period,
-          periodPretty,
-        },
-        tasks: pack.tasks || {},
-      };
-      addSubmission(submission);
+        data,
+      });
+      showMsg(root, "Saved to History.", true);
+    });
 
-      if (submitBtn) submitBtn.disabled = true;
-      try {
-        generatePackPDF(checklist, pack);
-      } finally {
-        if (submitBtn) submitBtn.disabled = false;
-      }
+    $("#pdfBtn").addEventListener("click", () => {
+      const data = collect();
+      addRecord({
+        id: `db_${Date.now()}`,
+        type: "daily-brief",
+        title: "Daily Morning Briefing",
+        createdAt: new Date().toISOString(),
+        data,
+      });
+      dailyBriefPdf(data, "download");
+      showMsg(root, "PDF downloaded and saved to History.", true);
     });
   }
 
-  function renderTask() {
-    const buildTag = $("buildTag");
-    if (buildTag) buildTag.textContent = `BUILD ${BUILD} • by Aureliu Nica`;
-
-    const checklistId = getParam("pack");
-    const taskKey = getParam("task");
-    const period = getParam("period");
-
-    const checklist = getChecklistById(checklistId);
-    if (!checklist) return;
-
-    const taskDef = checklist.items.find((x) => x.key === taskKey);
-    const taskLabel = taskDef?.label || taskKey;
-
-    const pack = getPack(checklistId, period);
-
-    const backLink = $("backLink");
-    if (backLink) backLink.href = `./form.html?id=${encodeURIComponent(checklistId)}`;
-
-    const titleEl = $("taskTitle");
-    const descEl = $("taskDesc");
-    const crumb = $("taskBreadcrumb");
-    if (crumb) crumb.textContent = `${checklist.title} • ${taskLabel}`;
-    if (titleEl) titleEl.textContent = taskLabel;
-
-    const body = $("taskBody");
-    const msg = $("taskMsg");
-
-    function showMsg(text, ok = true) {
-      if (!msg) return;
-      msg.style.display = "block";
-      msg.className = ok ? "msg msgOk" : "msg msgErr";
-      msg.textContent = text;
-    }
-
-    let moduleApi = null;
-
-    if (taskKey === "daily_brief") {
-      if (descEl) descEl.textContent = "Complete the morning briefing and download the PDF.";
-      moduleApi = renderDailyBriefTask(body, pack, checklistId, period);
-    } else if (taskKey === "plant_check_sheet") {
-      if (descEl) descEl.textContent = "Open Plant Checks (QR) and confirm completion.";
-      const existing = pack.tasks?.[taskKey]?.data || {};
-      moduleApi = renderPlantChecksTask(body, existing);
-    } else {
-      if (descEl) descEl.textContent = "Complete task details and download a simple record PDF.";
-      const existing = pack.tasks?.[taskKey]?.data || {};
-      moduleApi = renderGenericTask(body, taskKey, taskLabel, existing);
-    }
-
-    const saveBtn = $("saveTaskBtn");
-    const pdfBtn = $("pdfTaskBtn");
-    const naBtn = $("naTaskBtn");
-
-    function save(status = "complete") {
-      const collected = moduleApi.collect();
-      setTaskStatus(checklistId, period, taskKey, status, collected);
-      showMsg(status === "na" ? "Marked N/A and saved." : "Saved. You can now download/print the PDF.");
-    }
-
-    saveBtn?.addEventListener("click", () => save("complete"));
-
-    naBtn?.addEventListener("click", () => {
-      setTaskStatus(checklistId, period, taskKey, "na", pack.tasks?.[taskKey]?.data || {});
-      showMsg("Marked N/A and saved.");
-    });
-
-    pdfBtn?.addEventListener("click", () => {
-      const collected = moduleApi.collect();
-      setTaskStatus(checklistId, period, taskKey, "complete", collected);
-      moduleApi.pdf(collected);
-      showMsg("PDF downloaded. Task saved as Completed.");
-    });
+  function renderPlaceholder(formKey, title) {
+    setSubtitle(title);
+    const root = appRoot();
+    root.innerHTML = `
+      <div class="card">
+        <div class="cardHead">
+          <div style="min-width:0;">
+            <h1 class="h1">${escapeHtml(title)}</h1>
+            <p class="sub">We’ll build this next using the exact same “fill → PDF” flow.</p>
+          </div>
+          <div class="btnRow">
+            <a class="btnGhost" href="#home">Back</a>
+          </div>
+        </div>
+        <div class="cardBody">
+          <p class="muted">
+            When you’re ready, we’ll convert your permit template into a clean on-phone form and generate a PDF record.
+          </p>
+        </div>
+      </div>
+    `;
   }
 
   function renderHistory() {
-    const buildTag = $("buildTag");
-    if (buildTag) buildTag.textContent = `BUILD ${BUILD} • by Aureliu Nica`;
+    setSubtitle("Saved records");
+    const root = appRoot();
+    const records = loadRecords();
+
+    root.innerHTML = `
+      <div class="card">
+        <div class="cardHead">
+          <div style="min-width:0;">
+            <h1 class="h1">History</h1>
+            <p class="sub">Saved records on this device/browser.</p>
+          </div>
+          <div class="btnRow">
+            <a class="btnGhost" href="#home">Back</a>
+            <button class="btnAlt" id="clearBtn">Clear</button>
+          </div>
+        </div>
+        <div class="cardBody">
+          <div id="histList"></div>
+        </div>
+      </div>
+    `;
+
+    const list = $("#histList");
+    if (!records.length) {
+      list.innerHTML = `<p class="muted">No records saved yet.</p>`;
+    } else {
+      list.innerHTML = records
+        .map((r) => {
+          const when = r.createdAt ? new Date(r.createdAt).toLocaleString() : "";
+          return `
+            <div class="tile" style="margin-bottom:10px;">
+              <div class="tileLeft">
+                <p class="tileTitle">${escapeHtml(r.title || r.type)}</p>
+                <p class="tileSub">${escapeHtml(when)}</p>
+              </div>
+              <div class="tileRight">
+                ${
+                  r.type === "daily-brief"
+                    ? `<button class="btn" data-dl="${escapeHtml(r.id)}">Download PDF</button>`
+                    : ``
+                }
+              </div>
+            </div>
+          `;
+        })
+        .join("");
+
+      list.querySelectorAll("button[data-dl]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const id = btn.dataset.dl;
+          const rec = records.find((x) => x.id === id);
+          if (!rec) return;
+          if (rec.type === "daily-brief") dailyBriefPdf(rec.data, "download");
+        });
+      });
+    }
+
+    $("#clearBtn").addEventListener("click", () => {
+      localStorage.removeItem(RECORDS_KEY);
+      renderHistory();
+    });
+  }
+
+  function render() {
+    const r = route();
+
+    if (r === "home") return renderHome();
+    if (r === "daily-brief") return renderDailyBrief();
+    if (r === "ground-disturbance") return renderPlaceholder("ground-disturbance", "Ground Disturbance Permit");
+    if (r === "hot-works") return renderPlaceholder("hot-works", "Hot Works Permit");
+    if (r === "history") return renderHistory();
+
+    // fallback
+    location.hash = "#home";
   }
 
   function init() {
-    const page = document.body?.dataset?.page || "";
-    if (page === "home") return renderHome();
-    if (page === "list") return renderList();
-    if (page === "form") return renderForm();
-    if (page === "task") return renderTask();
-    if (page === "history") return renderHistory();
+    setBuild();
+    window.addEventListener("hashchange", render);
+    render();
   }
 
   document.addEventListener("DOMContentLoaded", init);
