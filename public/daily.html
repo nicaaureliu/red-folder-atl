@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>Daily Checks</title>
+  <style>
+    :root{ --bg:#f6f7f9; --panel:#fff; --text:#111; --muted:#6b7280; --line:#e5e7eb; --yellow:#ffd600; --radius:22px; }
+    *{ box-sizing:border-box; }
+    body{ margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial; background:var(--bg); color:var(--text); }
+    .wrap{ max-width:980px; margin:18px auto; padding:0 14px; }
+    .shell{ border:1px solid #e8eaee; border-radius:26px; padding:10px; background:transparent; box-shadow:0 6px 18px rgba(0,0,0,.04); }
+    .hero{ background:var(--panel); border:1px solid var(--line); border-radius:22px; padding:18px; position:relative; display:flex; align-items:center; justify-content:center; text-align:center; min-height:120px; }
+    .logo{ position:absolute; top:16px; height:42px; width:auto; object-fit:contain; user-select:none; -webkit-user-drag:none; }
+    .logo.left{ left:16px; } .logo.right{ right:16px; }
+    h1{ margin:0; font-size:24px; font-weight:900; }
+    .sub{ margin-top:6px; color:var(--muted); font-weight:700; font-size:13px; }
+    .content{ margin-top:14px; background:var(--panel); border:1px solid var(--line); border-radius:22px; padding:18px; }
+    .btn{ display:inline-block; background:var(--yellow); border:1px solid #caa900; color:#111; padding:10px 16px; border-radius:999px; text-decoration:none; font-weight:800; box-shadow:0 2px 0 rgba(0,0,0,.10); }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="shell">
+      <section class="hero">
+        <img class="logo left" src="assets/atl-logo.png" alt="Active Tunnelling" />
+        <img class="logo right" src="assets/tp-logo.png" alt="TP" />
+        <div>
+          <h1>Daily Checks</h1>
+          <div class="sub">Placeholder page – we’ll build the daily form here next.</div>
+        </div>
+      </section>
+
+      <section class="content">
+        <a class="btn" href="index.html">Home</a>
+      </section>
+    </div>
+  </div>
+</body>
+</html>
