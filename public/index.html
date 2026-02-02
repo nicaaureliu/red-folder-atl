@@ -1,260 +1,215 @@
-<!-- public/index.html -->
 <!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-  <title>Red Folder ATL</title>
+  <title>Plant Pre-Use Inspection Checklist</title>
 
   <style>
     :root{
       --bg:#f6f7f9;
-      --card:#ffffff;
-      --text:#111827;
+      --panel:#ffffff;
+      --text:#111111;
       --muted:#6b7280;
       --line:#e5e7eb;
+      --cardLine:#2f2f2f;
       --yellow:#ffd600;
-      --black:#111;
-      --radius:16px;
-      --shadow: 0 10px 25px rgba(0,0,0,.08);
+      --radius:22px;
     }
+
     *{ box-sizing:border-box; }
     html, body{ width:100%; max-width:100%; overflow-x:hidden; }
+
     body{
       margin:0;
-      font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
-      color:var(--text);
-      background:var(--bg);
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
     }
 
-    .topbar{
-      position:sticky; top:0; z-index:50;
-      background:var(--card);
-      border-bottom:1px solid var(--line);
+    .wrap{
+      max-width: 980px;
+      margin: 18px auto 28px;
+      padding: 0 14px;
     }
-    .topbarInner{
-      max-width:1100px;
-      margin:0 auto;
-      padding:14px 16px;
+
+    .shell{
+      background: transparent;
+      border-radius: 26px;
+      padding: 10px;
+      border: 1px solid #e8eaee;
+      box-shadow: 0 6px 18px rgba(0,0,0,.04);
+    }
+
+    .hero{
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      padding: 22px 18px 18px;
+      position: relative;
+      min-height: 150px;
       display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap:12px;
-    }
-    .brand{ display:flex; align-items:center; gap:10px; min-width:0; }
-    .badge{
-      display:inline-flex; align-items:center; justify-content:center;
-      width:34px; height:34px;
-      border-radius:10px;
-      background:var(--yellow);
-      color:#111;
-      font-weight:800;
-      letter-spacing:.3px;
-    }
-    .brandTitle{
-      font-weight:800;
-      letter-spacing:.2px;
-      font-size:16px;
-      line-height:1.1;
-    }
-    .brandSub{
-      font-size:12px;
-      color:var(--muted);
-      margin-top:2px;
-      white-space:nowrap;
-      overflow:hidden;
-      text-overflow:ellipsis;
-      max-width:58vw;
-    }
-    .rightTools{
-      display:flex; align-items:center; gap:8px; flex-shrink:0;
-    }
-
-    .wrap{ max-width:1100px; margin:0 auto; padding:16px; }
-    .card{
-      background:var(--card);
-      border:1px solid var(--line);
-      border-radius:var(--radius);
-      box-shadow:var(--shadow);
-      overflow:hidden;
-    }
-    .cardHead{
-      padding:16px;
-      border-bottom:1px solid var(--line);
-      display:flex;
-      align-items:flex-start;
-      justify-content:space-between;
-      gap:12px;
-    }
-    .h1{ margin:0; font-size:18px; letter-spacing:.2px; }
-    .sub{ margin:6px 0 0; font-size:13px; color:var(--muted); line-height:1.3; }
-    .cardBody{ padding:16px; }
-
-    .btnRow{
-      display:flex; flex-wrap:wrap;
-      gap:10px;
-      justify-content:flex-end;
-      align-items:center;
-    }
-
-    .btn, .btnAlt, .btnGhost, .linkBtn{
-      border:0;
-      border-radius:12px;
-      padding:10px 12px;
-      font-weight:700;
-      font-size:13px;
-      cursor:pointer;
-      text-decoration:none;
-      display:inline-flex;
       align-items:center;
       justify-content:center;
-      gap:8px;
-      line-height:1;
-      user-select:none;
-      -webkit-tap-highlight-color: transparent;
-    }
-    .btn{ background:var(--black); color:#fff; }
-    .btnAlt{ background:#f3f4f6; color:var(--text); border:1px solid var(--line); }
-    .btnGhost{ background:transparent; color:var(--text); border:1px solid var(--line); }
-    .linkBtn{ background:#fff; color:var(--text); border:1px solid var(--line); }
-
-    .tiles{
-      display:grid;
-      grid-template-columns:1fr;
-      gap:12px;
-    }
-    @media (min-width: 820px){
-      .tiles{ grid-template-columns:1fr 1fr; }
-    }
-    .tile{
-      border:1px solid var(--line);
-      border-radius:16px;
-      background:#fff;
-      padding:14px;
-      display:flex;
-      gap:12px;
-      align-items:flex-start;
-      justify-content:space-between;
-      box-shadow: 0 6px 16px rgba(0,0,0,.05);
-    }
-    .tileLeft{ min-width:0; }
-    .tileTitle{ font-weight:800; margin:0; }
-    .tileSub{ color:var(--muted); margin:6px 0 0; font-size:13px; line-height:1.3; }
-    .tileRight{ display:flex; gap:10px; align-items:center; justify-content:flex-end; flex-shrink:0; flex-wrap:wrap; }
-
-    .divider{ height:1px; background:var(--line); margin:16px 0; }
-
-    .grid2{ display:grid; grid-template-columns:1fr; gap:12px; }
-    .grid3{ display:grid; grid-template-columns:1fr; gap:12px; }
-    @media (min-width: 820px){
-      .grid2{ grid-template-columns:1fr 1fr; }
-      .grid3{ grid-template-columns:1fr 1fr 1fr; }
-    }
-
-    .lbl{
-      display:block;
-      font-size:12px;
-      color:var(--muted);
-      margin:0 0 6px;
-      font-weight:700;
-      letter-spacing:.2px;
-    }
-    .inp{
-      width:100%;
-      border:1px solid var(--line);
-      border-radius:12px;
-      padding:12px 12px;
-      font-size:14px;
-      outline:none;
-      background:#fff;
-    }
-    textarea.inp{ resize:vertical; }
-
-    .checkGrid{
-      display:grid;
-      grid-template-columns:1fr;
-      gap:10px;
-    }
-    @media (min-width: 820px){
-      .checkGrid{ grid-template-columns:1fr 1fr; }
-    }
-    .tickRow{
-      display:flex;
-      align-items:flex-start;
-      gap:10px;
-      padding:10px 12px;
-      border:1px solid var(--line);
-      border-radius:12px;
-      background:#fff;
-    }
-    .tickRow input{ margin-top:2px; transform:scale(1.15); }
-
-    .msg{
-      margin:12px 0 0;
-      padding:10px 12px;
-      border-radius:12px;
-      border:1px solid var(--line);
-      background:#fff;
-      font-size:13px;
-    }
-    .msgOk{ border-color:#bbf7d0; background:#f0fdf4; }
-    .msgErr{ border-color:#fecaca; background:#fef2f2; }
-
-    .muted{ color:var(--muted); font-size:13px; }
-
-    .foot{
       text-align:center;
-      color:var(--muted);
-      font-size:12px;
-      padding:14px 0 4px;
     }
 
-    .pill{
-      display:inline-flex;
+    .logo{
+      position:absolute;
+      top: 18px;
+      height: 48px;
+      width:auto;
+      object-fit: contain;
+      user-select:none;
+      -webkit-user-drag:none;
+    }
+    .logo.left{ left: 18px; }
+    .logo.right{ right: 18px; }
+
+    h1{
+      margin: 8px 0 14px;
+      font-size: 26px;
+      letter-spacing: .2px;
+      font-weight: 800;
+    }
+
+    .cta{
+      display:inline-block;
+      background: var(--yellow);
+      color: #111;
+      border: 1px solid #caa900;
+      padding: 10px 18px;
+      border-radius: 999px;
+      font-weight: 700;
+      text-decoration: none;
+      box-shadow: 0 2px 0 rgba(0,0,0,.10);
+      transition: transform .08s ease;
+    }
+    .cta:active{ transform: translateY(1px); }
+
+    .grid{
+      margin-top: 16px;
+      display:grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+    }
+
+    .choice{
+      background: var(--panel);
+      border: 1.8px solid var(--cardLine);
+      border-radius: 18px;
+      padding: 18px 18px 16px;
+      text-decoration:none;
+      color: inherit;
+      text-align:center;
+      box-shadow: 0 2px 0 rgba(0,0,0,.06);
+      transition: transform .10s ease, box-shadow .10s ease;
+      display:flex;
+      flex-direction:column;
       align-items:center;
-      padding:6px 10px;
-      border-radius:999px;
-      background: rgba(255,214,0,.22);
-      border:1px solid rgba(255,214,0,.45);
-      font-weight:800;
-      font-size:12px;
-      color:#111;
-      letter-spacing:.2px;
-      max-width: 45vw;
-      overflow:hidden;
-      text-overflow:ellipsis;
-      white-space:nowrap;
+      justify-content:center;
+      min-height: 210px;
+    }
+    .choice:hover{
+      transform: translateY(-1px);
+      box-shadow: 0 6px 14px rgba(0,0,0,.08);
+    }
+
+    .icon{
+      width: 140px;
+      height: 84px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      margin-top: 2px;
+      margin-bottom: 10px;
+    }
+
+    .choiceTitle{
+      font-size: 22px;
+      font-weight: 900;
+      margin: 2px 0 6px;
+    }
+
+    .choiceSub{
+      font-size: 12px;
+      color: var(--muted);
+      font-weight: 700;
+      letter-spacing: .2px;
+    }
+
+    /* Responsive */
+    @media (max-width: 860px){
+      .grid{ grid-template-columns: 1fr; }
+      .hero{ padding-top: 66px; }
+      .logo{ top: 14px; height: 42px; }
+      .logo.left{ left: 14px; }
+      .logo.right{ right: 14px; }
+      h1{ font-size: 22px; }
     }
   </style>
-
-  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
 </head>
 
 <body>
-  <header class="topbar">
-    <div class="topbarInner">
-      <div class="brand">
-        <div class="badge">RF</div>
-        <div style="min-width:0;">
-          <div class="brandTitle">Red Folder ATL</div>
-          <div class="brandSub" id="subTitle">Select a project</div>
+  <div class="wrap">
+    <div class="shell">
+      <section class="hero">
+        <img class="logo left" src="assets/atl-logo.png" alt="Active Tunnelling" />
+        <img class="logo right" src="assets/tp-logo.png" alt="TP" />
+
+        <div>
+          <h1>Plant Pre-Use Inspection Checklist</h1>
+          <a class="cta" href="#choices">Choose check type to start</a>
         </div>
-      </div>
+      </section>
 
-      <div class="rightTools">
-        <span class="pill" id="projectPill" title="Current project">No project</span>
-        <a class="btnGhost" href="#history">History</a>
-        <span class="pill" id="buildTag">BUILD</span>
-      </div>
+      <main id="choices" class="grid" aria-label="Choose check type">
+        <a class="choice" href="daily.html" aria-label="Daily Checks">
+          <div class="icon" aria-hidden="true">
+            <!-- Calendar + 1 -->
+            <svg viewBox="0 0 220 120" width="140" height="84">
+              <rect x="28" y="24" width="150" height="82" rx="14" fill="none" stroke="var(--yellow)" stroke-width="6"/>
+              <line x1="28" y1="46" x2="178" y2="46" stroke="var(--yellow)" stroke-width="6"/>
+              <line x1="62" y1="16" x2="62" y2="38" stroke="var(--yellow)" stroke-width="10" stroke-linecap="round"/>
+              <line x1="144" y1="16" x2="144" y2="38" stroke="var(--yellow)" stroke-width="10" stroke-linecap="round"/>
+              <text x="102" y="88" text-anchor="middle" font-size="44" font-weight="900" fill="var(--yellow)" font-family="system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial">1</text>
+            </svg>
+          </div>
+          <div class="choiceTitle">Daily Checks</div>
+          <div class="choiceSub">Frequency: DAILY</div>
+        </a>
+
+        <a class="choice" href="weekly.html" aria-label="Weekly Checks">
+          <div class="icon" aria-hidden="true">
+            <!-- Calendar + 7 -->
+            <svg viewBox="0 0 220 120" width="140" height="84">
+              <rect x="28" y="24" width="150" height="82" rx="14" fill="none" stroke="var(--yellow)" stroke-width="6"/>
+              <line x1="28" y1="46" x2="178" y2="46" stroke="var(--yellow)" stroke-width="6"/>
+              <line x1="62" y1="16" x2="62" y2="38" stroke="var(--yellow)" stroke-width="10" stroke-linecap="round"/>
+              <line x1="144" y1="16" x2="144" y2="38" stroke="var(--yellow)" stroke-width="10" stroke-linecap="round"/>
+              <text x="102" y="88" text-anchor="middle" font-size="44" font-weight="900" fill="var(--yellow)" font-family="system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial">7</text>
+            </svg>
+          </div>
+          <div class="choiceTitle">Weekly Checks</div>
+          <div class="choiceSub">Frequency: WEEKLY</div>
+        </a>
+
+        <a class="choice" href="monthly.html" aria-label="Monthly Checks">
+          <div class="icon" aria-hidden="true">
+            <!-- Calendar + 30 -->
+            <svg viewBox="0 0 220 120" width="140" height="84">
+              <rect x="28" y="24" width="150" height="82" rx="14" fill="none" stroke="var(--yellow)" stroke-width="6"/>
+              <line x1="28" y1="46" x2="178" y2="46" stroke="var(--yellow)" stroke-width="6"/>
+              <line x1="62" y1="16" x2="62" y2="38" stroke="var(--yellow)" stroke-width="10" stroke-linecap="round"/>
+              <line x1="144" y1="16" x2="144" y2="38" stroke="var(--yellow)" stroke-width="10" stroke-linecap="round"/>
+              <text x="102" y="88" text-anchor="middle" font-size="40" font-weight="900" fill="var(--yellow)" font-family="system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial">30</text>
+            </svg>
+          </div>
+          <div class="choiceTitle">Monthly Checks</div>
+          <div class="choiceSub">Frequency: MONTHLY</div>
+        </a>
+      </main>
     </div>
-  </header>
-
-  <main class="wrap">
-    <div id="app"></div>
-    <div class="foot" id="footTag"></div>
-  </main>
-
-  <script src="./app.js"></script>
+  </div>
 </body>
 </html>
