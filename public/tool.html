@@ -924,6 +924,295 @@
       }
     }
 
+    async function generateDailyBriefPDF(data){
+      // 1) pdf-lib availability
+      if(!window.PDFLib){
+        throw new Error("PDF engine is blocked (pdf-lib did not load). If you use a strict Content-Security-Policy, you must allow the CDN or host pdf-lib locally.");
+      }
+
+      const { PDFDocument, StandardFonts, rgb } = PDFLib;
+
+      const pdfDoc = await PDFDocument.create();
+      const helv = await pdfDoc.embedFont(StandardFonts.Helvetica);
+      const helvBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+      const A4 = [595.28, 841.89];
+      const page1 = pdfDoc.addPage(A4);
+      const page2 = pdfDoc.addPage(A4);
+
+      const detectImageType = (bytes) => {
+        if(!bytes || bytes.length < 4) return null;
+        if(bytes[0] === 0xff && bytes[1] === 0xd8) return "jpeg";
+        if(bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47) return "png";
+        return null;
+      };
+
+      const embedImageBytes = async (bytes) => {
+        const type = detectImageType(bytes);
+        if(type === "jpeg") return await pdfDoc.embedJpg(bytes);
+        if(type === "png") return await pdfDoc.embedPng(bytes);
+        return null;
+      };
+
+      async function fetchImage(url){
+        try{
+          const res = await fetch(url, { cache:"no-store" });
+          if(!res.ok) return null;
+          return new Uint8Array(await res.arrayBuffer());
+        }catch(err){
+          return null;
+        }
+      }
+
+      let atlLogo;
+      const atlBytes = await fetchImage("/atl-logo.png") || await fetchImage("atl-logo.png");
+      if(atlBytes) atlLogo = await embedImageBytes(atlBytes);
+      const RED = rgb(0.78, 0.1, 0.1);
+      const HEADER_TEXT = rgb(1, 1, 1);
+
+      const BLACK = rgb(0,0,0);
+      const LIGHT_BLUE = rgb(1, 1, 1);
+      const LIGHT_GRAY = rgb(1, 1, 1);
+
+      const drawText = (page, text, x, y, size=10, font=helv, color=BLACK) => {
+        if(!text) return;
+        page.drawText(String(text), { x, y, size, font, color });
+      };
+
+      const drawCenteredText = (page, text, centerX, y, size=12, font=helvBold, color=BLACK) => {
+        if(!text) return;
+        const width = font.widthOfTextAtSize(text, size);
+        page.drawText(String(text), { x: centerX - (width / 2), y, size, font, color });
+      };
+
+      const drawCell = (page, x, y, w, h, { fill, border=1 } = {}) => {
+        page.drawRectangle({
+          x,
+          y,
+          width: w,
+          height: h,
+          color: fill,
+          borderColor: BLACK,
+          borderWidth: border
+        });
+      };
+
+      const drawCheckmark = (page, boxX, boxY, boxW, boxH) => {
+        const pad = Math.min(boxW, boxH) * 0.25;
+        const x1 = boxX + pad;
+        const x2 = boxX + boxW - pad;
+        const y1 = boxY + pad;
+        const y2 = boxY + boxH - pad;
+        page.drawLine({ start:{ x:x1, y:y1 }, end:{ x:x2, y:y2 }, thickness:1.2, color: BLACK });
+        page.drawLine({ start:{ x:x1, y:y2 }, end:{ x:x2, y:y1 }, thickness:1.2, color: BLACK });
+      };
+
+      const wrapLines = (font, text, size, maxWidth) => {
+        const words = String(text || "").replace(/\r/g,"").split(/\s+/).filter(Boolean);
+        const lines = [];
+        let line = "";
+        for(const w of words){
+          const test = line ? (line + " " + w) : w;
+          const width = font.widthOfTextAtSize(test, size);
+          if(width <= maxWidth) line = test;
+          else { if(line) lines.push(line); line = w; }
+        }
+        if(line) lines.push(line);
+        return lines;
+      };
+
+      const drawWrappedFromTop = (page, text, x, topY, maxWidth, lineHeight=12, size=10, maxLines=20, color=BLACK) => {
+        const lines = wrapLines(helv, text, size, maxWidth).slice(0, maxLines);
+        let y = topY;
+        for(const ln of lines){
+          page.drawText(ln, { x, y, size, font: helv, color });
+          y -= lineHeight;
+        }
+      };
+
+      const drawYesNoBox = (page, x, y, size, isYes) => {
+        drawCell(page, x, y, size, size, { fill: undefined, border: 1 });
+        if(isYes) drawCheckmark(page, x, y, size, size);
+      };
+
+      const ddmmyyyy = toDDMMYYYY(data.dateISO);
+      const attendeesCount = (data.attendees || []).length;
+
+      function drawHeader(page){
+        if(atlLogo){
+          const scale = 140 / atlLogo.width;
+          page.drawImage(atlLogo, { x:40, y:760, width: atlLogo.width * scale, height: atlLogo.height * scale });
+        }
+        drawText(page, "ATL Daily Task Briefing", 430, 795, 9, helvBold, RED);
+        drawText(page, "QPFS12.4", 430, 783, 9, helvBold, RED);
+        drawCell(page, 40, 705, 515, 22, { fill: RED, border: 1 });
+        drawCenteredText(page, "HEALTH & SAFETY - MORNING BRIEFING", 297.5, 712, 12, helvBold, HEADER_TEXT);
+      }
+
+      function drawIntroTable(page){
+        const marginX = 40;
+        const tableTop = 680;
+        const rowH = 26;
+        const labelW = 140;
+        const valueW = 190;
+        const label2W = 110;
+        const value2W = 75;
+
+        const rows = [
+          ["PROJECT TITLE", data.projectTitle, "SITE LOCATION", data.siteLocation],
+          ["Work Location", data.workLocation, "Project no:", data.projectNo],
+          ["NAME OF PERSON\nGIVING BRIEFING", data.brieferName, "DATE", ddmmyyyy],
+          ["JOB TITLE", data.jobTitle, "NO. OF PERSONS\nATTENDING BRIEFING", String(attendeesCount || "")]
+        ];
+
+        rows.forEach((row, i) => {
+          const y = tableTop - (rowH * (i + 1));
+          drawCell(page, marginX, y, labelW, rowH, { fill: undefined });
+          drawCell(page, marginX + labelW, y, valueW, rowH, { fill: LIGHT_BLUE });
+          drawCell(page, marginX + labelW + valueW, y, label2W, rowH, { fill: undefined });
+          drawCell(page, marginX + labelW + valueW + label2W, y, value2W, rowH, { fill: LIGHT_BLUE });
+          drawWrappedFromTop(page, row[0], marginX + 6, y + rowH - 10, labelW - 10, 10, 8, 2, RED);
+          drawText(page, row[1], marginX + labelW + 6, y + 10, 10, helv);
+          drawWrappedFromTop(page, row[2], marginX + labelW + valueW + 6, y + rowH - 10, label2W - 10, 10, 8, 2, RED);
+          drawText(page, row[3], marginX + labelW + valueW + label2W + 6, y + 10, 10, helv);
+        });
+
+        return tableTop - (rowH * rows.length) - 10;
+      }
+
+      function drawPreviousDay(page, startY){
+        const marginX = 40;
+        const headerH = 20;
+        drawCell(page, marginX, startY - headerH, 395, headerH, { fill: RED });
+        drawCell(page, marginX + 395, startY - headerH, 120, headerH, { fill: RED });
+        drawText(page, "PREVIOUS DAY'S ACTIVITIES", marginX + 6, startY - 14, 9, helvBold, HEADER_TEXT);
+        drawWrappedFromTop(page, "DID THEY GO AS\nPLANNED? [Yes / No]", marginX + 402, startY - 6, 110, 9, 7, 2, HEADER_TEXT);
+
+        const boxSize = 14;
+        const yesX = marginX + 495;
+        const yesY = startY - headerH + 3;
+        drawYesNoBox(page, yesX, yesY, boxSize, data.prevPlanned === "Yes");
+
+        const qH = 55;
+        const qY = startY - headerH - qH;
+        drawCell(page, marginX, qY, 515, qH, { fill: undefined });
+        drawText(page, "Any concerns from the previous day?", marginX + 6, qY + qH - 18, 9, helvBold, BLACK);
+        drawCell(page, marginX, qY - 55, 515, 55, { fill: LIGHT_BLUE });
+        drawWrappedFromTop(page, data.prevConcerns, marginX + 6, qY - 8, 500, 12, 10, 4);
+
+        return qY - 70;
+      }
+
+      function drawTodayPlanned(page, startY){
+        const marginX = 40;
+        const headerH = 18;
+        drawCell(page, marginX, startY - headerH, 515, headerH, { fill: RED });
+        drawText(page, "TODAY'S PLANNED ACTIVITIES BRIEFING", marginX + 6, startY - 12, 9, helvBold, HEADER_TEXT);
+        const bodyH = 120;
+        drawCell(page, marginX, startY - headerH - bodyH, 515, bodyH, { fill: LIGHT_BLUE });
+        drawWrappedFromTop(page, data.todayPlanned, marginX + 6, startY - headerH - 8, 500, 12, 10, 8);
+        return startY - headerH - bodyH - 18;
+      }
+
+      function drawPointsGrid(page, startY){
+        const marginX = 40;
+        const headerH = 16;
+        drawCell(page, marginX, startY - headerH, 515, headerH, { fill: RED });
+        drawText(page, "Points discussed for today's operation:", marginX + 6, startY - 12, 8, helvBold, HEADER_TEXT);
+
+        const rowH = 18;
+        const colGroups = [
+          { labelW: 150, checkW: 20 },
+          { labelW: 150, checkW: 20 },
+          { labelW: 155, checkW: 20 }
+        ];
+        const rows = [
+          ["confined", "barriers", "coshh"],
+          ["emergency", "clearAccess", "fire"],
+          ["lifting", "methodStatements", "materials"],
+          ["permits", "suitablePPE", "competence"],
+          ["plant", "trenchCollapse", "cables"],
+          ["safetyPlanning", "welfare", "trips"],
+        ];
+        const labels = {
+          confined: "Confined Spaces / Areas",
+          emergency: "Emergency Procedures",
+          lifting: "Lifting Equipment – Chains / Slings",
+          permits: "Permits to Work",
+          plant: "Plant & Equipment",
+          safetyPlanning: "Safety Planning",
+          barriers: "Barriers / Edge Protection",
+          clearAccess: "Clear Access Ways",
+          methodStatements: "Method Statements / Risk Assessments",
+          suitablePPE: "Suitable PPE",
+          trenchCollapse: "Trench Collapse",
+          welfare: "Welfare Facilities",
+          coshh: "COSHH Assessments",
+          fire: "Fire Precautions",
+          materials: "Materials",
+          competence: "Operative Experience / Competence",
+          cables: "Overhead / Underground Cable Strike",
+          trips: "Trips / Falls"
+        };
+
+        let y = startY - headerH;
+        rows.forEach((row) => {
+          y -= rowH;
+          let x = marginX;
+          row.forEach((key, idx) => {
+            const group = colGroups[idx];
+            drawCell(page, x, y, group.labelW, rowH, { fill: undefined });
+            drawCell(page, x + group.labelW, y, group.checkW, rowH, { fill: LIGHT_BLUE });
+            drawText(page, labels[key], x + 6, y + 6, 8, helv);
+            if(data.points && data.points[key]){
+              drawCheckmark(page, x + group.labelW + 2, y + 3, group.checkW - 4, rowH - 6);
+            }
+            x += group.labelW + group.checkW;
+          });
+        });
+
+        const footerY = y - 18;
+        drawCell(page, marginX, footerY, 515, 16, { fill: RED });
+        drawCenteredText(page, "This list is not exhaustive  -  REMEMBER – MANAGE HEALTH & SAFETY", 297.5, footerY + 4, 8, helvBold, HEADER_TEXT);
+        return footerY - 16;
+      }
+
+      function drawConfirmations(page, startY){
+        const marginX = 40;
+        const rowH = 32;
+        const textW = 460;
+        const boxW = 55;
+        const items = [
+          { text: "Are all today's activities covered by the Operation Procedure / Method Statement / Risk Assessment / Work Instruction?", value: data.covered },
+          { text: "Are all Control Measures in place?", value: data.controls },
+          { text: "Are all operatives compliant with the site requirements for PPE?", value: data.ppe }
+        ];
+        let y = startY;
+        items.forEach(item => {
+          y -= rowH;
+          drawCell(page, marginX, y, textW, rowH, { fill: undefined });
+          drawCell(page, marginX + textW, y, boxW, rowH, { fill: undefined });
+          drawWrappedFromTop(page, item.text, marginX + 6, y + rowH - 10, textW - 10, 10, 8, 3, BLACK);
+          drawYesNoBox(page, marginX + textW + 18, y + 9, 12, item.value === "Yes");
+        });
+      }
+
+      function drawSignUpPage(page){
+        drawHeader(page);
+        drawCell(page, 40, 675, 515, 20, { fill: RED });
+        drawCenteredText(page, "HEALTH & SAFETY – MORNING BRIEFING SIGN-UP Sheet", 297.5, 680, 9, helvBold, HEADER_TEXT);
+        drawCell(page, 40, 645, 515, 30, { fill: undefined });
+        drawWrappedFromTop(
+          page,
+          "Signing of this briefing confirms that all control measures defined in the associated risk assessments are in place, anyone joining the working group must be briefed prior to starting",
+          50,
+          668,
+          495,
+          10,
+          8,
+          3
+        );
+        drawCell(page, 40, 620, 515, 20, { fill: RED });
+        drawCenteredText(page, "ATTENDEES", 297.5, 625, 8, helvBold, HEADER_TEXT);
    async function generateDailyBriefPDF(data){
   // 1) pdf-lib availability
   if(!window.PDFLib){
@@ -1317,6 +1606,64 @@
       return await doc.embedPng(decoded.bytes);
     };
 
+      async function drawAttendeeTable(page, startY, attendees, startIndex){
+        const marginX = 40;
+        const rowH = 24;
+        const nameW = 250;
+        const dateW = 110;
+        const sigW = 155;
+        const headerY = startY;
+        drawCell(page, marginX, headerY, nameW, rowH, { fill: RED });
+        drawCell(page, marginX + nameW, headerY, dateW, rowH, { fill: RED });
+        drawCell(page, marginX + nameW + dateW, headerY, sigW, rowH, { fill: RED });
+        drawText(page, "NAME", marginX + 6, headerY + 8, 8, helvBold, HEADER_TEXT);
+        drawText(page, "DATE", marginX + nameW + 6, headerY + 8, 8, helvBold, HEADER_TEXT);
+        drawText(page, "SIGNATURE", marginX + nameW + dateW + 6, headerY + 8, 8, helvBold, HEADER_TEXT);
+
+        const fitInto = (imgW, imgH, maxW, maxH) => {
+          const r = Math.min(maxW / imgW, maxH / imgH);
+          return { w: imgW * r, h: imgH * r };
+        };
+
+        const decodeDataUrl = (dataUrl) => {
+          if(!dataUrl || typeof dataUrl !== "string") return null;
+          const match = dataUrl.match(/^data:(image\/(png|jpeg|jpg));base64,(.+)$/i);
+          if(!match) return null;
+          const mime = match[1].toLowerCase();
+          const b64 = match[3];
+          if(!b64) return null;
+          const bytes = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+          return { mime, bytes };
+        };
+
+        const embedImageFromDataUrl = async (dataUrl) => {
+          const decoded = decodeDataUrl(dataUrl);
+          if(!decoded) return null;
+          return await embedImageBytes(decoded.bytes);
+        };
+
+        let y = headerY - rowH;
+        let idx = startIndex;
+        for(let i=0;i<18;i++){
+          drawCell(page, marginX, y, nameW, rowH, { fill: LIGHT_BLUE });
+          drawCell(page, marginX + nameW, y, dateW, rowH, { fill: LIGHT_BLUE });
+          drawCell(page, marginX + nameW + dateW, y, sigW, rowH, { fill: LIGHT_BLUE });
+          const a = attendees[idx];
+          if(a){
+            drawText(page, a.name, marginX + 6, y + 7, 10, helv);
+            drawText(page, toDDMMYYYY(a.dateISO), marginX + nameW + 6, y + 7, 10, helv);
+            if(a.signature){
+              const embed = await embedImageFromDataUrl(a.signature);
+              if(embed){
+                const maxW = sigW - 12;
+                const maxH = rowH - 6;
+                const s = fitInto(embed.width, embed.height, maxW, maxH);
+                const x = marginX + nameW + dateW + 6 + ((maxW - s.w) / 2);
+                const yImg = y + 3 + ((maxH - s.h) / 2);
+                page.drawImage(embed, { x, y: yImg, width:s.w, height:s.h });
+              }
+            }
+            idx++;
     let y = startY - rowH;
     let idx = startIndex;
 
@@ -1343,11 +1690,48 @@
             const yImg = y + 3 + ((maxH - s.h) / 2);
             page.drawImage(embed, { x, y: yImg, width:s.w, height:s.h });
           }
+          y -= rowH;
         }
 
         idx++;
       }
 
+      drawHeader(page1);
+      let cursorY = drawIntroTable(page1);
+      cursorY = drawPreviousDay(page1, cursorY);
+      cursorY = drawTodayPlanned(page1, cursorY);
+      cursorY = drawPointsGrid(page1, cursorY);
+      drawConfirmations(page1, cursorY);
+
+      drawSignUpPage(page2);
+
+      const attendeesAll = (data.attendees || []).slice(0, 36).map(a=>({
+        name: (a.name||"").trim(),
+        dateISO: (a.dateISO||data.dateISO||todayISO()),
+        signature: (a.signature||"")
+      }));
+      let next = await drawAttendeeTable(page2, 596, attendeesAll, 0);
+      if(next < attendeesAll.length){
+        const page3 = pdfDoc.addPage(A4);
+        drawSignUpPage(page3);
+        await drawAttendeeTable(page3, 596, attendeesAll, next);
+      }
+
+      // Save + download (with fallback)
+      const outBytes = await pdfDoc.save();
+      const blob = new Blob([outBytes], { type:"application/pdf" });
+      const url = URL.createObjectURL(blob);
+      const filename = `Daily-Briefing_${data.dateISO || todayISO()}.pdf`;
+
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      a.rel = "noopener";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+
+      setTimeout(()=> URL.revokeObjectURL(url), 2500);
       y -= rowH;
     }
 
