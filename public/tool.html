@@ -932,39 +932,63 @@
 
       const { PDFDocument, StandardFonts, rgb } = PDFLib;
 
-      // 2) fetch template (absolute first, then relative)
-      async function fetchTemplate(url){
+      const pdfDoc = await PDFDocument.create();
+      const helv = await pdfDoc.embedFont(StandardFonts.Helvetica);
+      const helvBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+      const A4 = [595.28, 841.89];
+      const page1 = pdfDoc.addPage(A4);
+      const page2 = pdfDoc.addPage(A4);
+      const page3 = pdfDoc.addPage(A4);
+
+      async function fetchImage(url){
         const res = await fetch(url, { cache:"no-store" });
-        if(!res.ok) throw new Error(`Template not found at ${url} (HTTP ${res.status}). Put the file in public/templates/daily-briefing.pdf`);
+        if(!res.ok) return null;
         return await res.arrayBuffer();
       }
 
-      let templateBytes;
-      try{
-        templateBytes = await fetchTemplate("/templates/daily-briefing.pdf");
-      }catch(e1){
-        templateBytes = await fetchTemplate("templates/daily-briefing.pdf");
-      }
+      let atlLogo;
+      let tpLogo;
+      const atlBytes = await fetchImage("/atl-logo.png") || await fetchImage("atl-logo.png");
+      const tpBytes = await fetchImage("/tp-logo.png") || await fetchImage("tp-logo.png");
+      if(atlBytes) atlLogo = await pdfDoc.embedPng(atlBytes);
+      if(tpBytes) tpLogo = await pdfDoc.embedPng(tpBytes);
 
-      const pdfDoc = await PDFDocument.load(templateBytes);
-      const helv = await pdfDoc.embedFont(StandardFonts.Helvetica);
-      const zapf = await pdfDoc.embedFont(StandardFonts.ZapfDingbats);
-      const pages = pdfDoc.getPages();
+      const BLACK = rgb(0,0,0);
+      const LIGHT_BLUE = rgb(0.84, 0.91, 0.97);
+      const LIGHT_GRAY = rgb(0.93, 0.93, 0.93);
 
-      if(pages.length < 3){
-        throw new Error(`Template PDF has ${pages.length} page(s). This tool expects 3 pages (brief + 2 sign-up sheets).`);
-      }
-
-      const page1 = pages[0];
-      const page2 = pages[1];
-      const page3 = pages[2];
-
-      const WHITE = rgb(1,1,1);
-      const cover = (page, x, y, w, h) => page.drawRectangle({ x, y, width:w, height:h, color: WHITE });
-
-      const drawText = (page, text, x, y, size=10) => {
+      const drawText = (page, text, x, y, size=10, font=helv) => {
         if(!text) return;
-        page.drawText(String(text), { x, y, size, font: helv, color: rgb(0,0,0) });
+        page.drawText(String(text), { x, y, size, font, color: BLACK });
+      };
+
+      const drawCenteredText = (page, text, centerX, y, size=12, font=helvBold) => {
+        if(!text) return;
+        const width = font.widthOfTextAtSize(text, size);
+        page.drawText(String(text), { x: centerX - (width / 2), y, size, font, color: BLACK });
+      };
+
+      const drawCell = (page, x, y, w, h, { fill, border=1 } = {}) => {
+        page.drawRectangle({
+          x,
+          y,
+          width: w,
+          height: h,
+          color: fill,
+          borderColor: BLACK,
+          borderWidth: border
+        });
+      };
+
+      const drawCheckmark = (page, boxX, boxY, boxW, boxH) => {
+        const left = boxX + (boxW * 0.2);
+        const midX = boxX + (boxW * 0.42);
+        const right = boxX + (boxW * 0.75);
+        const lower = boxY + (boxH * 0.3);
+        const midY = boxY + (boxH * 0.15);
+        const upper = boxY + (boxH * 0.65);
+        page.drawLine({ start:{ x:left, y:lower }, end:{ x:midX, y:midY }, thickness:1.2, color: BLACK });
+        page.drawLine({ start:{ x:midX, y:midY }, end:{ x:right, y:upper }, thickness:1.2, color: BLACK });
       };
 
       const wrapLines = (font, text, size, maxWidth) => {
@@ -985,171 +1009,264 @@
         const lines = wrapLines(helv, text, size, maxWidth).slice(0, maxLines);
         let y = topY;
         for(const ln of lines){
-          page.drawText(ln, { x, y, size, font: helv, color: rgb(0,0,0) });
+          page.drawText(ln, { x, y, size, font: helv, color: BLACK });
           y -= lineHeight;
         }
       };
 
-      const drawYesNo = (page, value, x, y, boxW=20, boxH=14) => {
-        cover(page, x-3, y-2, boxW, boxH);
-        if(value === "Yes") page.drawText("4", { x, y, size: 12, font: zapf, color: rgb(0,0,0) });
-        else page.drawText("X", { x, y, size: 10, font: helv, color: rgb(0,0,0) });
-      };
-
-      // Page 1 coordinates (calibrated to your template)
-      const p1 = {
-        projectTitle: { x:185, y:656.5, w:265, h:14 },
-        siteLocation:  { x:492, y:648.9, w:105, h:14 },
-        workLocation:  { x:185, y:622.5, w:265, h:14 },
-        projectNo:      { x:502, y:621.8, w:95,  h:14 },
-        brieferName:   { x:185, y:592.1, w:265, h:14 },
-        date:          { x:486, y:592.0, w:120, h:14 },
-        jobTitle:      { x:185, y:571.0, w:265, h:14 },
-        numPersons:    { x:486, y:571.0, w:120, h:14 },
-        prevPlanned:   { x:530, y:548.0, w:40, h:16 },
-        concerns: { x:90, topY: 482, w:460, h:60 },
-        planned:  { x:90, topY: 394, w:460, h:120 },
-        covered:  { x:518, y:140.9 },
-        controls: { x:518, y:94.1  },
-        ppe:      { x:518, y:44.5  },
+      const drawYesNoBox = (page, x, y, size, isYes) => {
+        drawCell(page, x, y, size, size, { fill: undefined, border: 1 });
+        if(isYes) drawCheckmark(page, x, y, size, size);
       };
 
       const ddmmyyyy = toDDMMYYYY(data.dateISO);
       const attendeesCount = (data.attendees || []).length;
 
-      // Header fields
-      cover(page1, p1.projectTitle.x-2, p1.projectTitle.y-2, p1.projectTitle.w, p1.projectTitle.h);
-      drawText(page1, data.projectTitle, p1.projectTitle.x, p1.projectTitle.y, 10);
-
-      cover(page1, p1.siteLocation.x-2, p1.siteLocation.y-2, p1.siteLocation.w, p1.siteLocation.h);
-      drawText(page1, data.siteLocation, p1.siteLocation.x, p1.siteLocation.y, 10);
-
-      cover(page1, p1.workLocation.x-2, p1.workLocation.y-2, p1.workLocation.w, p1.workLocation.h);
-      drawText(page1, data.workLocation, p1.workLocation.x, p1.workLocation.y, 10);
-
-      cover(page1, p1.projectNo.x-2, p1.projectNo.y-2, p1.projectNo.w, p1.projectNo.h);
-      drawText(page1, data.projectNo, p1.projectNo.x, p1.projectNo.y, 10);
-
-      cover(page1, p1.brieferName.x-2, p1.brieferName.y-2, p1.brieferName.w, p1.brieferName.h);
-      drawText(page1, data.brieferName, p1.brieferName.x, p1.brieferName.y, 10);
-
-      cover(page1, p1.date.x-2, p1.date.y-2, p1.date.w, p1.date.h);
-      drawText(page1, ddmmyyyy, p1.date.x, p1.date.y, 10);
-
-      cover(page1, p1.jobTitle.x-2, p1.jobTitle.y-2, p1.jobTitle.w, p1.jobTitle.h);
-      drawText(page1, data.jobTitle, p1.jobTitle.x, p1.jobTitle.y, 10);
-
-      cover(page1, p1.numPersons.x-2, p1.numPersons.y-2, p1.numPersons.w, p1.numPersons.h);
-      drawText(page1, String(attendeesCount || ""), p1.numPersons.x, p1.numPersons.y, 10);
-
-      drawYesNo(page1, data.prevPlanned, p1.prevPlanned.x, p1.prevPlanned.y, 34, 16);
-
-      // Text areas
-      cover(page1, p1.concerns.x-5, p1.concerns.topY-60, p1.concerns.w+10, p1.concerns.h);
-      drawWrappedFromTop(page1, data.prevConcerns, p1.concerns.x, p1.concerns.topY, p1.concerns.w, 12, 10, 6);
-
-      cover(page1, p1.planned.x-5, p1.planned.topY-120, p1.planned.w+10, p1.planned.h);
-      drawWrappedFromTop(page1, data.todayPlanned, p1.planned.x, p1.planned.topY, p1.planned.w, 12, 10, 10);
-
-      // Points discussed tick grid
-      const rowY = [252.37, 241.28, 230.58, 219.75, 208.40, 197.57];
-      const colX = [219.04, 380.11, 539.13];
-      const pointsMatrix = [
-        ["confined","barriers","coshh"],
-        ["emergency","clearAccess","fire"],
-        ["lifting","methodStatements","materials"],
-        ["permits","suitablePPE","competence"],
-        ["plant","trenchCollapse","cables"],
-        ["safetyPlanning","welfare","trips"],
-      ];
-      for(let r=0;r<6;r++){
-        for(let c=0;c<3;c++){
-          const key = pointsMatrix[r][c];
-          const x = colX[c], y = rowY[r];
-          cover(page1, x-2, y-2, 14, 14);
-          if(data.points && data.points[key]){
-            page1.drawText("4", { x, y, size: 12, font: zapf, color: rgb(0,0,0) });
-          }
+      function drawHeader(page){
+        if(atlLogo){
+          const scale = 140 / atlLogo.width;
+          page.drawImage(atlLogo, { x:40, y:760, width: atlLogo.width * scale, height: atlLogo.height * scale });
         }
+        if(tpLogo){
+          const scale = 90 / tpLogo.width;
+          page.drawImage(tpLogo, { x:430, y:760, width: tpLogo.width * scale, height: tpLogo.height * scale });
+        }
+        drawText(page, "ATL Daily Task Briefing", 430, 795, 9, helvBold);
+        drawText(page, "QPFS12.4", 430, 783, 9, helvBold);
+        drawCell(page, 40, 705, 515, 22, { fill: undefined, border: 1 });
+        drawCenteredText(page, "HEALTH & SAFETY - MORNING BRIEFING", 297.5, 712, 12, helvBold);
       }
 
-      // Confirmations
-      drawYesNo(page1, data.covered,  p1.covered.x,  p1.covered.y,  20, 14);
-      drawYesNo(page1, data.controls, p1.controls.x, p1.controls.y, 20, 14);
-      drawYesNo(page1, data.ppe,      p1.ppe.x,      p1.ppe.y,      20, 14);
+      function drawIntroTable(page){
+        const marginX = 40;
+        const tableTop = 680;
+        const rowH = 26;
+        const labelW = 140;
+        const valueW = 220;
+        const label2W = 110;
+        const value2W = 65;
 
-      // Sign-up pages (2 & 3)
-      const page2Rows = [
-        587.96, 557.96, 527.87, 497.87, 467.33, 437.87, 407.96, 377.63, 347.63,
-        317.99, 287.28, 257.99, 224.89, 189.51, 154.50, 120.19, 84.47, 49.23
-      ];
-      const page3Rows = [
-        676.29, 641.50, 605.32, 570.47, 535.37, 500.51, 464.67, 429.59, 394.96,
-        359.88, 324.58, 288.70, 253.60, 219.27, 183.43, 148.48, 113.65, 78.55
-      ];
+        const rows = [
+          ["PROJECT TITLE", data.projectTitle, "SITE LOCATION", data.siteLocation],
+          ["Work Location", data.workLocation, "Project no:", data.projectNo],
+          ["NAME OF PERSON\nGIVING BRIEFING", data.brieferName, "DATE", ddmmyyyy],
+          ["JOB TITLE", data.jobTitle, "NO. OF PERSONS\nATTENDING BRIEFING", String(attendeesCount || "")]
+        ];
+
+        rows.forEach((row, i) => {
+          const y = tableTop - (rowH * (i + 1));
+          drawCell(page, marginX, y, labelW, rowH, { fill: undefined });
+          drawCell(page, marginX + labelW, y, valueW, rowH, { fill: LIGHT_BLUE });
+          drawCell(page, marginX + labelW + valueW, y, label2W, rowH, { fill: undefined });
+          drawCell(page, marginX + labelW + valueW + label2W, y, value2W, rowH, { fill: LIGHT_BLUE });
+          drawWrappedFromTop(page, row[0], marginX + 6, y + rowH - 6, labelW - 10, 10, 8, 2);
+          drawText(page, row[1], marginX + labelW + 6, y + 8, 10, helv);
+          drawWrappedFromTop(page, row[2], marginX + labelW + valueW + 6, y + rowH - 6, label2W - 10, 10, 8, 2);
+          drawText(page, row[3], marginX + labelW + valueW + label2W + 6, y + 8, 10, helv);
+        });
+
+        return tableTop - (rowH * rows.length) - 10;
+      }
+
+      function drawPreviousDay(page, startY){
+        const marginX = 40;
+        const headerH = 20;
+        drawCell(page, marginX, startY - headerH, 395, headerH, { fill: undefined });
+        drawCell(page, marginX + 395, startY - headerH, 120, headerH, { fill: undefined });
+        drawText(page, "PREVIOUS DAY'S ACTIVITIES", marginX + 6, startY - 14, 9, helvBold);
+        drawWrappedFromTop(page, "DID THEY GO AS\nPLANNED? [Yes / No]", marginX + 402, startY - 4, 110, 9, 7, 2);
+
+        const boxSize = 14;
+        const yesX = marginX + 495;
+        const yesY = startY - headerH + 3;
+        drawYesNoBox(page, yesX, yesY, boxSize, data.prevPlanned === "Yes");
+
+        const qH = 55;
+        const qY = startY - headerH - qH;
+        drawCell(page, marginX, qY, 515, qH, { fill: undefined });
+        drawText(page, "Any concerns from the previous day?", marginX + 6, qY + qH - 16, 9, helvBold);
+        drawCell(page, marginX, qY - 55, 515, 55, { fill: LIGHT_BLUE });
+        drawWrappedFromTop(page, data.prevConcerns, marginX + 6, qY - 8, 500, 12, 10, 4);
+
+        return qY - 70;
+      }
+
+      function drawTodayPlanned(page, startY){
+        const marginX = 40;
+        const headerH = 18;
+        drawCell(page, marginX, startY - headerH, 515, headerH, { fill: undefined });
+        drawText(page, "TODAY'S PLANNED ACTIVITIES BRIEFING", marginX + 6, startY - 12, 9, helvBold);
+        const bodyH = 120;
+        drawCell(page, marginX, startY - headerH - bodyH, 515, bodyH, { fill: LIGHT_BLUE });
+        drawWrappedFromTop(page, data.todayPlanned, marginX + 6, startY - headerH - 8, 500, 12, 10, 8);
+        return startY - headerH - bodyH - 18;
+      }
+
+      function drawPointsGrid(page, startY){
+        const marginX = 40;
+        const headerH = 16;
+        drawCell(page, marginX, startY - headerH, 515, headerH, { fill: LIGHT_GRAY });
+        drawText(page, "Points discussed for today's operation:", marginX + 6, startY - 12, 8, helvBold);
+
+        const rowH = 18;
+        const colLabelW = 160;
+        const colCheckW = 18;
+        const gap = 0;
+        const rows = [
+          ["confined", "barriers", "coshh"],
+          ["emergency", "clearAccess", "fire"],
+          ["lifting", "methodStatements", "materials"],
+          ["permits", "suitablePPE", "competence"],
+          ["plant", "trenchCollapse", "cables"],
+          ["safetyPlanning", "welfare", "trips"],
+        ];
+        const labels = {
+          confined: "Confined Spaces / Areas",
+          emergency: "Emergency Procedures",
+          lifting: "Lifting Equipment – Chains / Slings",
+          permits: "Permits to Work",
+          plant: "Plant & Equipment",
+          safetyPlanning: "Safety Planning",
+          barriers: "Barriers / Edge Protection",
+          clearAccess: "Clear Access Ways",
+          methodStatements: "Method Statements / Risk Assessments",
+          suitablePPE: "Suitable PPE",
+          trenchCollapse: "Trench Collapse",
+          welfare: "Welfare Facilities",
+          coshh: "COSHH Assessments",
+          fire: "Fire Precautions",
+          materials: "Materials",
+          competence: "Operative Experience / Competence",
+          cables: "Overhead / Underground Cable Strike",
+          trips: "Trips / Falls"
+        };
+
+        let y = startY - headerH;
+        rows.forEach((row) => {
+          y -= rowH;
+          let x = marginX;
+          row.forEach((key) => {
+            drawCell(page, x, y, colLabelW, rowH, { fill: undefined });
+            drawCell(page, x + colLabelW + gap, y, colCheckW, rowH, { fill: LIGHT_BLUE });
+            drawText(page, labels[key], x + 6, y + 5, 8, helv);
+            if(data.points && data.points[key]){
+              drawCheckmark(page, x + colLabelW + 2, y + 3, colCheckW - 4, rowH - 6);
+            }
+            x += colLabelW + colCheckW + gap;
+          });
+        });
+
+        const footerY = y - 18;
+        drawCell(page, marginX, footerY, 515, 16, { fill: LIGHT_GRAY });
+        drawCenteredText(page, "This list is not exhaustive  -  REMEMBER – MANAGE HEALTH & SAFETY", 297.5, footerY + 4, 8, helvBold);
+        return footerY - 16;
+      }
+
+      function drawConfirmations(page, startY){
+        const marginX = 40;
+        const rowH = 32;
+        const textW = 460;
+        const boxW = 55;
+        const items = [
+          { text: "Are all today's activities covered by the Operation Procedure / Method Statement / Risk Assessment / Work Instruction?", value: data.covered },
+          { text: "Are all Control Measures in place?", value: data.controls },
+          { text: "Are all operatives compliant with the site requirements for PPE?", value: data.ppe }
+        ];
+        let y = startY;
+        items.forEach(item => {
+          y -= rowH;
+          drawCell(page, marginX, y, textW, rowH, { fill: undefined });
+          drawCell(page, marginX + textW, y, boxW, rowH, { fill: undefined });
+          drawWrappedFromTop(page, item.text, marginX + 6, y + rowH - 8, textW - 10, 10, 8, 3);
+          drawYesNoBox(page, marginX + textW + 18, y + 9, 12, item.value === "Yes");
+        });
+      }
+
+      function drawSignUpPage(page){
+        drawHeader(page);
+        drawCell(page, 40, 675, 515, 20, { fill: undefined });
+        drawCenteredText(page, "HEALTH & SAFETY – MORNING BRIEFING SIGN-UP Sheet", 297.5, 680, 9, helvBold);
+        drawCell(page, 40, 645, 515, 30, { fill: undefined });
+        drawWrappedFromTop(
+          page,
+          "Signing of this briefing confirms that all control measures defined in the associated risk assessments are in place, anyone joining the working group must be briefed prior to starting",
+          50,
+          668,
+          495,
+          10,
+          8,
+          3
+        );
+        drawCell(page, 40, 620, 515, 20, { fill: undefined });
+        drawCenteredText(page, "ATTENDEES", 297.5, 625, 8, helvBold);
+      }
+
+      async function drawAttendeeTable(page, startY, attendees, startIndex){
+        const marginX = 40;
+        const rowH = 24;
+        const nameW = 250;
+        const dateW = 110;
+        const sigW = 155;
+        const headerY = startY;
+        drawCell(page, marginX, headerY, nameW, rowH, { fill: undefined });
+        drawCell(page, marginX + nameW, headerY, dateW, rowH, { fill: undefined });
+        drawCell(page, marginX + nameW + dateW, headerY, sigW, rowH, { fill: undefined });
+        drawText(page, "NAME", marginX + 6, headerY + 7, 8, helvBold);
+        drawText(page, "DATE", marginX + nameW + 6, headerY + 7, 8, helvBold);
+        drawText(page, "SIGNATURE", marginX + nameW + dateW + 6, headerY + 7, 8, helvBold);
+
+        const fitInto = (imgW, imgH, maxW, maxH) => {
+          const r = Math.min(maxW / imgW, maxH / imgH);
+          return { w: imgW * r, h: imgH * r };
+        };
+
+        let y = headerY - rowH;
+        let idx = startIndex;
+        for(let i=0;i<18;i++){
+          drawCell(page, marginX, y, nameW, rowH, { fill: LIGHT_BLUE });
+          drawCell(page, marginX + nameW, y, dateW, rowH, { fill: LIGHT_BLUE });
+          drawCell(page, marginX + nameW + dateW, y, sigW, rowH, { fill: LIGHT_BLUE });
+          const a = attendees[idx];
+          if(a){
+            drawText(page, a.name, marginX + 6, y + 7, 10, helv);
+            drawText(page, toDDMMYYYY(a.dateISO), marginX + nameW + 6, y + 7, 10, helv);
+            if(a.signature){
+              const b64 = a.signature.split(",")[1] || "";
+              if(b64){
+                const bytes = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+                const embed = await pdfDoc.embedPng(bytes);
+                const maxW = sigW - 12;
+                const maxH = rowH - 6;
+                const s = fitInto(embed.width, embed.height, maxW, maxH);
+                const x = marginX + nameW + dateW + 6 + ((maxW - s.w) / 2);
+                const yImg = y + 3 + ((maxH - s.h) / 2);
+                page.drawImage(embed, { x, y: yImg, width:s.w, height:s.h });
+              }
+            }
+            idx++;
+          }
+          y -= rowH;
+        }
+        return idx;
+      }
+
+      drawHeader(page1);
+      let cursorY = drawIntroTable(page1);
+      cursorY = drawPreviousDay(page1, cursorY);
+      cursorY = drawTodayPlanned(page1, cursorY);
+      cursorY = drawPointsGrid(page1, cursorY);
+      drawConfirmations(page1, cursorY);
+
+      drawSignUpPage(page2);
+      drawSignUpPage(page3);
 
       const attendeesAll = (data.attendees || []).slice(0, 36).map(a=>({
         name: (a.name||"").trim(),
         dateISO: (a.dateISO||data.dateISO||todayISO()),
         signature: (a.signature||"")
       }));
-
-      const nameX = 88;
-      const dateX = 294;
-
-      // Signature cell area
-      const sigBox = { x:365, w:210, h:18, yOffset:-12, padX:6, padY:2 };
-
-      const fitInto = (imgW, imgH, maxW, maxH) => {
-        const r = Math.min(maxW / imgW, maxH / imgH);
-        return { w: imgW * r, h: imgH * r };
-      };
-
-      async function drawSignatureIfAny(page, sigDataUrl, rowY){
-        cover(page, sigBox.x, rowY + sigBox.yOffset, sigBox.w, sigBox.h); // clears "SIGN"
-        if(!sigDataUrl) return;
-
-        const b64 = sigDataUrl.split(",")[1] || "";
-        if(!b64) return;
-        const bytes = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
-
-        const img = await pdfDoc.embedPng(bytes);
-        const maxW = sigBox.w - (sigBox.padX*2);
-        const maxH = sigBox.h - (sigBox.padY*2);
-        const s = fitInto(img.width, img.height, maxW, maxH);
-
-        const x = sigBox.x + sigBox.padX;
-        const y = (rowY + sigBox.yOffset) + sigBox.padY + ((maxH - s.h)/2);
-
-        page.drawImage(img, { x, y, width:s.w, height:s.h });
-      }
-
-      function fillTextCells(page, a, rowY){
-        cover(page, nameX-5, rowY-3, 190, 16);
-        cover(page, dateX-5, rowY-3, 90, 16);
-        page.drawText(a.name, { x:nameX, y:rowY, size:10, font: helv, color: rgb(0,0,0) });
-        page.drawText(toDDMMYYYY(a.dateISO), { x:dateX, y:rowY, size:10, font: helv, color: rgb(0,0,0) });
-      }
-
-      async function fillAttPage(page, rowsY, startIndex){
-        let idx = startIndex;
-        for(let i=0;i<rowsY.length;i++){
-          const a = attendeesAll[idx];
-          const y = rowsY[i];
-          // clear signature cell always
-          cover(page, sigBox.x, y + sigBox.yOffset, sigBox.w, sigBox.h);
-
-          if(a){
-            fillTextCells(page, a, y);
-            await drawSignatureIfAny(page, a.signature, y);
-            idx++;
-          }
-        }
-        return idx;
-      }
-
-      let next = await fillAttPage(page2, page2Rows, 0);
-      await fillAttPage(page3, page3Rows, next);
+      let next = await drawAttendeeTable(page2, 596, attendeesAll, 0);
+      await drawAttendeeTable(page3, 596, attendeesAll, next);
 
       // Save + download (with fallback)
       const outBytes = await pdfDoc.save();
@@ -1164,11 +1281,6 @@
       document.body.appendChild(a);
       a.click();
       a.remove();
-
-      // Fallback: open in new tab if browser blocks downloads
-      setTimeout(()=> {
-        try{ window.open(url, "_blank"); }catch(e){}
-      }, 200);
 
       setTimeout(()=> URL.revokeObjectURL(url), 2500);
     }
