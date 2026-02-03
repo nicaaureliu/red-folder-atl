@@ -607,13 +607,18 @@
       app.innerHTML = "";
 
       const state = {
+        projectTitle: "",
+        projectNo: "",
+        siteLocation: "",
+        workLocation: "",
+        supervisorName: "",
         permitNo: "",
         dateISO: todayISO(),
         startTime: "",
         finishTime: "",
-        location: "",
         workDescription: "",
         personnel: "",
+        preEntryBriefing: "",
         equipment: "",
         riskAssessment: {
           o2: false, toxic: false, flammable: false, ingress: false, sludge: false,
@@ -633,6 +638,8 @@
           stretcher: false, resuscitation: false, ba: false, light: false,
           alarm: false, comms: false, standby: false
         },
+        standbyPerson: "",
+        rescueArrangements: "",
         firstAid: "",
         commMethod: "",
         monitorDevice1: "",
@@ -640,7 +647,9 @@
         monitorDevice2: "",
         monitorSerial2: "",
         authorisingPerson: "",
-        closureName: ""
+        authorisingTime: "",
+        closureName: "",
+        closureTime: ""
       };
 
       const head = el("div",{class:"head"},[
@@ -659,15 +668,20 @@
       const sDetails = el("div",{class:"section"},[
         el("div",{class:"sectionTitle"},["1. Work Description"]),
         el("div",{class:"grid2"},[
+          field("Project Title","projectTitle","text","e.g. Sizewell C", state.projectTitle),
+          field("Project No","projectNo","text","e.g. 836", state.projectNo),
+          field("Site Location","siteLocation","text","e.g. Sizewell", state.siteLocation),
+          field("Work Location","workLocation","text","e.g. Shaft 4", state.workLocation),
           field("Permit No.","permitNo","text","e.g. CSP-001", state.permitNo),
+          field("Supervisor Name","supervisorName","text","", state.supervisorName),
           field("Date","dateISO","date","", state.dateISO),
-          field("Start Time","startTime","time","", state.startTime),
-          field("Finish Time","finishTime","time","", state.finishTime),
-          field("Location","location","text","e.g. Shaft 4", state.location),
+          field("Valid From (Time)","startTime","time","", state.startTime),
+          field("Valid To (Time)","finishTime","time","", state.finishTime),
         ]),
         el("div",{style:"margin-top:12px"},[
-          textareaField("Work Description","workDescription","What work is being carried out?", state.workDescription),
-          textareaField("Personnel entering","personnel","Names of operatives entering the confined space", state.personnel),
+          textareaField("Description of work to be carried out","workDescription","What work is being carried out?", state.workDescription),
+          textareaField("Personnel entering the confined space","personnel","Names of operatives entering the confined space", state.personnel),
+          textareaField("Pre-entry Briefing Information","preEntryBriefing","Details of briefing given to personnel...", state.preEntryBriefing),
         ])
       ]);
 
@@ -738,13 +752,17 @@
           chk("em_standby","Standby person (Top-man)", state.emergency.standby),
         ]),
         el("div",{class:"grid2", style:"margin-top:12px"},[
+          field("Standby Person(s) Name","standbyPerson","text","", state.standbyPerson),
           field("Emergency First Aid provision","firstAid","text","e.g. First aider on site", state.firstAid),
           field("Method of Communication","commMethod","text","e.g. Two-way radio", state.commMethod),
+        ]),
+        el("div",{style:"margin-top:12px"},[
+          textareaField("Specific Rescue Arrangements / Plan","rescueArrangements","Details of the rescue plan...", state.rescueArrangements),
         ])
       ]);
 
       const sMonitoring = el("div",{class:"section"},[
-        el("div",{class:"sectionTitle"},["6. Certification & Closure"]),
+        el("div",{class:"sectionTitle"},["Monitoring, Certification & Closure"]),
         el("div",{class:"grid2"},[
           field("Monitoring Device 1","monitorDevice1","text","e.g. GMI PS200", state.monitorDevice1),
           field("Serial Number 1","monitorSerial1","text","", state.monitorSerial1),
@@ -752,8 +770,10 @@
           field("Serial Number 2","monitorSerial2","text","", state.monitorSerial2),
         ]),
         el("div",{class:"grid2", style:"margin-top:12px"},[
-          field("Authorising Person (Section 6)","authorisingPerson","text","Name of person authorising entry", state.authorisingPerson),
-          field("Closure Name (Section 7)","closureName","text","Name for permit closure", state.closureName),
+          field("Authorising Person (Section 8)","authorisingPerson","text","Name of person authorising entry", state.authorisingPerson),
+          field("Authorising Time","authorisingTime","time","", state.authorisingTime),
+          field("Closure Name (Section 9)","closureName","text","Name for permit closure", state.closureName),
+          field("Closure Time","closureTime","time","", state.closureTime),
         ])
       ]);
 
@@ -812,13 +832,18 @@
         btn.textContent = "Generating…";
         try{
           const data = {
+            projectTitle: $("#projectTitle").value.trim(),
+            projectNo: $("#projectNo").value.trim(),
+            siteLocation: $("#siteLocation").value.trim(),
+            workLocation: $("#workLocation").value.trim(),
+            supervisorName: $("#supervisorName").value.trim(),
             permitNo: $("#permitNo").value.trim(),
             dateISO: $("#dateISO").value,
             startTime: $("#startTime").value,
             finishTime: $("#finishTime").value,
-            location: $("#location").value.trim(),
             workDescription: $("#workDescription").value.trim(),
             personnel: $("#personnel").value.trim(),
+            preEntryBriefing: $("#preEntryBriefing").value.trim(),
             equipment: $("#equipment").value.trim(),
             riskAssessment: {
               o2: $("#ra_o2").checked, toxic: $("#ra_toxic").checked, flammable: $("#ra_flammable").checked,
@@ -842,6 +867,8 @@
               ba: $("#em_ba").checked, light: $("#em_light").checked, alarm: $("#em_alarm").checked,
               comms: $("#em_comms").checked, standby: $("#em_standby").checked
             },
+            standbyPerson: $("#standbyPerson").value.trim(),
+            rescueArrangements: $("#rescueArrangements").value.trim(),
             firstAid: $("#firstAid").value.trim(),
             commMethod: $("#commMethod").value.trim(),
             monitorDevice1: $("#monitorDevice1").value.trim(),
@@ -849,7 +876,9 @@
             monitorDevice2: $("#monitorDevice2").value.trim(),
             monitorSerial2: $("#monitorSerial2").value.trim(),
             authorisingPerson: $("#authorisingPerson").value.trim(),
-            closureName: $("#closureName").value.trim()
+            authorisingTime: $("#authorisingTime").value,
+            closureName: $("#closureName").value.trim(),
+            closureTime: $("#closureTime").value
           };
           await generateConfinedSpacePDF(data);
         }catch(err){
@@ -1276,6 +1305,12 @@
           const scale = 120 / atlLogo.width;
           page.drawImage(atlLogo, { x:40, y:775, width: atlLogo.width * scale, height: atlLogo.height * scale });
         }
+
+        const headerTop = 810;
+        page.drawText("Project: " + (data.projectTitle || ""), { x: 180, y: headerTop, size: 9, font: helvBold });
+        page.drawText("Project No: " + (data.projectNo || ""), { x: 180, y: headerTop - 12, size: 9, font: helvBold });
+        page.drawText("Site: " + (data.siteLocation || ""), { x: 180, y: headerTop - 24, size: 9, font: helvBold });
+
         page.drawText("Title: Confined Space Permit", { x: 40, y: 760, size: 12, font: helvBold });
         page.drawLine({ start: { x: 40, y: 755 }, end: { x: 555, y: 755 }, thickness: 1 });
 
@@ -1308,18 +1343,25 @@
       drawRow(p1, "Date:", toDDMMYYYY(data.dateISO), 40, curY, 257.5, 80);
       drawRow(p1, "Permit No.", data.permitNo, 297.5, curY, 257.5, 80);
       curY -= rowH;
-      drawRow(p1, "Start Time:", data.startTime, 40, curY, 257.5, 80);
-      drawRow(p1, "Finish Time:", data.finishTime, 297.5, curY, 257.5, 80);
+      drawRow(p1, "Valid From:", data.startTime, 40, curY, 257.5, 80);
+      drawRow(p1, "Valid To:", data.finishTime, 297.5, curY, 257.5, 80);
       curY -= rowH;
-      drawRow(p1, "Location:", data.location, 40, curY, 515, 80);
-      curY -= 60;
-      drawCell(p1, 40, curY, 515, 60);
-      drawTextInCell(p1, "Description of work to be carried out:", 40, curY + 45, 515, 15, { font: helvBold, size: 9 });
-      drawWrappedText(p1, data.workDescription, 40, curY, 515, 45, { size: 9 });
-      curY -= 60;
-      drawCell(p1, 40, curY, 515, 60);
-      drawTextInCell(p1, "Personnel entering the confined space:", 40, curY + 45, 515, 15, { font: helvBold, size: 9 });
-      drawWrappedText(p1, data.personnel, 40, curY, 515, 45, { size: 9 });
+      drawRow(p1, "Site Location:", data.siteLocation, 40, curY, 257.5, 80);
+      drawRow(p1, "Work Location:", data.workLocation, 297.5, curY, 257.5, 80);
+      curY -= rowH;
+      drawRow(p1, "Supervisor:", data.supervisorName, 40, curY, 515, 80);
+      curY -= 50;
+      drawCell(p1, 40, curY, 515, 50);
+      drawTextInCell(p1, "Description of work to be carried out:", 40, curY + 35, 515, 15, { font: helvBold, size: 9 });
+      drawWrappedText(p1, data.workDescription, 40, curY, 515, 35, { size: 9 });
+      curY -= 50;
+      drawCell(p1, 40, curY, 515, 50);
+      drawTextInCell(p1, "Personnel entering the confined space:", 40, curY + 35, 515, 15, { font: helvBold, size: 9 });
+      drawWrappedText(p1, data.personnel, 40, curY, 515, 35, { size: 9 });
+      curY -= 50;
+      drawCell(p1, 40, curY, 515, 50);
+      drawTextInCell(p1, "Pre-entry Briefing Information:", 40, curY + 35, 515, 15, { font: helvBold, size: 9 });
+      drawWrappedText(p1, data.preEntryBriefing, 40, curY, 515, 35, { size: 9 });
 
       // Section 2: Equipment
       curY -= 25;
@@ -1439,9 +1481,15 @@
         drawCheckbox(p2, 498, curY + 2.5, 10, checked);
       });
       curY -= 20;
-      drawRow(p2, "Emergency First Aid provision:", data.firstAid, 40, curY, 515, 150);
+      drawRow(p2, "Standby Person(s):", data.standbyPerson, 40, curY, 515, 150);
       curY -= rowH;
-      drawRow(p2, "Method of Communication:", data.commMethod, 40, curY, 515, 150);
+      drawRow(p2, "Emergency First Aid:", data.firstAid, 40, curY, 515, 150);
+      curY -= rowH;
+      drawRow(p2, "Communication Method:", data.commMethod, 40, curY, 515, 150);
+      curY -= 60;
+      drawCell(p2, 40, curY, 515, 60);
+      drawTextInCell(p2, "Specific Rescue Arrangements / Plan:", 40, curY + 45, 515, 15, { font: helvBold, size: 9 });
+      drawWrappedText(p2, data.rescueArrangements, 40, curY, 515, 45, { size: 9 });
 
       // Page 3: Personnel Entry & Exit record
       const p3 = pdfDoc.addPage(A4);
@@ -1539,10 +1587,12 @@
       curY -= 20;
       drawRow(p4, "Confined space entry authorising person:", data.authorisingPerson, 40, curY, 515, 220);
       curY -= 25;
-      drawCell(p4, 40, curY, 350, 25);
-      drawTextInCell(p4, "Signature:", 40, curY, 350, 25, { font: helvBold, size: 9 });
+      drawCell(p4, 40, curY, 180, 25);
+      drawTextInCell(p4, "Signature:", 40, curY, 180, 25, { font: helvBold, size: 9 });
+      drawCell(p4, 220, curY, 165, 25);
+      drawTextInCell(p4, "Date: " + toDDMMYYYY(data.dateISO), 220, curY, 165, 25, { font: helvBold, size: 9 });
       drawCell(p4, 390, curY, 165, 25);
-      drawTextInCell(p4, "Date: " + toDDMMYYYY(data.dateISO), 390, curY, 165, 25, { font: helvBold, size: 9 });
+      drawTextInCell(p4, "Time: " + (data.authorisingTime || ""), 390, curY, 165, 25, { font: helvBold, size: 9 });
 
       curY -= 35;
       drawCell(p4, 40, curY, 515, 20, { fill: RED });
@@ -1557,10 +1607,12 @@
       curY -= 20;
       drawRow(p4, "Name:", data.closureName, 40, curY, 515, 80);
       curY -= 25;
-      drawCell(p4, 40, curY, 350, 25);
-      drawTextInCell(p4, "Signature:", 40, curY, 350, 25, { font: helvBold, size: 9 });
+      drawCell(p4, 40, curY, 180, 25);
+      drawTextInCell(p4, "Signature:", 40, curY, 180, 25, { font: helvBold, size: 9 });
+      drawCell(p4, 220, curY, 165, 25);
+      drawTextInCell(p4, "Date: " + toDDMMYYYY(data.dateISO), 220, curY, 165, 25, { font: helvBold, size: 9 });
       drawCell(p4, 390, curY, 165, 25);
-      drawTextInCell(p4, "Date: " + toDDMMYYYY(data.dateISO), 390, curY, 165, 25, { font: helvBold, size: 9 });
+      drawTextInCell(p4, "Time: " + (data.closureTime || ""), 390, curY, 165, 25, { font: helvBold, size: 9 });
 
       // Save and Download
       const outBytes = await pdfDoc.save();
