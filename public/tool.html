@@ -611,7 +611,10 @@
         projectNo: "",
         siteLocation: "",
         workLocation: "",
+        contractorName: "Active Tunnelling",
         supervisorName: "",
+        brieferName: "",
+        jobTitle: "",
         permitNo: "",
         dateISO: todayISO(),
         startTime: "",
@@ -619,6 +622,11 @@
         workDescription: "",
         personnel: "",
         preEntryBriefing: "",
+        points: {
+          confined:false, emergency:false, lifting:false, permits:false, plant:false, safetyPlanning:false,
+          barriers:false, clearAccess:false, methodStatements:false, suitablePPE:false, trenchCollapse:false, welfare:false,
+          coshh:false, fire:false, materials:false, competence:false, cables:false, trips:false
+        },
         equipment: "",
         riskAssessment: {
           o2: false, toxic: false, flammable: false, ingress: false, sludge: false,
@@ -640,8 +648,11 @@
         },
         standbyPerson: "",
         rescueArrangements: "",
+        emergencyContact: "",
+        hospitalDetails: "",
         firstAid: "",
         commMethod: "",
+        bumpTestDone: false,
         monitorDevice1: "",
         monitorSerial1: "",
         monitorDevice2: "",
@@ -672,8 +683,11 @@
           field("Project No","projectNo","text","e.g. 836", state.projectNo),
           field("Site Location","siteLocation","text","e.g. Sizewell", state.siteLocation),
           field("Work Location","workLocation","text","e.g. Shaft 4", state.workLocation),
-          field("Permit No.","permitNo","text","e.g. CSP-001", state.permitNo),
+          field("Contractor Name","contractorName","text","", state.contractorName),
           field("Supervisor Name","supervisorName","text","", state.supervisorName),
+          field("Name of Person giving briefing","brieferName","text","", state.brieferName),
+          field("Job Title of briefer","jobTitle","text","", state.jobTitle),
+          field("Permit No.","permitNo","text","e.g. CSP-001", state.permitNo),
           field("Date","dateISO","date","", state.dateISO),
           field("Valid From (Time)","startTime","time","", state.startTime),
           field("Valid To (Time)","finishTime","time","", state.finishTime),
@@ -681,7 +695,33 @@
         el("div",{style:"margin-top:12px"},[
           textareaField("Description of work to be carried out","workDescription","What work is being carried out?", state.workDescription),
           textareaField("Personnel entering the confined space","personnel","Names of operatives entering the confined space", state.personnel),
-          textareaField("Pre-entry Briefing Information","preEntryBriefing","Details of briefing given to personnel...", state.preEntryBriefing),
+        ])
+      ]);
+
+      const sBriefing = el("div",{class:"section"},[
+        el("div",{class:"sectionTitle"},["Pre-entry Briefing"]),
+        el("div",{class:"grid3auto"},[
+          chk("pt_confined","Confined Spaces / Areas", state.points.confined),
+          chk("pt_emergency","Emergency Procedures", state.points.emergency),
+          chk("pt_lifting","Lifting Equipment – Chains / Slings", state.points.lifting),
+          chk("pt_permits","Permits to Work", state.points.permits),
+          chk("pt_plant","Plant & Equipment", state.points.plant),
+          chk("pt_safetyPlanning","Safety Planning", state.points.safetyPlanning),
+          chk("pt_barriers","Barriers / Edge Protection", state.points.barriers),
+          chk("pt_clearAccess","Clear Access Ways", state.points.clearAccess),
+          chk("pt_methodStatements","Method Statements / Risk Assessments", state.points.methodStatements),
+          chk("pt_suitablePPE","Suitable PPE", state.points.suitablePPE),
+          chk("pt_trenchCollapse","Trench Collapse", state.points.trenchCollapse),
+          chk("pt_welfare","Welfare Facilities", state.points.welfare),
+          chk("pt_coshh","COSHH Assessments", state.points.coshh),
+          chk("pt_fire","Fire Precautions", state.points.fire),
+          chk("pt_materials","Materials", state.points.materials),
+          chk("pt_competence","Operative Experience / Competence", state.points.competence),
+          chk("pt_cables","Overhead / Underground Cable Strike", state.points.cables),
+          chk("pt_trips","Trips / Falls", state.points.trips),
+        ]),
+        el("div",{style:"margin-top:12px"},[
+          textareaField("Additional Briefing Information","preEntryBriefing","Details of briefing given to personnel...", state.preEntryBriefing),
         ])
       ]);
 
@@ -753,6 +793,8 @@
         ]),
         el("div",{class:"grid2", style:"margin-top:12px"},[
           field("Standby Person(s) Name","standbyPerson","text","", state.standbyPerson),
+          field("Emergency Contact Number","emergencyContact","text","", state.emergencyContact),
+          field("Nearest Hospital Details","hospitalDetails","text","", state.hospitalDetails),
           field("Emergency First Aid provision","firstAid","text","e.g. First aider on site", state.firstAid),
           field("Method of Communication","commMethod","text","e.g. Two-way radio", state.commMethod),
         ]),
@@ -764,6 +806,9 @@
       const sMonitoring = el("div",{class:"section"},[
         el("div",{class:"sectionTitle"},["Monitoring, Certification & Closure"]),
         el("div",{class:"grid2"},[
+          chk("bumpTestDone", "Gas Monitor Bump Test confirmed?", state.bumpTestDone),
+        ]),
+        el("div",{class:"grid2", style:"margin-top:10px"},[
           field("Monitoring Device 1","monitorDevice1","text","e.g. GMI PS200", state.monitorDevice1),
           field("Serial Number 1","monitorSerial1","text","", state.monitorSerial1),
           field("Monitoring Device 2","monitorDevice2","text","", state.monitorDevice2),
@@ -794,6 +839,7 @@
       app.appendChild(head);
       app.appendChild(banner);
       app.appendChild(sDetails);
+      app.appendChild(sBriefing);
       app.appendChild(sEquipment);
       app.appendChild(sRisk);
       app.appendChild(sControls);
@@ -836,7 +882,10 @@
             projectNo: $("#projectNo").value.trim(),
             siteLocation: $("#siteLocation").value.trim(),
             workLocation: $("#workLocation").value.trim(),
+            contractorName: $("#contractorName").value.trim(),
             supervisorName: $("#supervisorName").value.trim(),
+            brieferName: $("#brieferName").value.trim(),
+            jobTitle: $("#jobTitle").value.trim(),
             permitNo: $("#permitNo").value.trim(),
             dateISO: $("#dateISO").value,
             startTime: $("#startTime").value,
@@ -844,6 +893,14 @@
             workDescription: $("#workDescription").value.trim(),
             personnel: $("#personnel").value.trim(),
             preEntryBriefing: $("#preEntryBriefing").value.trim(),
+            points: {
+              confined: $("#pt_confined").checked, emergency: $("#pt_emergency").checked, lifting: $("#pt_lifting").checked,
+              permits: $("#pt_permits").checked, plant: $("#pt_plant").checked, safetyPlanning: $("#pt_safetyPlanning").checked,
+              barriers: $("#pt_barriers").checked, clearAccess: $("#pt_clearAccess").checked, methodStatements: $("#pt_methodStatements").checked,
+              suitablePPE: $("#pt_suitablePPE").checked, trenchCollapse: $("#pt_trenchCollapse").checked, welfare: $("#pt_welfare").checked,
+              coshh: $("#pt_coshh").checked, fire: $("#pt_fire").checked, materials: $("#pt_materials").checked,
+              competence: $("#pt_competence").checked, cables: $("#pt_cables").checked, trips: $("#pt_trips").checked
+            },
             equipment: $("#equipment").value.trim(),
             riskAssessment: {
               o2: $("#ra_o2").checked, toxic: $("#ra_toxic").checked, flammable: $("#ra_flammable").checked,
@@ -868,9 +925,12 @@
               comms: $("#em_comms").checked, standby: $("#em_standby").checked
             },
             standbyPerson: $("#standbyPerson").value.trim(),
+            emergencyContact: $("#emergencyContact").value.trim(),
+            hospitalDetails: $("#hospitalDetails").value.trim(),
             rescueArrangements: $("#rescueArrangements").value.trim(),
             firstAid: $("#firstAid").value.trim(),
             commMethod: $("#commMethod").value.trim(),
+            bumpTestDone: $("#bumpTestDone").checked,
             monitorDevice1: $("#monitorDevice1").value.trim(),
             monitorSerial1: $("#monitorSerial1").value.trim(),
             monitorDevice2: $("#monitorDevice2").value.trim(),
@@ -1214,6 +1274,7 @@
       const RED = rgb(0.78, 0.1, 0.1);
       const HEADER_TEXT = rgb(1, 1, 1);
       const LIGHT_FILL = rgb(0.985, 0.985, 0.99);
+      const YELLOW = rgb(1, 0.84, 0);
 
       // --- Helpers ---
       async function fetchImage(url){
@@ -1300,16 +1361,28 @@
         }
       };
 
+      const drawRow = (p, label, value, x, y, w, lw, h=20) => {
+        drawCell(p, x, y, lw, h);
+        drawTextInCell(p, label, x, y, lw, h, { font: helvBold, size: 9 });
+        drawCell(p, x + lw, y, w - lw, h, { fill: LIGHT_FILL });
+        drawTextInCell(p, value, x + lw, y, w - lw, h, { size: 9 });
+      };
+
+      const drawMultiLine = (p, label, value, x, y, w, h) => {
+        drawCell(p, x, y - h, w, h);
+        drawTextInCell(p, label, x, y - 15, w, 15, { font: helvBold, size: 8.5 });
+        drawWrappedText(p, value, x, y - h, w, h - 15, { size: 9 });
+      };
+
       function drawHeader(page, pageNo, total){
         if(atlLogo){
           const scale = 120 / atlLogo.width;
           page.drawImage(atlLogo, { x:40, y:775, width: atlLogo.width * scale, height: atlLogo.height * scale });
         }
 
-        const headerTop = 810;
-        page.drawText("Project: " + (data.projectTitle || ""), { x: 180, y: headerTop, size: 9, font: helvBold });
-        page.drawText("Project No: " + (data.projectNo || ""), { x: 180, y: headerTop - 12, size: 9, font: helvBold });
-        page.drawText("Site: " + (data.siteLocation || ""), { x: 180, y: headerTop - 24, size: 9, font: helvBold });
+        page.drawText("Confined Space Permit", { x: 430, y: 795, size: 9, font: helvBold, color: RED });
+        page.drawText("QPFS18.0", { x: 430, y: 783, size: 9, font: helvBold, color: RED });
+        if(data.permitNo) page.drawText("Permit No: " + data.permitNo, { x: 430, y: 771, size: 9, font: helvBold, color: RED });
 
         page.drawText("Title: Confined Space Permit", { x: 40, y: 760, size: 12, font: helvBold });
         page.drawLine({ start: { x: 40, y: 755 }, end: { x: 555, y: 755 }, thickness: 1 });
@@ -1317,7 +1390,7 @@
         // Footer
         page.drawText("Document Ref: QPFS18.0", { x: 40, y: 30, size: 8, font: helv });
         page.drawText("August 2024", { x: 280, y: 30, size: 8, font: helv });
-        page.drawText(String(pageNo).padStart(2, "0"), { x: 540, y: 30, size: 8, font: helv });
+        page.drawText(`Page No. ${pageNo} of ${total}`, { x: 480, y: 30, size: 8, font: helv });
       }
 
       // --- Content Generation ---
@@ -1326,42 +1399,82 @@
       const p1 = pdfDoc.addPage(A4);
       drawHeader(p1, 1, 4);
 
-      // Section 1: Work Description
-      drawCell(p1, 40, 725, 515, 20, { fill: RED });
-      drawTextInCell(p1, "1 Work Description", 40, 725, 515, 20, { color: HEADER_TEXT, font: helvBold, size: 11 });
+      // Section 1: Work Description (Header Table)
+      drawCell(p1, 40, 730, 515, 20, { fill: RED });
+      drawTextInCell(p1, "HEALTH & SAFETY - CONFINED SPACE PERMIT", 40, 730, 515, 20, { color: HEADER_TEXT, font: helvBold, size: 11, align: "center" });
 
-      const rowH = 20;
-      let curY = 705;
+      let curY = 730;
+      const rowH = 22;
+      const col1W = 110;
+      const col2W = 160;
+      const col3W = 100;
+      const col4W = 145;
 
-      const drawRow = (p, label, value, x, y, w, lw) => {
-        drawCell(p, x, y, lw, rowH);
-        drawTextInCell(p, label, x, y, lw, rowH, { font: helvBold, size: 9 });
-        drawCell(p, x + lw, y, w - lw, rowH, { fill: LIGHT_FILL });
-        drawTextInCell(p, value, x + lw, y, w - lw, rowH, { size: 9 });
+      const headerRows = [
+        ["PROJECT TITLE", data.projectTitle, "SITE LOCATION", data.siteLocation],
+        ["WORK LOCATION", data.workLocation, "PROJECT NO", data.projectNo],
+        ["CONTRACTOR", data.contractorName, "DATE", toDDMMYYYY(data.dateISO)],
+        ["SUPERVISOR", data.supervisorName, "PERMIT NO", data.permitNo],
+        ["VALID FROM", data.startTime, "VALID TO", data.finishTime]
+      ];
+
+      headerRows.forEach(row => {
+        curY -= rowH;
+        drawCell(p1, 40, curY, col1W, rowH);
+        drawTextInCell(p1, row[0], 40, curY, col1W, rowH, { font: helvBold, size: 8 });
+        drawCell(p1, 40 + col1W, curY, col2W, rowH, { fill: LIGHT_FILL });
+        drawTextInCell(p1, row[1], 40 + col1W, curY, col2W, rowH, { size: 9 });
+        drawCell(p1, 40 + col1W + col2W, curY, col3W, rowH);
+        drawTextInCell(p1, row[2], 40 + col1W + col2W, curY, col3W, rowH, { font: helvBold, size: 8 });
+        drawCell(p1, 40 + col1W + col2W + col3W, curY, col4W, rowH, { fill: LIGHT_FILL });
+        drawTextInCell(p1, row[3], 40 + col1W + col2W + col3W, curY, col4W, rowH, { size: 9 });
+      });
+
+      curY -= 10;
+      drawCell(p1, 40, curY - 20, 515, 20, { fill: RED });
+      drawTextInCell(p1, "1 Work Description", 40, curY - 20, 515, 20, { color: HEADER_TEXT, font: helvBold, size: 10 });
+      curY -= 20;
+
+      drawMultiLine(p1, "Description of work to be carried out:", data.workDescription, 40, curY, 515, 45);
+      curY -= 45;
+      drawMultiLine(p1, "Personnel entering the confined space:", data.personnel, 40, curY, 515, 45);
+      curY -= 45;
+
+      // Pre-entry Briefing Section
+      drawCell(p1, 40, curY - 20, 515, 20, { fill: RED });
+      drawTextInCell(p1, "Pre-entry Briefing Points Discussed", 40, curY - 20, 515, 20, { color: HEADER_TEXT, font: helvBold, size: 10 });
+      curY -= 20;
+
+      const briefRowH = 14;
+      const bColGroups = [ { lW: 150, cW: 20 }, { lW: 150, cW: 20 }, { lW: 155, cW: 20 } ];
+      const bRows = [
+        ["confined", "barriers", "coshh"], ["emergency", "clearAccess", "fire"], ["lifting", "methodStatements", "materials"],
+        ["permits", "suitablePPE", "competence"], ["plant", "trenchCollapse", "cables"], ["safetyPlanning", "welfare", "trips"]
+      ];
+      const bLabels = {
+        confined: "Confined Spaces / Areas", emergency: "Emergency Procedures", lifting: "Lifting Equipment",
+        permits: "Permits to Work", plant: "Plant & Equipment", safetyPlanning: "Safety Planning",
+        barriers: "Barriers / Edge Protection", clearAccess: "Clear Access Ways", methodStatements: "Method Statements",
+        suitablePPE: "Suitable PPE", trenchCollapse: "Trench Collapse", welfare: "Welfare Facilities",
+        coshh: "COSHH Assessments", fire: "Fire Precautions", materials: "Materials",
+        competence: "Operative Experience", cables: "Cable Strike", trips: "Trips / Falls"
       };
 
-      drawRow(p1, "Date:", toDDMMYYYY(data.dateISO), 40, curY, 257.5, 80);
-      drawRow(p1, "Permit No.", data.permitNo, 297.5, curY, 257.5, 80);
-      curY -= rowH;
-      drawRow(p1, "Valid From:", data.startTime, 40, curY, 257.5, 80);
-      drawRow(p1, "Valid To:", data.finishTime, 297.5, curY, 257.5, 80);
-      curY -= rowH;
-      drawRow(p1, "Site Location:", data.siteLocation, 40, curY, 257.5, 80);
-      drawRow(p1, "Work Location:", data.workLocation, 297.5, curY, 257.5, 80);
-      curY -= rowH;
-      drawRow(p1, "Supervisor:", data.supervisorName, 40, curY, 515, 80);
-      curY -= 50;
-      drawCell(p1, 40, curY, 515, 50);
-      drawTextInCell(p1, "Description of work to be carried out:", 40, curY + 35, 515, 15, { font: helvBold, size: 9 });
-      drawWrappedText(p1, data.workDescription, 40, curY, 515, 35, { size: 9 });
-      curY -= 50;
-      drawCell(p1, 40, curY, 515, 50);
-      drawTextInCell(p1, "Personnel entering the confined space:", 40, curY + 35, 515, 15, { font: helvBold, size: 9 });
-      drawWrappedText(p1, data.personnel, 40, curY, 515, 35, { size: 9 });
-      curY -= 50;
-      drawCell(p1, 40, curY, 515, 50);
-      drawTextInCell(p1, "Pre-entry Briefing Information:", 40, curY + 35, 515, 15, { font: helvBold, size: 9 });
-      drawWrappedText(p1, data.preEntryBriefing, 40, curY, 515, 35, { size: 9 });
+      bRows.forEach(row => {
+        curY -= briefRowH;
+        let x = 40;
+        row.forEach((key, idx) => {
+          const group = bColGroups[idx];
+          drawCell(p1, x, curY, group.lW, briefRowH);
+          drawTextInCell(p1, bLabels[key], x, curY, group.lW, briefRowH, { size: 7.5, font: helvBold });
+          drawCell(p1, x + group.lW, curY, group.cW, briefRowH, { fill: LIGHT_FILL });
+          if(data.points[key]) drawCheckbox(p1, x + group.lW + 5, curY + 2, 10, true);
+          x += group.lW + group.cW;
+        });
+      });
+
+      drawMultiLine(p1, "Additional Briefing Information:", data.preEntryBriefing, 40, curY, 515, 40);
+      curY -= 40;
 
       // Section 2: Equipment
       curY -= 25;
@@ -1482,14 +1595,16 @@
       });
       curY -= 20;
       drawRow(p2, "Standby Person(s):", data.standbyPerson, 40, curY, 515, 150);
-      curY -= rowH;
-      drawRow(p2, "Emergency First Aid:", data.firstAid, 40, curY, 515, 150);
-      curY -= rowH;
-      drawRow(p2, "Communication Method:", data.commMethod, 40, curY, 515, 150);
-      curY -= 60;
-      drawCell(p2, 40, curY, 515, 60);
-      drawTextInCell(p2, "Specific Rescue Arrangements / Plan:", 40, curY + 45, 515, 15, { font: helvBold, size: 9 });
-      drawWrappedText(p2, data.rescueArrangements, 40, curY, 515, 45, { size: 9 });
+      curY -= 20;
+      drawRow(p2, "Emergency Contact:", data.emergencyContact, 40, curY, 257.5, 100);
+      drawRow(p2, "Hospital:", data.hospitalDetails, 297.5, curY, 257.5, 100);
+      curY -= 20;
+      drawRow(p2, "Emergency First Aid:", data.firstAid, 40, curY, 257.5, 100);
+      drawRow(p2, "Communication:", data.commMethod, 297.5, curY, 257.5, 100);
+      curY -= 50;
+      drawCell(p2, 40, curY, 515, 50);
+      drawTextInCell(p2, "Specific Rescue Arrangements / Plan:", 40, curY + 35, 515, 15, { font: helvBold, size: 9 });
+      drawWrappedText(p2, data.rescueArrangements, 40, curY, 515, 35, { size: 9 });
 
       // Page 3: Personnel Entry & Exit record
       const p3 = pdfDoc.addPage(A4);
@@ -1538,34 +1653,50 @@
       drawTextInCell(p4, "(to be completed during the work)", 40, curY, 515, 15, { size: 8, font: helv });
 
       curY -= 20;
-      drawCell(p4, 40, curY, 200, 20, { fill: RED });
-      drawTextInCell(p4, "Device(s)", 40, curY, 200, 20, { color: HEADER_TEXT, font: helvBold, size: 9 });
-      drawCell(p4, 240, curY, 315, 20, { fill: RED });
-      drawTextInCell(p4, "Serial number", 240, curY, 315, 20, { color: HEADER_TEXT, font: helvBold, size: 9 });
+      drawCell(p4, 40, curY, 257.5, 18);
+      drawTextInCell(p4, "Bump Test Done:", 40, curY, 120, 18, { font: helvBold, size: 9 });
+      drawCheckbox(p4, 170, curY + 4, 10, data.bumpTestDone);
+
+      curY -= 20;
+      drawCell(p4, 40, curY, 180, 18, { fill: RED });
+      drawTextInCell(p4, "Device(s)", 40, curY, 180, 18, { color: HEADER_TEXT, font: helvBold, size: 9 });
+      drawCell(p4, 220, curY, 165, 18, { fill: RED });
+      drawTextInCell(p4, "Serial number", 220, curY, 165, 18, { color: HEADER_TEXT, font: helvBold, size: 9 });
 
       curY -= 15;
-      drawCell(p4, 40, curY, 200, 15);
-      drawTextInCell(p4, data.monitorDevice1, 40, curY, 200, 15, { size: 9 });
-      drawCell(p4, 240, curY, 315, 15);
-      drawTextInCell(p4, data.monitorSerial1, 240, curY, 315, 15, { size: 9 });
+      drawCell(p4, 40, curY, 180, 15);
+      drawTextInCell(p4, data.monitorDevice1, 40, curY, 180, 15, { size: 9 });
+      drawCell(p4, 220, curY, 165, 15);
+      drawTextInCell(p4, data.monitorSerial1, 220, curY, 165, 15, { size: 9 });
 
       curY -= 15;
-      drawCell(p4, 40, curY, 200, 15);
-      drawTextInCell(p4, data.monitorDevice2, 40, curY, 200, 15, { size: 9 });
-      drawCell(p4, 240, curY, 315, 15);
-      drawTextInCell(p4, data.monitorSerial2, 240, curY, 315, 15, { size: 9 });
+      drawCell(p4, 40, curY, 180, 15);
+      drawTextInCell(p4, data.monitorDevice2, 40, curY, 180, 15, { size: 9 });
+      drawCell(p4, 220, curY, 165, 15);
+      drawTextInCell(p4, data.monitorSerial2, 220, curY, 165, 15, { size: 9 });
 
       curY -= 25;
-      const amColW = [60, 80, 100, 100, 175];
-      const amLabels = ["Time", "Sampled by", "O2\n(19.5- 21%)", "CO\n(<25 ppm)", "Other (from section3)"];
+      drawCell(p4, 40, curY, 515, 15, { fill: RED });
+      drawTextInCell(p4, "INITIAL ATMOSPHERIC TEST (Before Entry)", 40, curY, 515, 15, { color: HEADER_TEXT, font: helvBold, size: 8, align: "center" });
+      curY -= 15;
+      const amColW = [45, 100, 60, 60, 60, 60, 130];
+      const amLabels = ["Time", "Sampled by", "O2\n(19.5-22.5)", "LEL\n(<10%)", "CO\n(<25ppm)", "H2S\n(<10ppm)", "Notes"];
       let amX = 40;
       amLabels.forEach((h, i) => {
-        drawCell(p4, amX, curY, amColW[i], 25, { fill: RED });
-        drawWrappedText(p4, h, amX, curY, amColW[i], 25, { color: HEADER_TEXT, font: helvBold, size: 8, padding: 2, lineHeight: 9 });
+        drawCell(p4, amX, curY, amColW[i], 22, { fill: RED });
+        drawWrappedText(p4, h, amX, curY, amColW[i], 22, { color: HEADER_TEXT, font: helvBold, size: 7.5, padding: 2, lineHeight: 8.5 });
         amX += amColW[i];
       });
 
-      for(let i=0; i<18; i++){
+      // Initial Test Row
+      curY -= 18;
+      amX = 40;
+      amColW.forEach(w => { drawCell(p4, amX, curY, w, 18, { fill: YELLOW }); amX += w; });
+
+      curY -= 10;
+      drawTextInCell(p4, "PERIODIC MONITORING", 40, curY, 515, 10, { font: helvBold, size: 8, align: "center" });
+
+      for(let i=0; i<15; i++){
         curY -= 15;
         amX = 40;
         amColW.forEach(w => {
