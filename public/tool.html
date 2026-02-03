@@ -638,7 +638,7 @@
           isoPhys: false, isoElec: false, isoMech: false, cleaning: false,
           ventNat: false, ventForced: false, light110: false, lightLow: false,
           signage: false, comms: false, testing: false, monitoring: false,
-          extinguishers: false, rpe: false, ppe: false, training: false
+          extinguishers: false, rpe: false, training: false
         },
         controlsOthers: "",
         emergency: {
@@ -646,6 +646,11 @@
           stretcher: false, resuscitation: false, ba: false, light: false,
           alarm: false, comms: false, standby: false
         },
+        safetyEquipment: {
+          head: false, eye: false, hearing: false, foot: false, hand: false,
+          hiVis: false, fallArrest: false, rpe: false
+        },
+        safetyOthers: "",
         standbyPerson: "",
         rescueArrangements: "",
         emergencyContact: "",
@@ -768,11 +773,27 @@
           chk("co_monitoring","Constant monitoring", state.controls.monitoring),
           chk("co_extinguishers","Fire extinguishers", state.controls.extinguishers),
           chk("co_rpe","RPE (BA / Escape set)", state.controls.rpe),
-          chk("co_ppe","Specific PPE", state.controls.ppe),
           chk("co_training","Training/Competence", state.controls.training),
         ]),
         el("div",{style:"margin-top:12px"},[
           field("Others (specify)","controlsOthers","text","Any other controls...", state.controlsOthers)
+        ])
+      ]);
+
+      const sSafety = el("div",{class:"section"},[
+        el("div",{class:"sectionTitle"},["6. Safety Equipment"]),
+        el("div",{class:"grid3auto"},[
+          chk("se_head","Head protection (Hard hat)", state.safetyEquipment.head),
+          chk("se_eye","Eye protection", state.safetyEquipment.eye),
+          chk("se_hearing","Hearing protection", state.safetyEquipment.hearing),
+          chk("se_foot","Foot protection", state.safetyEquipment.foot),
+          chk("se_hand","Hand protection", state.safetyEquipment.hand),
+          chk("se_hiVis","High visibility clothing", state.safetyEquipment.hiVis),
+          chk("se_fallArrest","Fall arrest / restraint", state.safetyEquipment.fallArrest),
+          chk("se_rpe","Respiratory protection (RPE)", state.safetyEquipment.rpe),
+        ]),
+        el("div",{style:"margin-top:12px"},[
+          field("Others (specify)","safetyOthers","text","Any other safety equipment...", state.safetyOthers)
         ])
       ]);
 
@@ -843,6 +864,7 @@
       app.appendChild(sEquipment);
       app.appendChild(sRisk);
       app.appendChild(sControls);
+      app.appendChild(sSafety);
       app.appendChild(sEmergency);
       app.appendChild(sMonitoring);
       app.appendChild(sticky);
@@ -914,7 +936,7 @@
               cleaning: $("#co_cleaning").checked, ventNat: $("#co_ventNat").checked, ventForced: $("#co_ventForced").checked,
               light110: $("#co_light110").checked, lightLow: $("#co_lightLow").checked, signage: $("#co_signage").checked,
               comms: $("#co_comms").checked, testing: $("#co_testing").checked, monitoring: $("#co_monitoring").checked,
-              extinguishers: $("#co_extinguishers").checked, rpe: $("#co_rpe").checked, ppe: $("#co_ppe").checked,
+              extinguishers: $("#co_extinguishers").checked, rpe: $("#co_rpe").checked,
               training: $("#co_training").checked
             },
             controlsOthers: $("#controlsOthers").value.trim(),
@@ -924,6 +946,12 @@
               ba: $("#em_ba").checked, light: $("#em_light").checked, alarm: $("#em_alarm").checked,
               comms: $("#em_comms").checked, standby: $("#em_standby").checked
             },
+            safetyEquipment: {
+              head: $("#se_head").checked, eye: $("#se_eye").checked, hearing: $("#se_hearing").checked,
+              foot: $("#se_foot").checked, hand: $("#se_hand").checked, hiVis: $("#se_hiVis").checked,
+              fallArrest: $("#se_fallArrest").checked, rpe: $("#se_rpe").checked
+            },
+            safetyOthers: $("#safetyOthers").value.trim(),
             standbyPerson: $("#standbyPerson").value.trim(),
             emergencyContact: $("#emergencyContact").value.trim(),
             hospitalDetails: $("#hospitalDetails").value.trim(),
@@ -1270,11 +1298,11 @@
       const helvBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
 
       const A4 = [595.28, 841.89];
-      const BLACK = rgb(0,0,0);
-      const RED = rgb(0.78, 0.1, 0.1);
+      const BLACK = rgb(0, 0, 0);
+      const RED = rgb(0.753, 0, 0); // rgb(192, 0, 0)
       const HEADER_TEXT = rgb(1, 1, 1);
       const LIGHT_FILL = rgb(0.985, 0.985, 0.99);
-      const YELLOW = rgb(1, 0.84, 0);
+      const YELLOW = rgb(1, 1, 0); // Full yellow
 
       // --- Helpers ---
       async function fetchImage(url){
@@ -1303,22 +1331,22 @@
       const atlBytes = await fetchImage("/atl-logo.png") || await fetchImage("atl-logo.png");
       if(atlBytes) atlLogo = await embedImageBytes(atlBytes);
 
-      const drawCell = (page, x, y, w, h, { fill, border=1, borderColor=BLACK } = {}) => {
-        const opts = { x, y, width:w, height:h, borderColor, borderWidth: border };
-        if(fill) opts.color = fill;
+      const drawCell = (page, x, y, w, h, { fill, border = 1, borderColor = BLACK } = {}) => {
+        const opts = { x, y, width: w, height: h, borderColor, borderWidth: border };
+        if (fill) opts.color = fill;
         page.drawRectangle(opts);
       };
 
       const drawTextInCell = (page, text, x, y, w, h, {
-        size=10, font=helv, color=BLACK, padding=6, align="left"
+        size = 10, font = helv, color = BLACK, padding = 6, align = "left"
       } = {}) => {
-        if(text === undefined || text === null) return;
+        if (text === undefined || text === null || text === "") return;
         const s = String(text);
         let tx = x + padding;
-        if(align === "center"){
+        if (align === "center") {
           const tw = font.widthOfTextAtSize(s, size);
           tx = x + (w - tw) / 2;
-        }else if(align === "right"){
+        } else if (align === "right") {
           const tw = font.widthOfTextAtSize(s, size);
           tx = x + w - padding - tw;
         }
@@ -1548,7 +1576,6 @@
         ["Constant monitoring", data.controls.monitoring],
         ["Fire extinguishers", data.controls.extinguishers],
         ["RPE (BA / Escape set)", data.controls.rpe],
-        ["Specific PPE (e.g. gloves, overalls)", data.controls.ppe],
         ["Training / Competence", data.controls.training]
       ];
 
@@ -1606,6 +1633,77 @@
       drawTextInCell(p2, "Specific Rescue Arrangements / Plan:", 40, curY + 35, 515, 15, { font: helvBold, size: 9 });
       drawWrappedText(p2, data.rescueArrangements, 40, curY, 515, 35, { size: 9 });
 
+      // Section 6: Safety Equipment
+      curY -= 25;
+      drawCell(p2, 40, curY, 515, 15, { fill: RED });
+      drawTextInCell(p2, "6 Safety Equipment", 40, curY, 515, 15, { color: HEADER_TEXT, font: helvBold, size: 9 });
+      curY -= 15;
+      drawCell(p2, 40, curY, 415, 15);
+      drawTextInCell(p2, "PPE / Safety Equipment", 40, curY, 415, 15, { font: helvBold, size: 8 });
+      drawCell(p2, 455, curY, 100, 15);
+      drawTextInCell(p2, "Tick if applicable", 455, curY, 100, 15, { font: helvBold, size: 8, align: "center" });
+
+      const safety = [
+        ["Head protection (Hard hat)", data.safetyEquipment.head],
+        ["Eye protection", data.safetyEquipment.eye],
+        ["Hearing protection", data.safetyEquipment.hearing],
+        ["Foot protection", data.safetyEquipment.foot],
+        ["Hand protection", data.safetyEquipment.hand],
+        ["High visibility clothing", data.safetyEquipment.hiVis],
+        ["Fall arrest / restraint", data.safetyEquipment.fallArrest],
+        ["Respiratory protection (RPE)", data.safetyEquipment.rpe]
+      ];
+
+      safety.forEach(([label, checked]) => {
+        curY -= 12;
+        drawCell(p2, 40, curY, 415, 12);
+        drawTextInCell(p2, label, 40, curY, 415, 12, { size: 7.5 });
+        drawCell(p2, 455, curY, 100, 12);
+        drawCheckbox(p2, 498, curY + 1.5, 9, checked);
+      });
+      curY -= 15;
+      drawRow(p2, "Others (specify):", data.safetyOthers, 40, curY, 515, 100, 15);
+
+      // Section 7: Atmospheric Testing
+      curY -= 25;
+      drawCell(p2, 40, curY, 515, 15, { fill: RED });
+      drawTextInCell(p2, "7 Atmospheric Testing", 40, curY, 515, 15, { color: HEADER_TEXT, font: helvBold, size: 9 });
+      curY -= 15;
+      drawTextInCell(p2, "Bump Test Done:", 40, curY, 100, 15, { font: helvBold, size: 8 });
+      drawCheckbox(p2, 140, curY + 2.5, 10, data.bumpTestDone);
+
+      curY -= 15;
+      drawCell(p2, 40, curY, 150, 15, { fill: RED });
+      drawTextInCell(p2, "Device", 40, curY, 150, 15, { color: HEADER_TEXT, font: helvBold, size: 8 });
+      drawCell(p2, 190, curY, 150, 15, { fill: RED });
+      drawTextInCell(p2, "Serial No.", 190, curY, 150, 15, { color: HEADER_TEXT, font: helvBold, size: 8 });
+
+      curY -= 12;
+      drawCell(p2, 40, curY, 150, 12);
+      drawTextInCell(p2, data.monitorDevice1, 40, curY, 150, 12, { size: 8 });
+      drawCell(p2, 190, curY, 150, 12);
+      drawTextInCell(p2, data.monitorSerial1, 190, curY, 150, 12, { size: 8 });
+
+      curY -= 12;
+      drawCell(p2, 40, curY, 150, 12);
+      drawTextInCell(p2, data.monitorDevice2, 40, curY, 150, 12, { size: 8 });
+      drawCell(p2, 190, curY, 150, 12);
+      drawTextInCell(p2, data.monitorSerial2, 190, curY, 150, 12, { size: 8 });
+
+      curY -= 15;
+      const amColW = [40, 90, 55, 55, 55, 55, 165];
+      const amLabels = ["Time", "Sampled by", "O2 (19.5-22.5)", "LEL (<10%)", "CO (<25ppm)", "H2S (<10ppm)", "Notes"];
+      let amX = 40;
+      amLabels.forEach((h, i) => {
+        drawCell(p2, amX, curY, amColW[i], 15, { fill: RED });
+        drawTextInCell(p2, h, amX, curY, amColW[i], 15, { color: HEADER_TEXT, font: helvBold, size: 6.5, align: "center" });
+        amX += amColW[i];
+      });
+      curY -= 15;
+      amX = 40;
+      amColW.forEach(w => { drawCell(p2, amX, curY, w, 15, { fill: YELLOW }); amX += w; });
+      drawTextInCell(p2, "Initial Test", 40 + 40, curY, 90, 15, { size: 7, align: "center" });
+
       // Page 3: Personnel Entry & Exit record
       const p3 = pdfDoc.addPage(A4);
       drawHeader(p3, 3, 4);
@@ -1638,112 +1736,45 @@
         }
       }
 
-      curY -= 180;
-      drawCell(p3, 40, curY, 515, 180);
-      drawTextInCell(p3, "Notes:", 40, curY + 165, 515, 15, { font: helv, size: 9 });
+      curY -= 100;
+      drawCell(p3, 40, curY, 515, 100);
+      drawTextInCell(p3, "Notes:", 40, curY + 85, 515, 15, { font: helv, size: 9 });
 
-      // Page 4: Air Monitoring, Certification and Closure
+      // Page 4: Completion and Sign-off
       const p4 = pdfDoc.addPage(A4);
       drawHeader(p4, 4, 4);
 
       curY = 725;
       drawCell(p4, 40, curY, 515, 20, { fill: RED });
-      drawTextInCell(p4, "7 Air Monitoring Results", 40, curY, 515, 20, { color: HEADER_TEXT, font: helvBold, size: 11 });
+      drawTextInCell(p4, "8 Completion / Cancellation", 40, curY, 515, 20, { color: HEADER_TEXT, font: helvBold, size: 11 });
       curY -= 15;
-      drawTextInCell(p4, "(to be completed during the work)", 40, curY, 515, 15, { size: 8, font: helv });
+      drawTextInCell(p4, "(to be signed after work is completed or permit is cancelled)", 40, curY, 515, 15, { size: 8, font: helv });
+
+      curY -= 40;
+      drawCell(p4, 40, curY, 515, 40);
+      drawWrappedText(p4, "I certify that the work has been completed / cancelled, all personnel have been withdrawn and the space has been left in a safe condition.", 40, curY, 515, 40, { size: 9 });
 
       curY -= 20;
-      drawCell(p4, 40, curY, 257.5, 18);
-      drawTextInCell(p4, "Bump Test Done:", 40, curY, 120, 18, { font: helvBold, size: 9 });
-      drawCheckbox(p4, 170, curY + 4, 10, data.bumpTestDone);
-
+      drawRow(p4, "Name:", data.authorisingPerson, 40, curY, 515, 100);
       curY -= 20;
-      drawCell(p4, 40, curY, 180, 18, { fill: RED });
-      drawTextInCell(p4, "Device(s)", 40, curY, 180, 18, { color: HEADER_TEXT, font: helvBold, size: 9 });
-      drawCell(p4, 220, curY, 165, 18, { fill: RED });
-      drawTextInCell(p4, "Serial number", 220, curY, 165, 18, { color: HEADER_TEXT, font: helvBold, size: 9 });
+      drawRow(p4, "Signature:", "", 40, curY, 350, 100);
+      drawRow(p4, "Date:", toDDMMYYYY(data.dateISO), 390, curY, 165, 50);
+      curY -= 20;
+      drawRow(p4, "Time:", data.authorisingTime, 40, curY, 150, 50);
 
-      curY -= 15;
-      drawCell(p4, 40, curY, 180, 15);
-      drawTextInCell(p4, data.monitorDevice1, 40, curY, 180, 15, { size: 9 });
-      drawCell(p4, 220, curY, 165, 15);
-      drawTextInCell(p4, data.monitorSerial1, 220, curY, 165, 15, { size: 9 });
-
-      curY -= 15;
-      drawCell(p4, 40, curY, 180, 15);
-      drawTextInCell(p4, data.monitorDevice2, 40, curY, 180, 15, { size: 9 });
-      drawCell(p4, 220, curY, 165, 15);
-      drawTextInCell(p4, data.monitorSerial2, 220, curY, 165, 15, { size: 9 });
-
-      curY -= 25;
-      drawCell(p4, 40, curY, 515, 15, { fill: RED });
-      drawTextInCell(p4, "INITIAL ATMOSPHERIC TEST (Before Entry)", 40, curY, 515, 15, { color: HEADER_TEXT, font: helvBold, size: 8, align: "center" });
-      curY -= 15;
-      const amColW = [45, 100, 60, 60, 60, 60, 130];
-      const amLabels = ["Time", "Sampled by", "O2\n(19.5-22.5)", "LEL\n(<10%)", "CO\n(<25ppm)", "H2S\n(<10ppm)", "Notes"];
-      let amX = 40;
-      amLabels.forEach((h, i) => {
-        drawCell(p4, amX, curY, amColW[i], 22, { fill: RED });
-        drawWrappedText(p4, h, amX, curY, amColW[i], 22, { color: HEADER_TEXT, font: helvBold, size: 7.5, padding: 2, lineHeight: 8.5 });
-        amX += amColW[i];
-      });
-
-      // Initial Test Row
-      curY -= 18;
-      amX = 40;
-      amColW.forEach(w => { drawCell(p4, amX, curY, w, 18, { fill: YELLOW }); amX += w; });
-
-      curY -= 10;
-      drawTextInCell(p4, "PERIODIC MONITORING", 40, curY, 515, 10, { font: helvBold, size: 8, align: "center" });
-
-      for(let i=0; i<15; i++){
-        curY -= 15;
-        amX = 40;
-        amColW.forEach(w => {
-          drawCell(p4, amX, curY, w, 15);
-          amX += w;
-        });
-      }
-
-      curY -= 25;
+      curY -= 40;
       drawCell(p4, 40, curY, 515, 20, { fill: RED });
-      drawTextInCell(p4, "8 Pre-entry Certification", 40, curY, 515, 20, { color: HEADER_TEXT, font: helvBold, size: 11 });
+      drawTextInCell(p4, "9 Authorized Sign-off", 40, curY, 515, 20, { color: HEADER_TEXT, font: helvBold, size: 11 });
       curY -= 15;
-      drawTextInCell(p4, "(must be signed by the confined space authorising person before entry)", 40, curY, 515, 15, { size: 8, font: helv });
-
-      curY -= 35;
-      drawCell(p4, 40, curY, 515, 35);
-      drawWrappedText(p4, "I hereby certify that all required hazard controls are in place, that air monitoring is being conducted as required and results show that the atmosphere is acceptable for entry, and that all required information is documented on this permit.", 40, curY, 515, 35, { size: 8.5 });
+      drawTextInCell(p4, "(Project Manager / Supervisor)", 40, curY, 515, 15, { size: 8, font: helv });
 
       curY -= 20;
-      drawRow(p4, "Confined space entry authorising person:", data.authorisingPerson, 40, curY, 515, 220);
-      curY -= 25;
-      drawCell(p4, 40, curY, 180, 25);
-      drawTextInCell(p4, "Signature:", 40, curY, 180, 25, { font: helvBold, size: 9 });
-      drawCell(p4, 220, curY, 165, 25);
-      drawTextInCell(p4, "Date: " + toDDMMYYYY(data.dateISO), 220, curY, 165, 25, { font: helvBold, size: 9 });
-      drawCell(p4, 390, curY, 165, 25);
-      drawTextInCell(p4, "Time: " + (data.authorisingTime || ""), 390, curY, 165, 25, { font: helvBold, size: 9 });
-
-      curY -= 35;
-      drawCell(p4, 40, curY, 515, 20, { fill: RED });
-      drawTextInCell(p4, "9 Permit Closure", 40, curY, 515, 20, { color: HEADER_TEXT, font: helvBold, size: 11 });
-      curY -= 15;
-      drawTextInCell(p4, "(must be signed by the confined space authorising person after work is completed)", 40, curY, 515, 15, { size: 8, font: helv });
-
-      curY -= 25;
-      drawCell(p4, 40, curY, 515, 25);
-      drawWrappedText(p4, "The work was done in accordance with this permit. A copy of this permit will be forwarded to the confined space Supervisor/Project Manager.", 40, curY, 515, 25, { size: 8.5 });
-
+      drawRow(p4, "Name:", data.closureName, 40, curY, 515, 100);
       curY -= 20;
-      drawRow(p4, "Name:", data.closureName, 40, curY, 515, 80);
-      curY -= 25;
-      drawCell(p4, 40, curY, 180, 25);
-      drawTextInCell(p4, "Signature:", 40, curY, 180, 25, { font: helvBold, size: 9 });
-      drawCell(p4, 220, curY, 165, 25);
-      drawTextInCell(p4, "Date: " + toDDMMYYYY(data.dateISO), 220, curY, 165, 25, { font: helvBold, size: 9 });
-      drawCell(p4, 390, curY, 165, 25);
-      drawTextInCell(p4, "Time: " + (data.closureTime || ""), 390, curY, 165, 25, { font: helvBold, size: 9 });
+      drawRow(p4, "Signature:", "", 40, curY, 350, 100);
+      drawRow(p4, "Date:", toDDMMYYYY(data.dateISO), 390, curY, 165, 50);
+      curY -= 20;
+      drawRow(p4, "Time:", data.closureTime, 40, curY, 150, 50);
 
       // Save and Download
       const outBytes = await pdfDoc.save();
