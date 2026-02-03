@@ -1220,6 +1220,26 @@
           return { w: imgW * r, h: imgH * r };
         };
 
+        const decodeDataUrl = (dataUrl) => {
+          if(!dataUrl || typeof dataUrl !== "string") return null;
+          const match = dataUrl.match(/^data:(image\/(png|jpeg|jpg));base64,(.+)$/i);
+          if(!match) return null;
+          const mime = match[1].toLowerCase();
+          const b64 = match[3];
+          if(!b64) return null;
+          const bytes = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+          return { mime, bytes };
+        };
+
+        const embedImageFromDataUrl = async (dataUrl) => {
+          const decoded = decodeDataUrl(dataUrl);
+          if(!decoded) return null;
+          if(decoded.mime.includes("jpeg") || decoded.mime.includes("jpg")){
+            return await pdfDoc.embedJpg(decoded.bytes);
+          }
+          return await pdfDoc.embedPng(decoded.bytes);
+        };
+
         let y = headerY - rowH;
         let idx = startIndex;
         for(let i=0;i<18;i++){
@@ -1231,10 +1251,8 @@
             drawText(page, a.name, marginX + 6, y + 7, 10, helv);
             drawText(page, toDDMMYYYY(a.dateISO), marginX + nameW + 6, y + 7, 10, helv);
             if(a.signature){
-              const b64 = a.signature.split(",")[1] || "";
-              if(b64){
-                const bytes = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
-                const embed = await pdfDoc.embedPng(bytes);
+              const embed = await embedImageFromDataUrl(a.signature);
+              if(embed){
                 const maxW = sigW - 12;
                 const maxH = rowH - 6;
                 const s = fitInto(embed.width, embed.height, maxW, maxH);
