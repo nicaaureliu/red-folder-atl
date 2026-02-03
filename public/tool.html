@@ -948,7 +948,7 @@
 
       const pdfDoc = await PDFDocument.load(templateBytes);
       const helv = await pdfDoc.embedFont(StandardFonts.Helvetica);
-      const zapf = await pdfDoc.embedFont(StandardFonts.ZapfDingbats);
+      
       const pages = pdfDoc.getPages();
 
       if(pages.length < 3){
@@ -966,7 +966,18 @@
         if(!text) return;
         page.drawText(String(text), { x, y, size, font: helv, color: rgb(0,0,0) });
       };
-
+      const drawCheckmark = (page, x, y) => {
+        const color = rgb(0,0,0);
+        const left = x + 2;
+        const midX = x + 6;
+        const right = x + 14;
+        const lower = y + 2;
+        const midY = y - 1;
+        const upper = y + 8;
+        page.drawLine({ start:{ x:left, y:lower }, end:{ x:midX, y:midY }, thickness:1.5, color });
+        page.drawLine({ start:{ x:midX, y:midY }, end:{ x:right, y:upper }, thickness:1.5, color });
+      };
+      
       const wrapLines = (font, text, size, maxWidth) => {
         const words = String(text || "").replace(/\r/g,"").split(/\s+/).filter(Boolean);
         const lines = [];
@@ -992,7 +1003,7 @@
 
       const drawYesNo = (page, value, x, y, boxW=20, boxH=14) => {
         cover(page, x-3, y-2, boxW, boxH);
-        if(value === "Yes") page.drawText("4", { x, y, size: 12, font: zapf, color: rgb(0,0,0) });
+         if(value === "Yes") drawCheckmark(page, x, y);
         else page.drawText("X", { x, y, size: 10, font: helv, color: rgb(0,0,0) });
       };
 
@@ -1068,7 +1079,7 @@
           const x = colX[c], y = rowY[r];
           cover(page1, x-2, y-2, 14, 14);
           if(data.points && data.points[key]){
-            page1.drawText("4", { x, y, size: 12, font: zapf, color: rgb(0,0,0) });
+          drawCheckmark(page1, x, y);
           }
         }
       }
