@@ -8,15 +8,21 @@
   <style>
     :root{
       --bg:#f6f7f9;
-      --panel:#ffffff;
+      --card:#ffffff;
       --text:#111111;
       --muted:#6b7280;
       --line:#e5e7eb;
       --yellow:#ffd600;
-      --radius:22px;
+      --radius:18px;
+
       --btn:#111;
       --btnText:#fff;
+
+      --okBg:#ecfdf5;    --okBd:#a7f3d0;  --okTx:#065f46;
+      --badBg:#fef2f2;   --badBd:#fecaca; --badTx:#7f1d1d;
+      --warnBg:#fffbeb;  --warnBd:#fde68a;--warnTx:#92400e;
     }
+
     *{ box-sizing:border-box; }
     html, body{ width:100%; max-width:100%; overflow-x:hidden; }
 
@@ -27,31 +33,105 @@
       color: var(--text);
     }
 
-    .wrap{ max-width: 980px; margin: 18px auto; padding: 0 14px; }
+    .wrap{ max-width: 980px; margin: 16px auto; padding: 0 14px; }
     .shell{
       border: 1px solid #e8eaee;
-      border-radius: 26px;
+      border-radius: 24px;
       padding: 10px;
-      box-shadow: 0 6px 18px rgba(0,0,0,.04);
+      box-shadow: 0 8px 22px rgba(0,0,0,.05);
       background: transparent;
     }
+
     .card{
-      background: var(--panel);
+      background: var(--card);
       border: 1px solid var(--line);
       border-radius: var(--radius);
-      padding: 18px;
+      padding: 16px;
     }
 
-    h1{ margin:0 0 6px; font-size: 22px; font-weight: 900; }
-    .sub{ margin:0 0 14px; color: var(--muted); font-weight: 700; font-size: 13px; }
+    .head{
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap:12px;
+    }
+    h1{
+      margin:0;
+      font-size: 22px;
+      font-weight: 900;
+      letter-spacing: .2px;
+    }
+    .sub{
+      margin:6px 0 0;
+      color: var(--muted);
+      font-weight: 700;
+      font-size: 13px;
+      line-height: 1.35;
+    }
 
-    .row{ display:flex; gap:12px; flex-wrap:wrap; }
-    .col{ flex: 1 1 240px; min-width: 240px; }
+    .pillRow{
+      display:flex;
+      gap:8px;
+      flex-wrap:wrap;
+      justify-content:flex-end;
+      align-items:center;
+      margin-top: 2px;
+    }
 
-    label{ display:block; font-size:12px; font-weight:800; color:#111; margin: 10px 0 6px; }
+    .pill{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding: 7px 10px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background:#fff;
+      color: var(--muted);
+      font-weight: 800;
+      font-size: 12px;
+      white-space:nowrap;
+    }
+    .pill.ok{ background: var(--okBg); border-color: var(--okBd); color: var(--okTx); }
+    .pill.bad{ background: var(--badBg); border-color: var(--badBd); color: var(--badTx); }
+    .pill.warn{ background: var(--warnBg); border-color: var(--warnBd); color: var(--warnTx); }
+
+    .banner{
+      margin-top: 12px;
+      padding: 10px 12px;
+      border-radius: 14px;
+      border: 1px solid var(--warnBd);
+      background: var(--warnBg);
+      color: var(--warnTx);
+      font-weight: 800;
+      font-size: 13px;
+      display:none;
+    }
+
+    .section{
+      margin-top: 12px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 14px;
+      background:#fff;
+    }
+    .sectionTitle{
+      margin:0 0 10px;
+      font-weight: 900;
+      font-size: 13px;
+      letter-spacing:.2px;
+      color:#111;
+    }
+
+    label{
+      display:block;
+      font-size: 12px;
+      font-weight: 800;
+      color:#111;
+      margin: 0 0 6px;
+    }
     input, select, textarea{
       width:100%;
-      border:1px solid var(--line);
+      border: 1px solid var(--line);
       border-radius: 12px;
       padding: 10px 12px;
       font-size: 14px;
@@ -60,18 +140,82 @@
     }
     textarea{ min-height: 92px; resize: vertical; }
 
-    .actions{
-      margin-top: 14px;
+    .grid2{
+      display:grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+    .grid3auto{
+      display:grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 10px;
+    }
+    .grid1{
+      display:grid;
+      grid-template-columns: 1fr;
+      gap: 12px;
+    }
+
+    .check{
       display:flex;
+      align-items:center;
       gap:10px;
-      flex-wrap:wrap;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 10px 12px;
+      background:#fff;
+      font-weight: 800;
+      font-size: 13px;
+    }
+    .check input{ width:18px; height:18px; }
+
+    .attTop{
+      display:flex;
       align-items:center;
       justify-content:space-between;
+      gap:10px;
+      flex-wrap:wrap;
+      margin-bottom: 10px;
     }
-    .leftActions{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+
+    .attRow{
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 10px;
+      background:#fff;
+      margin-top: 10px;
+      display:grid;
+      grid-template-columns: 2fr 1fr 2fr 1.2fr;
+      gap: 10px;
+      align-items:end;
+    }
+
+    .sigPreview{
+      height: 44px;
+      border: 1px dashed var(--line);
+      border-radius: 12px;
+      background:#fafafa;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      overflow:hidden;
+    }
+    .sigPreview img{
+      width:100%;
+      height:100%;
+      object-fit: contain;
+      background:#fff;
+    }
+    .sigPreview span{
+      color: var(--muted);
+      font-weight: 800;
+      font-size: 12px;
+    }
 
     .btn{
-      display:inline-block;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
       border-radius: 999px;
       padding: 10px 16px;
       font-weight: 900;
@@ -82,9 +226,9 @@
       user-select:none;
       background: var(--btn);
       color: var(--btnText);
+      white-space:nowrap;
     }
     .btn:active{ transform: translateY(1px); }
-
     .btnYellow{
       background: var(--yellow);
       border-color: #caa900;
@@ -96,109 +240,46 @@
       border:1px solid var(--line);
       box-shadow:none;
     }
-
-    .pill{
-      display:inline-flex;
-      align-items:center;
-      gap:8px;
-      padding: 8px 10px;
-      border-radius: 999px;
-      border:1px solid var(--line);
+    .btnDanger{
       background:#fff;
-      color: var(--muted);
-      font-weight: 800;
-      font-size: 12px;
-    }
-
-    .grid3{
-      display:grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap:10px;
-    }
-    .checkBox{
-      display:flex;
-      align-items:center;
-      gap:10px;
-      border:1px solid var(--line);
-      border-radius: 14px;
-      padding: 10px 12px;
-      background:#fff;
-      font-weight: 800;
-      font-size: 13px;
-    }
-    .checkBox input{ width:18px; height:18px; }
-
-    .sectionTitle{
-      margin-top: 14px;
-      font-weight: 900;
-      font-size: 14px;
-      color:#111;
-    }
-
-    .attRow{
-      display:flex;
-      gap:10px;
-      flex-wrap:wrap;
-      align-items:flex-end;
-      margin-top: 10px;
-      padding: 10px;
-      border:1px solid var(--line);
-      border-radius: 14px;
-      background:#fff;
-    }
-    .attRow .small{ flex: 1 1 220px; min-width:220px; }
-    .attRow .mini{ flex: 1 1 160px; min-width:160px; }
-    .attRow .sigCol{ flex: 1 1 240px; min-width:240px; }
-
-    .sigPreview{
-      margin-top: 6px;
-      width: 100%;
-      height: 54px;
-      border: 1px dashed var(--line);
-      border-radius: 12px;
-      background: #fafafa;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      overflow:hidden;
-    }
-    .sigPreview img{
-      width: 100%;
-      height: 100%;
-      object-fit: contain;
-      background:#fff;
-    }
-    .sigPreview span{
-      color: var(--muted);
-      font-weight: 800;
-      font-size: 12px;
-    }
-
-    .danger{
-      background:#fff;
-      border:1px solid #fecaca;
-      color:#7f1d1d;
+      color: var(--badTx);
+      border:1px solid var(--badBd);
       box-shadow:none;
+      font-weight: 900;
+    }
+
+    .btnRow{
+      display:flex;
+      gap:8px;
+      flex-wrap:wrap;
+    }
+
+    .stickyBar{
+      position: sticky;
+      bottom: 0;
+      margin-top: 14px;
+      padding-top: 12px;
+      background: linear-gradient(to top, rgba(246,247,249,1), rgba(246,247,249,.0));
+    }
+
+    .actionBar{
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background:#fff;
+      padding: 10px;
+      display:flex;
+      gap:10px;
+      align-items:center;
+      justify-content:space-between;
+      flex-wrap:wrap;
     }
 
     .note{
-      margin-top:10px;
-      color: var(--muted);
-      font-size: 12px;
-      font-weight: 700;
-      line-height: 1.35;
-    }
-
-    .warn{
       margin-top: 10px;
-      padding: 10px 12px;
-      border-radius: 14px;
-      border: 1px solid #fde68a;
-      background: #fffbeb;
-      color:#92400e;
-      font-weight: 800;
-      font-size: 13px;
-      display:none;
+      color: var(--muted);
+      font-weight: 700;
+      font-size: 12px;
+      line-height: 1.35;
     }
 
     /* Signature modal */
@@ -221,7 +302,7 @@
       overflow:hidden;
     }
     .modalHead{
-      padding: 14px 14px 10px;
+      padding: 14px;
       border-bottom: 1px solid var(--line);
       display:flex;
       justify-content:space-between;
@@ -235,7 +316,7 @@
       border-radius: 14px;
       overflow:hidden;
       background: #fff;
-      touch-action: none; /* important for mobile drawing */
+      touch-action: none;
     }
     canvas{
       width:100%;
@@ -252,22 +333,21 @@
       justify-content:space-between;
       align-items:center;
     }
-    .modalFoot .leftActions{ justify-content:flex-start; }
     .modalHelp{
       color: var(--muted);
       font-weight: 800;
       font-size: 12px;
     }
 
-    @media (max-width: 860px){
-      .grid3{ grid-template-columns: 1fr; }
-      .col{ min-width: 100%; }
-      .actions{ justify-content:flex-start; }
+    @media (max-width: 900px){
+      .grid2{ grid-template-columns: 1fr; }
+      .attRow{ grid-template-columns: 1fr; }
       canvas{ height: 220px; }
+      .pillRow{ justify-content:flex-start; }
     }
   </style>
 
-  <!-- pdf-lib (client-side PDF editing) -->
+  <!-- Try CDN 1 -->
   <script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
 </head>
 
@@ -293,18 +373,32 @@
       </div>
 
       <div class="modalFoot">
-        <div class="leftActions">
+        <div class="btnRow">
           <button id="sigClear" class="btn btnGhost" type="button">Clear</button>
           <button id="sigCancel" class="btn btnGhost" type="button">Cancel</button>
         </div>
 
-        <div class="leftActions">
-          <span class="modalHelp">Draw with finger/mouse. Then Save.</span>
+        <div class="btnRow" style="align-items:center;">
+          <span class="modalHelp">Draw with finger/mouse, then Save.</span>
           <button id="sigSave" class="btn btnYellow" type="button">Save signature</button>
         </div>
       </div>
     </div>
   </div>
+
+  <script>
+    // Fallback load (CDN 2) if pdf-lib blocked/failed
+    (function ensurePdfLib(){
+      const check = () => !!window.PDFLib;
+      if (check()) return;
+
+      const s = document.createElement("script");
+      s.src = "https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js";
+      s.onload = () => {};
+      s.onerror = () => {};
+      document.head.appendChild(s);
+    })();
+  </script>
 
   <script>
     const $ = (q) => document.querySelector(q);
@@ -324,42 +418,53 @@
     const t = (params.get("t") || "Form").trim();
     document.title = t;
 
-    // ===== Signature storage: attendeeId -> dataURL(PNG)
+    // Signature store: attendeeId -> dataURL
     const sigStore = new Map();
+    const makeId = () => "id_" + Math.random().toString(16).slice(2) + "_" + Date.now().toString(16);
 
-    const makeId = () => {
-      return "id_" + Math.random().toString(16).slice(2) + "_" + Date.now().toString(16);
-    };
-
-    // ===== Helpers =====
+    // Helpers
     const pad2 = (n) => String(n).padStart(2,"0");
+    const todayISO = () => {
+      const d = new Date();
+      return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`;
+    };
     const toDDMMYYYY = (iso) => {
       if(!iso || !iso.includes("-")) return iso || "";
       const [y,m,d] = iso.split("-");
-      return `${pad2(d)}\/${pad2(m)}\/${y}`;
-    };
-    const todayISO = () => {
-      const d = new Date();
-      const y = d.getFullYear();
-      const m = pad2(d.getMonth()+1);
-      const day = pad2(d.getDate());
-      return `${y}-${m}-${day}`;
+      return `${pad2(d)}/${pad2(m)}/${y}`;
     };
 
-    // ===== Placeholder for non-Daily Brief tools =====
+    function showBanner(msg, type="warn"){
+      const b = $("#banner");
+      b.style.display = "block";
+      b.style.borderColor = (type==="bad") ? "var(--badBd)" : "var(--warnBd)";
+      b.style.background = (type==="bad") ? "var(--badBg)" : "var(--warnBg)";
+      b.style.color = (type==="bad") ? "var(--badTx)" : "var(--warnTx)";
+      b.textContent = msg;
+    }
+    function hideBanner(){
+      const b = $("#banner");
+      if(!b) return;
+      b.style.display = "none";
+      b.textContent = "";
+    }
+
+    // Placeholder for other tools
     function renderPlaceholder(title){
       const app = $("#app");
       app.innerHTML = "";
-      app.appendChild(el("h1",{},[title]));
-      app.appendChild(el("div",{class:"sub"},["This is a placeholder page. Next step: we connect this to the actual form/PDF and save/export logic."]));
-      app.appendChild(el("div",{class:"actions"},[
-        el("div",{class:"leftActions"},[
+      app.appendChild(el("div",{class:"head"},[
+        el("div",{},[
+          el("h1",{},[title]),
+          el("div",{class:"sub"},["This is a placeholder page."])
+        ]),
+        el("div",{class:"pillRow"},[
           el("a",{class:"btn btnYellow", href:"daily.html"},["Back"])
         ])
       ]));
     }
 
-    // ===== Signature Modal (canvas drawing) =====
+    // Signature modal
     const SigModal = (() => {
       const overlay = $("#sigOverlay");
       const canvas = $("#sigCanvas");
@@ -369,18 +474,17 @@
       const btnSave = $("#sigSave");
       const btnCloseTop = $("#sigCloseTop");
 
-      let ctx, drawing = false, hasInk = false;
-      let currentAttId = null;
-      let onSavedCb = null;
+      let ctx, drawing=false, hasInk=false;
+      let currentAttId=null;
+      let onSavedCb=null;
 
       const resizeCanvas = () => {
-        // Keep high DPI crisp
         const rect = canvas.getBoundingClientRect();
         const dpr = window.devicePixelRatio || 1;
         canvas.width = Math.floor(rect.width * dpr);
         canvas.height = Math.floor(rect.height * dpr);
         ctx = canvas.getContext("2d");
-        ctx.scale(dpr, dpr);
+        ctx.setTransform(dpr,0,0,dpr,0,0);
         clearCanvas();
       };
 
@@ -388,9 +492,9 @@
         if(!ctx) return;
         const rect = canvas.getBoundingClientRect();
         ctx.clearRect(0,0,rect.width,rect.height);
-        ctx.fillStyle = "#ffffff";
+        ctx.fillStyle = "#fff";
         ctx.fillRect(0,0,rect.width,rect.height);
-        ctx.strokeStyle = "#000000";
+        ctx.strokeStyle = "#000";
         ctx.lineWidth = 2.4;
         ctx.lineCap = "round";
         ctx.lineJoin = "round";
@@ -399,9 +503,7 @@
 
       const getPos = (evt) => {
         const rect = canvas.getBoundingClientRect();
-        const x = (evt.clientX - rect.left);
-        const y = (evt.clientY - rect.top);
-        return { x, y };
+        return { x: (evt.clientX - rect.left), y: (evt.clientY - rect.top) };
       };
 
       const start = (evt) => {
@@ -427,7 +529,6 @@
         drawing = false;
       };
 
-      // Pointer events (best for mobile+desktop)
       canvas.addEventListener("pointerdown", start);
       canvas.addEventListener("pointermove", move);
       window.addEventListener("pointerup", end);
@@ -448,399 +549,418 @@
       btnSave.addEventListener("click", () => {
         if(!currentAttId) return;
         if(!hasInk){
-          alert("Please sign first (draw something), then Save.");
+          alert("Please sign first, then Save.");
           return;
         }
-        // Export PNG
         const dataUrl = canvas.toDataURL("image/png");
         sigStore.set(currentAttId, dataUrl);
         if(typeof onSavedCb === "function") onSavedCb(currentAttId, dataUrl);
         close();
       });
 
-      // Resize when shown / window changes
       window.addEventListener("resize", () => {
         if(overlay.style.display === "flex") resizeCanvas();
       });
 
-      const open = (attId, attName, cb) => {
+      const open = (attId, label, cb) => {
         currentAttId = attId;
         onSavedCb = cb;
-        titleEl.textContent = attName ? `Signature: ${attName}` : "Signature";
+        titleEl.textContent = label ? `Signature: ${label}` : "Signature";
         overlay.style.display = "flex";
         overlay.setAttribute("aria-hidden","false");
-        // Allow layout to settle before resize
         setTimeout(resizeCanvas, 50);
       };
 
       return { open };
     })();
 
-    // ===== Daily Brief form =====
+    async function checkTemplateAndLib(){
+      // PDFLib status
+      const libPill = $("#pillLib");
+      const tplPill = $("#pillTpl");
+
+      // Wait a bit for fallback loader
+      await new Promise(r => setTimeout(r, 400));
+
+      if(window.PDFLib){
+        libPill.className = "pill ok";
+        libPill.textContent = "PDF engine: OK";
+      }else{
+        libPill.className = "pill bad";
+        libPill.textContent = "PDF engine: BLOCKED";
+      }
+
+      // Template status (try absolute then relative)
+      const tryFetch = async (url) => {
+        try{
+          const res = await fetch(url, { method:"GET", cache:"no-store" });
+          return res.ok ? { ok:true, url } : { ok:false, status:res.status, url };
+        }catch(e){
+          return { ok:false, status:"ERR", url };
+        }
+      };
+
+      let r = await tryFetch("/templates/daily-briefing.pdf");
+      if(!r.ok) r = await tryFetch("templates/daily-briefing.pdf");
+
+      if(r.ok){
+        tplPill.className = "pill ok";
+        tplPill.textContent = "Template: OK";
+      }else{
+        tplPill.className = "pill bad";
+        tplPill.textContent = `Template: MISSING (${r.status})`;
+      }
+    }
+
+    // Daily Brief form
     function renderDailyBrief(){
       const app = $("#app");
       app.innerHTML = "";
 
-      const warn = el("div",{class:"warn", id:"warnBox"},["Template PDF not found. Put it at public/templates/daily-briefing.pdf"]);
-
-      const f = {
-        projectTitle: "",
-        siteLocation: "",
-        workLocation: "",
-        projectNo: "",
-        brieferName: "",
+      const state = {
+        projectTitle:"",
+        siteLocation:"",
+        workLocation:"",
+        projectNo:"",
+        brieferName:"",
         dateISO: todayISO(),
-        jobTitle: "",
-        prevPlanned: "Yes",
-        prevConcerns: "",
-        todayPlanned: "",
-        covered: "Yes",
-        controls: "Yes",
-        ppe: "Yes",
-        points: {
+        jobTitle:"",
+        prevPlanned:"Yes",
+        prevConcerns:"",
+        todayPlanned:"",
+        covered:"Yes",
+        controls:"Yes",
+        ppe:"Yes",
+        points:{
           confined:false, emergency:false, lifting:false, permits:false, plant:false, safetyPlanning:false,
           barriers:false, clearAccess:false, methodStatements:false, suitablePPE:false, trenchCollapse:false, welfare:false,
           coshh:false, fire:false, materials:false, competence:false, cables:false, trips:false
         },
-        attendees: [
-          { id: makeId(), name:"", dateISO: todayISO() },
-        ]
+        attendees:[ { id: makeId(), name:"", dateISO: todayISO() } ]
       };
 
-      const title = el("h1",{},["Daily Brief"]);
-      const sub = el("div",{class:"sub"},["Fill in the briefing, sign each attendee row, then press Download PDF."]);
-
-      const headerRow1 = el("div",{class:"row"},[
-        el("div",{class:"col"},[
-          el("label",{},["Project title"]),
-          el("input",{id:"projectTitle", placeholder:"e.g. Sizewell C", value:f.projectTitle})
-        ]),
-        el("div",{class:"col"},[
-          el("label",{},["Site location"]),
-          el("input",{id:"siteLocation", placeholder:"e.g. Sizewell", value:f.siteLocation})
-        ]),
-        el("div",{class:"col"},[
-          el("label",{},["Work location"]),
-          el("input",{id:"workLocation", placeholder:"e.g. Cofferdams", value:f.workLocation})
-        ]),
-        el("div",{class:"col"},[
-          el("label",{},["Project no"]),
-          el("input",{id:"projectNo", placeholder:"e.g. 836", value:f.projectNo})
-        ]),
-      ]);
-
-      const headerRow2 = el("div",{class:"row"},[
-        el("div",{class:"col"},[
-          el("label",{},["Name of person giving briefing"]),
-          el("input",{id:"brieferName", placeholder:"e.g. Aureliu Nica", value:f.brieferName})
-        ]),
-        el("div",{class:"col"},[
-          el("label",{},["Date"]),
-          el("input",{id:"dateISO", type:"date", value:f.dateISO})
-        ]),
-        el("div",{class:"col"},[
-          el("label",{},["Job title"]),
-          el("input",{id:"jobTitle", placeholder:"e.g. Site Agent", value:f.jobTitle})
-        ]),
-        el("div",{class:"col"},[
-          el("label",{},["Did previous day go as planned?"]),
-          el("select",{id:"prevPlanned"},[
-            el("option",{value:"Yes"},["Yes"]),
-            el("option",{value:"No"},["No"])
-          ])
-        ]),
-      ]);
-
-      const prevConcerns = el("div",{class:"row"},[
-        el("div",{class:"col"},[
-          el("label",{},["Any concerns from the previous day?"]),
-          el("textarea",{id:"prevConcerns", placeholder:"Write any concerns / issues / lessons learned..."},[])
-        ]),
-        el("div",{class:"col"},[
-          el("label",{},["Today's planned activities briefing"]),
-          el("textarea",{id:"todayPlanned", placeholder:"What are we doing today? Sequence, key risks, controls, etc..."},[])
-        ]),
-      ]);
-
-      // Points discussed
-      const pointsTitle = el("div",{class:"sectionTitle"},["Points discussed for today’s operation"]);
-      const pointsGrid = el("div",{class:"grid3"},[
+      const head = el("div",{class:"head"},[
         el("div",{},[
-          mkCheck("confined","Confined Spaces / Areas"),
-          mkCheck("emergency","Emergency Procedures"),
-          mkCheck("lifting","Lifting Equipment – Chains / Slings"),
-          mkCheck("permits","Permits to Work"),
-          mkCheck("plant","Plant & Equipment"),
-          mkCheck("safetyPlanning","Safety Planning"),
+          el("h1",{},["Daily Brief"]),
+          el("div",{class:"sub"},["Fill it in, collect signatures per attendee, then download the PDF."])
         ]),
-        el("div",{},[
-          mkCheck("barriers","Barriers / Edge Protection"),
-          mkCheck("clearAccess","Clear Access Ways"),
-          mkCheck("methodStatements","Method Statements / Risk Assessments"),
-          mkCheck("suitablePPE","Suitable PPE"),
-          mkCheck("trenchCollapse","Trench Collapse"),
-          mkCheck("welfare","Welfare Facilities"),
-        ]),
-        el("div",{},[
-          mkCheck("coshh","COSHH Assessments"),
-          mkCheck("fire","Fire Precautions"),
-          mkCheck("materials","Materials"),
-          mkCheck("competence","Operative Experience / Competence"),
-          mkCheck("cables","Overhead / Underground Cable Strike"),
-          mkCheck("trips","Trips / Falls"),
+        el("div",{class:"pillRow"},[
+          el("span",{id:"pillLib", class:"pill warn"},["PDF engine: checking…"]),
+          el("span",{id:"pillTpl", class:"pill warn"},["Template: checking…"])
         ])
       ]);
 
-      // Confirmations
-      const bottomTitle = el("div",{class:"sectionTitle"},["Confirmations"]);
-      const bottomRow = el("div",{class:"row"},[
-        el("div",{class:"col"},[
-          el("label",{},["Are all today’s activities covered by the procedure / MS / RA / WI?"]),
-          el("select",{id:"covered"},[
-            el("option",{value:"Yes"},["Yes"]),
-            el("option",{value:"No"},["No"]),
-          ])
-        ]),
-        el("div",{class:"col"},[
-          el("label",{},["Are all control measures in place?"]),
-          el("select",{id:"controls"},[
-            el("option",{value:"Yes"},["Yes"]),
-            el("option",{value:"No"},["No"]),
-          ])
-        ]),
-        el("div",{class:"col"},[
-          el("label",{},["Are all operatives compliant with PPE requirements?"]),
-          el("select",{id:"ppe"},[
-            el("option",{value:"Yes"},["Yes"]),
-            el("option",{value:"No"},["No"]),
-          ])
-        ]),
-      ]);
+      const banner = el("div",{id:"banner", class:"banner"},[""]);
 
-      // Attendees
-      const attTitle = el("div",{class:"sectionTitle"},["Attendees (sign-up sheet)"]);
-      const attWrap = el("div",{id:"attWrap"},[]);
-      const addAttBtn = el("button",{class:"btn btnGhost", type:"button", onclick:()=>addAttendee(attWrap)},["+ Add attendee"]);
-
-      const note = el("div",{class:"note"},[
-        "This embeds each attendee signature into the SIGNATURE column in the PDF. ",
-        "Pages 2–3 support up to 36 attendees total."
-      ]);
-
-      // Actions
-      const actions = el("div",{class:"actions"},[
-        el("div",{class:"leftActions"},[
-          el("a",{class:"btn btnYellow", href:"daily.html"},["Back"]),
-          el("span",{class:"pill", id:"attCountPill"},["Attendees: 0"])
-        ]),
-        el("div",{class:"leftActions"},[
-          el("button",{class:"btn", type:"button", id:"downloadBtn", onclick: async()=> {
-            $("#warnBox").style.display="none";
-            await generateDailyBriefPDF(readForm(f, attWrap));
-          }},["Download PDF"])
+      // Sections
+      const sDetails = el("div",{class:"section"},[
+        el("div",{class:"sectionTitle"},["Project & briefing details"]),
+        el("div",{class:"grid2"},[
+          field("Project title","projectTitle","text","e.g. Sizewell C"),
+          field("Project no","projectNo","text","e.g. 836"),
+          field("Site location","siteLocation","text","e.g. Sizewell"),
+          field("Work location","workLocation","text","e.g. Cofferdams"),
+          field("Name of person giving briefing","brieferName","text","e.g. Aureliu Nica"),
+          field("Job title","jobTitle","text","e.g. Site Agent"),
+          field("Date","dateISO","date",""),
+          selectField("Did previous day go as planned?","prevPlanned",["Yes","No"])
         ])
       ]);
 
-      app.appendChild(title);
-      app.appendChild(sub);
-      app.appendChild(warn);
-      app.appendChild(headerRow1);
-      app.appendChild(headerRow2);
-      app.appendChild(prevConcerns);
-      app.appendChild(pointsTitle);
-      app.appendChild(pointsGrid);
-      app.appendChild(bottomTitle);
-      app.appendChild(bottomRow);
-      app.appendChild(attTitle);
-      app.appendChild(attWrap);
-      app.appendChild(el("div",{class:"actions"},[
-        el("div",{class:"leftActions"},[addAttBtn]),
-      ]));
-      app.appendChild(note);
-      app.appendChild(actions);
+      const sBrief = el("div",{class:"section"},[
+        el("div",{class:"sectionTitle"},["Briefing"]),
+        el("div",{class:"grid2"},[
+          textareaField("Any concerns from the previous day?","prevConcerns","Write concerns / issues / lessons learned…"),
+          textareaField("Today's planned activities briefing","todayPlanned","What are we doing today? Key risks, controls, sequence…")
+        ])
+      ]);
+
+      const sPoints = el("div",{class:"section"},[
+        el("div",{class:"sectionTitle"},["Points discussed for today’s operation"]),
+        el("div",{class:"grid3auto"},[
+          chk("confined","Confined Spaces / Areas"),
+          chk("emergency","Emergency Procedures"),
+          chk("lifting","Lifting Equipment – Chains / Slings"),
+          chk("permits","Permits to Work"),
+          chk("plant","Plant & Equipment"),
+          chk("safetyPlanning","Safety Planning"),
+          chk("barriers","Barriers / Edge Protection"),
+          chk("clearAccess","Clear Access Ways"),
+          chk("methodStatements","Method Statements / Risk Assessments"),
+          chk("suitablePPE","Suitable PPE"),
+          chk("trenchCollapse","Trench Collapse"),
+          chk("welfare","Welfare Facilities"),
+          chk("coshh","COSHH Assessments"),
+          chk("fire","Fire Precautions"),
+          chk("materials","Materials"),
+          chk("competence","Operative Experience / Competence"),
+          chk("cables","Overhead / Underground Cable Strike"),
+          chk("trips","Trips / Falls"),
+        ])
+      ]);
+
+      const sConfirm = el("div",{class:"section"},[
+        el("div",{class:"sectionTitle"},["Confirmations"]),
+        el("div",{class:"grid2"},[
+          selectField("Are all today’s activities covered by the procedure / MS / RA / WI?","covered",["Yes","No"]),
+          selectField("Are all control measures in place?","controls",["Yes","No"]),
+          selectField("Are all operatives compliant with PPE requirements?","ppe",["Yes","No"]),
+        ])
+      ]);
+
+      const sAtt = el("div",{class:"section"},[
+        el("div",{class:"attTop"},[
+          el("div",{class:"sectionTitle", style:"margin:0;"},["Attendees (sign-up sheet)"]),
+          el("button",{class:"btn btnGhost", type:"button", onclick:()=>addAttendee()},["+ Add attendee"])
+        ]),
+        el("div",{id:"attWrap"},[]),
+        el("div",{class:"note"},["Pages 2–3 support up to 36 attendees total. Each attendee can sign on their own row."])
+      ]);
+
+      // Sticky action bar
+      const sticky = el("div",{class:"stickyBar"},[
+        el("div",{class:"actionBar"},[
+          el("div",{class:"btnRow"},[
+            el("a",{class:"btn btnYellow", href:"daily.html"},["Back"]),
+            el("span",{id:"attCount", class:"pill"},["Attendees: 0"])
+          ]),
+          el("div",{class:"btnRow"},[
+            el("button",{id:"btnDownload", class:"btn", type:"button", onclick: async()=> {
+              hideBanner();
+              await onDownload();
+            }},["Download PDF"])
+          ])
+        ])
+      ]);
+
+      app.appendChild(head);
+      app.appendChild(banner);
+      app.appendChild(sDetails);
+      app.appendChild(sBrief);
+      app.appendChild(sPoints);
+      app.appendChild(sConfirm);
+      app.appendChild(sAtt);
+      app.appendChild(sticky);
 
       // defaults
-      $("#prevPlanned").value = f.prevPlanned;
-      $("#covered").value = f.covered;
-      $("#controls").value = f.controls;
-      $("#ppe").value = f.ppe;
+      $("#prevPlanned").value = state.prevPlanned;
+      $("#covered").value = state.covered;
+      $("#controls").value = state.controls;
+      $("#ppe").value = state.ppe;
 
-      $("#prevConcerns").value = f.prevConcerns;
-      $("#todayPlanned").value = f.todayPlanned;
+      rebuildAttendees();
+      updateAttCount();
+      checkTemplateAndLib();
 
-      // build attendee UI
-      rebuildAttendees(attWrap, f.attendees);
-      updateAttendeeCount(attWrap);
-
-      function mkCheck(key,label){
+      function field(labelText, id, type, placeholder){
+        return el("div",{},[
+          el("label",{for:id},[labelText]),
+          el("input",{id, type, placeholder})
+        ]);
+      }
+      function textareaField(labelText, id, placeholder){
+        return el("div",{},[
+          el("label",{for:id},[labelText]),
+          el("textarea",{id, placeholder})
+        ]);
+      }
+      function selectField(labelText, id, options){
+        return el("div",{},[
+          el("label",{for:id},[labelText]),
+          el("select",{id}, options.map(o=> el("option",{value:o},[o])) )
+        ]);
+      }
+      function chk(key, labelText){
         const id = "pt_" + key;
-        return el("label",{class:"checkBox", for:id},[
+        return el("label",{class:"check", for:id},[
           el("input",{type:"checkbox", id}),
-          el("span",{},[label])
+          el("span",{},[labelText])
         ]);
       }
 
-      function addAttendee(container){
-        const list = collectAttendees(container);
+      function addAttendee(){
+        const list = collectAttendees();
+        if(list.length >= 36){
+          showBanner("Max 36 attendees (PDF pages 2–3).", "warn");
+          return;
+        }
         list.push({ id: makeId(), name:"", dateISO: todayISO() });
-        rebuildAttendees(container, list);
-        updateAttendeeCount(container);
+        state.attendees = list;
+        rebuildAttendees();
+        updateAttCount();
       }
 
-      function rebuildAttendees(container, list){
-        container.innerHTML = "";
+      function rebuildAttendees(){
+        const wrap = $("#attWrap");
+        wrap.innerHTML = "";
+        const list = state.attendees;
 
         list.forEach((a, idx)=>{
-          const attId = a.id;
-          const sigUrl = sigStore.get(attId) || "";
+          const sigUrl = sigStore.get(a.id) || "";
 
-          const preview = el("div",{class:"sigPreview", "data-sig-prev":attId},[
-            sigUrl ? el("img",{src:sigUrl, alt:"Signature preview"}) : el("span",{},["No signature yet"])
+          const sigPreview = el("div",{class:"sigPreview", "data-prev":a.id},[
+            sigUrl ? el("img",{src:sigUrl, alt:"Signature"}) : el("span",{},["No signature"])
           ]);
 
-          const signBtn = el("button",{
-            class:"btn btnGhost",
-            type:"button",
-            onclick:()=>{
-              const nameNow = (container.querySelector(`input[data-att-name="${attId}"]`)?.value || "").trim();
-              SigModal.open(attId, nameNow || `Attendee ${idx+1}`, (id, url)=>{
-                // update preview
-                const box = container.querySelector(`[data-sig-prev="${id}"]`);
-                if(box){
-                  box.innerHTML = "";
-                  box.appendChild(el("img",{src:url, alt:"Signature preview"}));
-                }
-              });
-            }
-          },["Sign"]);
+          const nameInput = el("input",{type:"text", value:a.name || "", placeholder:"Name", "data-name":a.id});
+          const dateInput = el("input",{type:"date", value:a.dateISO || todayISO(), "data-date":a.id});
 
-          const clearSigBtn = el("button",{
-            class:"btn danger",
-            type:"button",
-            onclick:()=>{
-              sigStore.delete(attId);
-              const box = container.querySelector(`[data-sig-prev="${attId}"]`);
+          nameInput.addEventListener("input", updateAttCount);
+
+          const btnSign = el("button",{class:"btn btnGhost", type:"button", onclick:()=>{
+            const nm = (nameInput.value || "").trim();
+            SigModal.open(a.id, nm || `Attendee ${idx+1}`, (id, url)=>{
+              const box = wrap.querySelector(`[data-prev="${id}"]`);
               if(box){
                 box.innerHTML = "";
-                box.appendChild(el("span",{},["No signature yet"]));
+                box.appendChild(el("img",{src:url, alt:"Signature"}));
               }
+            });
+          }},["Sign"]);
+
+          const btnClearSig = el("button",{class:"btn btnDanger", type:"button", onclick:()=>{
+            sigStore.delete(a.id);
+            const box = wrap.querySelector(`[data-prev="${a.id}"]`);
+            if(box){
+              box.innerHTML = "";
+              box.appendChild(el("span",{},["No signature"]));
             }
-          },["Clear sig"]);
+          }},["Clear sig"]);
+
+          const btnDelete = el("button",{class:"btn btnDanger", type:"button", onclick:()=>{
+            const now = collectAttendees().filter(x=>x.id !== a.id);
+            sigStore.delete(a.id);
+            state.attendees = now.length ? now : [{ id: makeId(), name:"", dateISO: todayISO() }];
+            rebuildAttendees();
+            updateAttCount();
+          }},["Delete"]);
 
           const row = el("div",{class:"attRow"},[
-            el("div",{class:"small"},[
+            el("div",{},[
               el("label",{},["Name"]),
-              el("input",{type:"text", value:a.name, placeholder:"e.g. John Smith", "data-att-name":attId})
+              nameInput
             ]),
-            el("div",{class:"mini"},[
+            el("div",{},[
               el("label",{},["Date"]),
-              el("input",{type:"date", value:a.dateISO, "data-att-date":attId})
+              dateInput
             ]),
-            el("div",{class:"sigCol"},[
+            el("div",{},[
               el("label",{},["Signature"]),
-              preview,
-              el("div",{class:"row", style:"margin-top:8px; gap:8px;"},[
-                signBtn,
-                clearSigBtn
-              ])
+              sigPreview,
+              el("div",{class:"btnRow", style:"margin-top:8px;"},[btnSign, btnClearSig])
             ]),
-            el("div",{class:"mini"},[
+            el("div",{},[
               el("label",{},["Remove"]),
-              el("button",{class:"btn danger", type:"button", onclick:()=>{
-                const now = collectAttendees(container);
-                const i = now.findIndex(x=>x.id===attId);
-                if(i>=0) now.splice(i,1);
-                sigStore.delete(attId);
-                if(now.length===0) now.push({ id: makeId(), name:"", dateISO: todayISO() });
-                rebuildAttendees(container, now);
-                updateAttendeeCount(container);
-              }},["Delete"])
-            ]),
+              btnDelete
+            ])
           ]);
 
-          container.appendChild(row);
-        });
-
-        // live updates
-        container.querySelectorAll("input[type='text']").forEach(inp=>{
-          inp.addEventListener("input", ()=> updateAttendeeCount(container));
+          wrap.appendChild(row);
         });
       }
 
-      function collectAttendees(container){
-        const rows = [...container.querySelectorAll(".attRow")];
-        return rows.map((r)=> {
-          const nameInp = r.querySelector("input[type='text']");
-          const dateInp = r.querySelector("input[type='date']");
-          const attId = nameInp.getAttribute("data-att-name");
-          const name = (nameInp.value || "").trim();
-          const dateISO = (dateInp.value || todayISO());
-          const signature = sigStore.get(attId) || "";
-          return { id: attId, name, dateISO, signature };
+      function collectAttendees(){
+        const wrap = $("#attWrap");
+        const rows = [...wrap.querySelectorAll(".attRow")];
+        return rows.map(r=>{
+          const nameInp = r.querySelector("input[data-name]");
+          const dateInp = r.querySelector("input[data-date]");
+          const id = nameInp.getAttribute("data-name");
+          return {
+            id,
+            name: (nameInp.value || "").trim(),
+            dateISO: (dateInp.value || todayISO()),
+            signature: sigStore.get(id) || ""
+          };
         });
       }
 
-      function updateAttendeeCount(container){
-        const list = collectAttendees(container);
-        const count = list.filter(x => (x.name||"").trim().length>0).length;
-        $("#attCountPill").textContent = `Attendees: ${count}`;
+      function updateAttCount(){
+        const count = collectAttendees().filter(a => a.name.length>0).length;
+        $("#attCount").textContent = `Attendees: ${count}`;
       }
 
-      function readForm(state, container){
-        state.projectTitle = $("#projectTitle").value.trim();
-        state.siteLocation = $("#siteLocation").value.trim();
-        state.workLocation = $("#workLocation").value.trim();
-        state.projectNo = $("#projectNo").value.trim();
-        state.brieferName = $("#brieferName").value.trim();
-        state.dateISO = $("#dateISO").value || todayISO();
-        state.jobTitle = $("#jobTitle").value.trim();
-        state.prevPlanned = $("#prevPlanned").value;
-        state.prevConcerns = $("#prevConcerns").value.trim();
-        state.todayPlanned = $("#todayPlanned").value.trim();
+      function readForm(){
+        const data = {
+          projectTitle: $("#projectTitle").value.trim(),
+          siteLocation: $("#siteLocation").value.trim(),
+          workLocation: $("#workLocation").value.trim(),
+          projectNo: $("#projectNo").value.trim(),
+          brieferName: $("#brieferName").value.trim(),
+          dateISO: $("#dateISO").value || todayISO(),
+          jobTitle: $("#jobTitle").value.trim(),
+          prevPlanned: $("#prevPlanned").value,
+          prevConcerns: $("#prevConcerns").value.trim(),
+          todayPlanned: $("#todayPlanned").value.trim(),
+          covered: $("#covered").value,
+          controls: $("#controls").value,
+          ppe: $("#ppe").value,
+          points: {}
+        };
 
         Object.keys(state.points).forEach(k=>{
           const box = document.getElementById("pt_"+k);
-          state.points[k] = !!(box && box.checked);
+          data.points[k] = !!(box && box.checked);
         });
 
-        state.covered = $("#covered").value;
-        state.controls = $("#controls").value;
-        state.ppe = $("#ppe").value;
+        data.attendees = collectAttendees().filter(a => a.name.length>0);
+        return data;
+      }
 
-        state.attendees = collectAttendees(container);
-        return state;
+      async function onDownload(){
+        const btn = $("#btnDownload");
+        btn.disabled = true;
+        btn.textContent = "Generating…";
+
+        try{
+          const data = readForm();
+          await generateDailyBriefPDF(data);
+        }catch(err){
+          showBanner(String(err && err.message ? err.message : err), "bad");
+        }finally{
+          btn.disabled = false;
+          btn.textContent = "Download PDF";
+        }
       }
     }
 
-    // ===== PDF generation: Daily Brief =====
     async function generateDailyBriefPDF(data){
+      // 1) pdf-lib availability
+      if(!window.PDFLib){
+        throw new Error("PDF engine is blocked (pdf-lib did not load). If you use a strict Content-Security-Policy, you must allow the CDN or host pdf-lib locally.");
+      }
+
       const { PDFDocument, StandardFonts, rgb } = PDFLib;
 
-      const TEMPLATE_URL = "templates/daily-briefing.pdf";
+      // 2) fetch template (absolute first, then relative)
+      async function fetchTemplate(url){
+        const res = await fetch(url, { cache:"no-store" });
+        if(!res.ok) throw new Error(`Template not found at ${url} (HTTP ${res.status}). Put the file in public/templates/daily-briefing.pdf`);
+        return await res.arrayBuffer();
+      }
+
       let templateBytes;
       try{
-        const res = await fetch(TEMPLATE_URL, { cache:"no-store" });
-        if(!res.ok) throw new Error("Template fetch failed: " + res.status);
-        templateBytes = await res.arrayBuffer();
-      }catch(e){
-        const w = $("#warnBox");
-        w.style.display = "block";
-        w.textContent = "Template PDF not found. Put it at public/templates/daily-briefing.pdf";
-        return;
+        templateBytes = await fetchTemplate("/templates/daily-briefing.pdf");
+      }catch(e1){
+        templateBytes = await fetchTemplate("templates/daily-briefing.pdf");
       }
 
       const pdfDoc = await PDFDocument.load(templateBytes);
       const helv = await pdfDoc.embedFont(StandardFonts.Helvetica);
       const zapf = await pdfDoc.embedFont(StandardFonts.ZapfDingbats);
-
       const pages = pdfDoc.getPages();
+
+      if(pages.length < 3){
+        throw new Error(`Template PDF has ${pages.length} page(s). This tool expects 3 pages (brief + 2 sign-up sheets).`);
+      }
+
       const page1 = pages[0];
+      const page2 = pages[1];
+      const page3 = pages[2];
 
       const WHITE = rgb(1,1,1);
-
-      const cover = (page, x, y, w, h) => {
-        page.drawRectangle({ x, y, width:w, height:h, color: WHITE });
-      };
+      const cover = (page, x, y, w, h) => page.drawRectangle({ x, y, width:w, height:h, color: WHITE });
 
       const drawText = (page, text, x, y, size=10) => {
         if(!text) return;
@@ -854,12 +974,8 @@
         for(const w of words){
           const test = line ? (line + " " + w) : w;
           const width = font.widthOfTextAtSize(test, size);
-          if(width <= maxWidth){
-            line = test;
-          }else{
-            if(line) lines.push(line);
-            line = w;
-          }
+          if(width <= maxWidth) line = test;
+          else { if(line) lines.push(line); line = w; }
         }
         if(line) lines.push(line);
         return lines;
@@ -876,14 +992,11 @@
 
       const drawYesNo = (page, value, x, y, boxW=20, boxH=14) => {
         cover(page, x-3, y-2, boxW, boxH);
-        if(value === "Yes"){
-          page.drawText("4", { x, y, size: 12, font: zapf, color: rgb(0,0,0) });
-        }else{
-          page.drawText("X", { x, y, size: 10, font: helv, color: rgb(0,0,0) });
-        }
+        if(value === "Yes") page.drawText("4", { x, y, size: 12, font: zapf, color: rgb(0,0,0) });
+        else page.drawText("X", { x, y, size: 10, font: helv, color: rgb(0,0,0) });
       };
 
-      // ---- Page 1 coords
+      // Page 1 coordinates (calibrated to your template)
       const p1 = {
         projectTitle: { x:185, y:656.5, w:265, h:14 },
         siteLocation:  { x:492, y:648.9, w:105, h:14 },
@@ -902,17 +1015,9 @@
       };
 
       const ddmmyyyy = toDDMMYYYY(data.dateISO);
-      const attendeesAll = (data.attendees || [])
-        .map(a => ({
-          id: a.id,
-          name: (a.name || "").trim(),
-          dateISO: (a.dateISO || data.dateISO || todayISO()),
-          signature: (a.signature || "")
-        }))
-        .filter(a => a.name.length > 0);
+      const attendeesCount = (data.attendees || []).length;
 
-      const attendeesCount = attendeesAll.length;
-
+      // Header fields
       cover(page1, p1.projectTitle.x-2, p1.projectTitle.y-2, p1.projectTitle.w, p1.projectTitle.h);
       drawText(page1, data.projectTitle, p1.projectTitle.x, p1.projectTitle.y, 10);
 
@@ -939,6 +1044,7 @@
 
       drawYesNo(page1, data.prevPlanned, p1.prevPlanned.x, p1.prevPlanned.y, 34, 16);
 
+      // Text areas
       cover(page1, p1.concerns.x-5, p1.concerns.topY-60, p1.concerns.w+10, p1.concerns.h);
       drawWrappedFromTop(page1, data.prevConcerns, p1.concerns.x, p1.concerns.topY, p1.concerns.w, 12, 10, 6);
 
@@ -956,7 +1062,6 @@
         ["plant","trenchCollapse","cables"],
         ["safetyPlanning","welfare","trips"],
       ];
-
       for(let r=0;r<6;r++){
         for(let c=0;c<3;c++){
           const key = pointsMatrix[r][c];
@@ -968,14 +1073,12 @@
         }
       }
 
+      // Confirmations
       drawYesNo(page1, data.covered,  p1.covered.x,  p1.covered.y,  20, 14);
       drawYesNo(page1, data.controls, p1.controls.x, p1.controls.y, 20, 14);
       drawYesNo(page1, data.ppe,      p1.ppe.x,      p1.ppe.y,      20, 14);
 
-      // ---- Sign-up sheets (pages 2 & 3): Name + Date + Signature image
-      const page2 = pages[1];
-      const page3 = pages[2];
-
+      // Sign-up pages (2 & 3)
       const page2Rows = [
         587.96, 557.96, 527.87, 497.87, 467.33, 437.87, 407.96, 377.63, 347.63,
         317.99, 287.28, 257.99, 224.89, 189.51, 154.50, 120.19, 84.47, 49.23
@@ -985,10 +1088,16 @@
         359.88, 324.58, 288.70, 253.60, 219.27, 183.43, 148.48, 113.65, 78.55
       ];
 
+      const attendeesAll = (data.attendees || []).slice(0, 36).map(a=>({
+        name: (a.name||"").trim(),
+        dateISO: (a.dateISO||data.dateISO||todayISO()),
+        signature: (a.signature||"")
+      }));
+
       const nameX = 88;
       const dateX = 294;
 
-      // Signature box area (calibrated)
+      // Signature cell area
       const sigBox = { x:365, w:210, h:18, yOffset:-12, padX:6, padY:2 };
 
       const fitInto = (imgW, imgH, maxW, maxH) => {
@@ -997,32 +1106,27 @@
       };
 
       async function drawSignatureIfAny(page, sigDataUrl, rowY){
+        cover(page, sigBox.x, rowY + sigBox.yOffset, sigBox.w, sigBox.h); // clears "SIGN"
         if(!sigDataUrl) return;
 
-        // Clear the cell area so the tiny "SIGN" text disappears
-        cover(page, sigBox.x, rowY + sigBox.yOffset, sigBox.w, sigBox.h);
-
-        // Convert dataURL -> bytes
         const b64 = sigDataUrl.split(",")[1] || "";
         if(!b64) return;
         const bytes = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
 
         const img = await pdfDoc.embedPng(bytes);
-        const maxW = sigBox.w - (sigBox.padX * 2);
-        const maxH = sigBox.h - (sigBox.padY * 2);
+        const maxW = sigBox.w - (sigBox.padX*2);
+        const maxH = sigBox.h - (sigBox.padY*2);
         const s = fitInto(img.width, img.height, maxW, maxH);
 
         const x = sigBox.x + sigBox.padX;
-        const y = (rowY + sigBox.yOffset) + sigBox.padY + ((maxH - s.h) / 2);
+        const y = (rowY + sigBox.yOffset) + sigBox.padY + ((maxH - s.h)/2);
 
-        page.drawImage(img, { x, y, width: s.w, height: s.h });
+        page.drawImage(img, { x, y, width:s.w, height:s.h });
       }
 
       function fillTextCells(page, a, rowY){
-        // clear inside cells (avoid borders)
         cover(page, nameX-5, rowY-3, 190, 16);
         cover(page, dateX-5, rowY-3, 90, 16);
-
         page.drawText(a.name, { x:nameX, y:rowY, size:10, font: helv, color: rgb(0,0,0) });
         page.drawText(toDDMMYYYY(a.dateISO), { x:dateX, y:rowY, size:10, font: helv, color: rgb(0,0,0) });
       }
@@ -1032,8 +1136,7 @@
         for(let i=0;i<rowsY.length;i++){
           const a = attendeesAll[idx];
           const y = rowsY[i];
-
-          // clear signature cell area even if no signature, to remove placeholder "SIGN"
+          // clear signature cell always
           cover(page, sigBox.x, y + sigBox.yOffset, sigBox.w, sigBox.h);
 
           if(a){
@@ -1048,25 +1151,29 @@
       let next = await fillAttPage(page2, page2Rows, 0);
       await fillAttPage(page3, page3Rows, next);
 
-      // Save + download
+      // Save + download (with fallback)
       const outBytes = await pdfDoc.save();
-      const blob = new Blob([outBytes], { type: "application/pdf" });
+      const blob = new Blob([outBytes], { type:"application/pdf" });
       const url = URL.createObjectURL(blob);
-
-      const safeDate = (data.dateISO || todayISO());
-      const filename = `Daily-Briefing_${safeDate}.pdf`;
+      const filename = `Daily-Briefing_${data.dateISO || todayISO()}.pdf`;
 
       const a = document.createElement("a");
       a.href = url;
       a.download = filename;
+      a.rel = "noopener";
       document.body.appendChild(a);
       a.click();
       a.remove();
 
-      setTimeout(()=> URL.revokeObjectURL(url), 1500);
+      // Fallback: open in new tab if browser blocks downloads
+      setTimeout(()=> {
+        try{ window.open(url, "_blank"); }catch(e){}
+      }, 200);
+
+      setTimeout(()=> URL.revokeObjectURL(url), 2500);
     }
 
-    // ===== Router =====
+    // Router
     if(t.toLowerCase() === "daily brief" || t.toLowerCase() === "daily briefing"){
       renderDailyBrief();
     }else{
