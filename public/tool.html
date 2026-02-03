@@ -951,7 +951,6 @@
       const RED = rgb(0.78, 0.1, 0.1);
       const HEADER_TEXT = rgb(1, 1, 1);
       const BLACK = rgb(0,0,0);
-      const WHITE = rgb(1,1,1);
       const LIGHT_FILL = rgb(0.985, 0.985, 0.99);
       const YELLOW = rgb(1, 0.84, 0);
 
@@ -983,14 +982,18 @@
         page.drawRectangle(opts);
       };
 
-      const vCenterBaseline = (y, h, fontSize) => y + (h - fontSize) / 2 + 1.5;
+      // ✅ Better vertical centring baseline (fixes "sits too high")
+      const vCenterBaseline = (y, h, size) => {
+        return y + (h - size) / 2 + (size * 0.26);
+      };
 
       const drawTextInCell = (page, text, x, y, w, h, {
         size=10, font=helv, color=BLACK, padding=6, align="left"
       } = {}) => {
-        if(!text && text !== 0) return;
+        if(text === undefined || text === null) return;
         const s = String(text);
         let tx = x + padding;
+
         if(align === "center"){
           const tw = font.widthOfTextAtSize(s, size);
           tx = x + (w - tw) / 2;
@@ -998,6 +1001,7 @@
           const tw = font.widthOfTextAtSize(s, size);
           tx = x + w - padding - tw;
         }
+
         const ty = vCenterBaseline(y, h, size);
         page.drawText(s, { x: tx, y: ty, size, font, color });
       };
@@ -1025,34 +1029,43 @@
         }
       };
 
-      const drawWrappedCenteredInCell = (page, text, x, y, w, h, {
-        size=8, font=helvBold, color=BLACK, padding=6, lineHeight=10, maxLines=3
+      // ✅ NEW: wrapped text that is vertically centred in the cell AND left aligned
+      const drawWrappedVCenterLeft = (page, text, x, y, w, h, {
+        size=7.4,
+        font=helvBold,
+        color=BLACK,
+        padding=6,
+        lineHeight=9.4,
+        maxLines=3
       } = {}) => {
         const maxWidth = w - padding*2;
         const lines = wrapLines(font, text, size, maxWidth).slice(0, maxLines);
-        const totalH = lines.length * lineHeight;
-        let baseline = y + (h + totalH) / 2 - size; // centre block
-        for(let i=0;i<lines.length;i++){
-          page.drawText(lines[i], { x: x + padding, y: baseline - i*lineHeight, size, font, color });
+        const n = lines.length || 1;
+
+        const blockH = n * lineHeight;
+        const topPad = Math.max(0, (h - blockH) / 2);
+
+        // first line box top (from cell top)
+        const firstBoxTop = y + h - topPad - lineHeight;
+        const base0 = firstBoxTop + (lineHeight - size) / 2 + (size * 0.18);
+
+        for(let i=0;i<n;i++){
+          page.drawText(lines[i], {
+            x: x + padding,
+            y: base0 - i*lineHeight,
+            size,
+            font,
+            color
+          });
         }
       };
 
-      const fitFontSizeToWidth = (font, text, startSize, maxWidth, minSize=6.2) => {
-        let size = startSize;
-        const t = String(text || "");
-        while(size > minSize && font.widthOfTextAtSize(t, size) > maxWidth){
-          size -= 0.2;
-        }
-        return Math.max(minSize, size);
-      };
-
-      // ✅ ONLY ONE BOX: YES or NO (yellow)
+      // ✅ ONLY ONE BOX: YES or NO (yellow) with proper centring
       const drawYesNoSingle = (page, x, y, w, h, value) => {
         const v = String(value || "").trim().toUpperCase() === "NO" ? "NO" : "YES";
-        const pad = 2;
         const boxH = Math.min(14, h - 4);
         const boxW = Math.min(44, w - 4);
-        const bx = x + w - boxW - pad;
+        const bx = x + w - boxW - 2;
         const by = y + (h - boxH) / 2;
 
         drawCell(page, bx, by, boxW, boxH, { fill: YELLOW, border: 1 });
@@ -1064,6 +1077,15 @@
         const centerY = boxY + (boxH / 2);
         const radius = Math.min(boxW, boxH) * 0.28;
         page.drawCircle({ x: centerX, y: centerY, size: radius, color: BLACK });
+      };
+
+      const fitFontSizeToWidth = (font, text, startSize, maxWidth, minSize=6.2) => {
+        let size = startSize;
+        const t = String(text || "");
+        while(size > minSize && font.widthOfTextAtSize(t, size) > maxWidth){
+          size -= 0.2;
+        }
+        return Math.max(minSize, size);
       };
 
       const ddmmyyyy = toDDMMYYYY(data.dateISO);
@@ -1106,12 +1128,9 @@
           drawCell(page, marginX + labelW + valueW + label2W, y, value2W, rowH, { fill: LIGHT_FILL });
 
           drawWrappedFromTop(page, row[0], marginX + 6, y + rowH - 9, labelW - 10, 10, 8, 2, BLACK, helvBold);
-
-          // ✅ left aligned + vertically centred
           drawTextInCell(page, row[1], marginX + labelW, y, valueW, rowH, { size:10, font:helv, align:"left" });
 
           drawWrappedFromTop(page, row[2], marginX + labelW + valueW + 6, y + rowH - 9, label2W - 10, 10, 8, 2, BLACK, helvBold);
-
           drawTextInCell(page, row[3], marginX + labelW + valueW + label2W, y, value2W, rowH, { size:10, font:helv, align:"left" });
         });
 
@@ -1127,10 +1146,7 @@
 
         drawTextInCell(page, "PREVIOUS DAY'S ACTIVITIES", marginX, startY - headerH, 395, headerH, { size:9, font:helvBold, color:HEADER_TEXT });
 
-        // Right header text
         drawWrappedFromTop(page, "DID THEY GO AS\nPLANNED?", marginX + 395 + 6, startY - 6, 70, 9, 7.2, 2, HEADER_TEXT, helvBold);
-
-        // ✅ ONLY ONE value (YES or NO)
         drawYesNoSingle(page, marginX + 395, startY - headerH, 120, headerH, data.prevPlanned);
 
         const qRowH = 24;
@@ -1218,7 +1234,6 @@
             drawCell(page, x, y, group.labelW, rowH);
             drawCell(page, x + group.labelW, y, group.checkW, rowH, { fill: LIGHT_FILL });
 
-            // ✅ vertically centred + left aligned (fixes "too top")
             const txt = labels[key];
             const maxW = group.labelW - 12;
             const size = fitFontSizeToWidth(helvBold, txt, 8.0, maxW, 6.4);
@@ -1259,12 +1274,12 @@
           drawCell(page, marginX, y, textW, rowH);
           drawCell(page, marginX + textW, y, boxW, rowH);
 
-          // ✅ centred vertically inside cell (multi-line)
-          drawWrappedCenteredInCell(page, item.text, marginX, y, textW, rowH, {
-            size:7.4, font:helvBold, padding:6, lineHeight:9.4, maxLines:3
+          // ✅ Fix: vertically centred + left aligned inside the row
+          drawWrappedVCenterLeft(page, item.text, marginX, y, textW, rowH, {
+            size:7.4, font:helvBold, padding:8, lineHeight:9.4, maxLines:3
           });
 
-          // ✅ ONLY ONE value (YES or NO)
+          // ✅ Fix: YES in yellow box centred properly
           drawYesNoSingle(page, marginX + textW, y, boxW, rowH, item.value);
         });
       }
@@ -1288,8 +1303,6 @@
 
       async function drawAttendeeTable(page, startY, attendees, startIndex){
         const marginX = 40;
-
-        // ✅ more rows to near the bottom
         const rowH = 18;
         const rowsPerPage = 32;
 
