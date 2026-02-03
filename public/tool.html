@@ -617,6 +617,8 @@
       const app = $("#app");
       app.innerHTML = "";
 
+      const MAX_ATTENDEES = 96;
+
       const state = {
         projectTitle:"",
         siteLocation:"",
@@ -714,7 +716,7 @@
           el("button",{class:"btn btnGhost", type:"button", onclick:()=>addAttendee()},["+ Add attendee"])
         ]),
         el("div",{id:"attWrap"},[]),
-        el("div",{class:"note"},["Pages 2–3 support up to 36 attendees total. Each attendee can sign on their own row."])
+        el("div",{class:"note"},[`PDF supports up to ${MAX_ATTENDEES} attendees (adds pages automatically).`])
       ]);
 
       // Sticky action bar
@@ -780,8 +782,8 @@
 
       function addAttendee(){
         const list = collectAttendees();
-        if(list.length >= 36){
-          showBanner("Max 36 attendees (PDF pages 2–3).", "warn");
+        if(list.length >= MAX_ATTENDEES){
+          showBanner(`Max ${MAX_ATTENDEES} attendees.`, "warn");
           return;
         }
         list.push({ id: makeId(), name:"", dateISO: todayISO() });
@@ -966,12 +968,13 @@
       let atlLogo;
       const atlBytes = await fetchImage("/atl-logo.png") || await fetchImage("atl-logo.png");
       if(atlBytes) atlLogo = await embedImageBytes(atlBytes);
+
       const RED = rgb(0.78, 0.1, 0.1);
       const HEADER_TEXT = rgb(1, 1, 1);
-
       const BLACK = rgb(0,0,0);
-      const LIGHT_BLUE = rgb(1, 1, 1);
-      const LIGHT_GRAY = rgb(1, 1, 1);
+      const WHITE = rgb(1,1,1);
+      const LIGHT_FILL = rgb(0.985, 0.985, 0.99); // subtle fill
+      const YELLOW = rgb(1, 0.84, 0); // #ffd600
 
       const drawText = (page, text, x, y, size=10, font=helvBold, color=BLACK) => {
         if(!text) return;
@@ -980,31 +983,40 @@
 
       const drawCenteredText = (page, text, centerX, y, size=12, font=helvBold, color=BLACK) => {
         if(!text) return;
-        const width = font.widthOfTextAtSize(text, size);
+        const width = font.widthOfTextAtSize(String(text), size);
         page.drawText(String(text), { x: centerX - (width / 2), y, size, font, color });
       };
 
       const drawCell = (page, x, y, w, h, { fill, border=1 } = {}) => {
-        page.drawRectangle({
-          x,
-          y,
-          width: w,
-          height: h,
-          color: fill,
+        const opts = {
+          x, y, width:w, height:h,
           borderColor: BLACK,
           borderWidth: border
-        });
+        };
+        if(fill) opts.color = fill;
+        page.drawRectangle(opts);
       };
 
-      const drawCheckmark = (page, boxX, boxY, boxW, boxH) => {
-        const left = boxX + (boxW * 0.18);
-        const midX = boxX + (boxW * 0.42);
-        const right = boxX + (boxW * 0.82);
-        const lower = boxY + (boxH * 0.35);
-        const midY = boxY + (boxH * 0.15);
-        const upper = boxY + (boxH * 0.75);
-        page.drawLine({ start:{ x:left, y:lower }, end:{ x:midX, y:midY }, thickness:1.4, color: BLACK });
-        page.drawLine({ start:{ x:midX, y:midY }, end:{ x:right, y:upper }, thickness:1.4, color: BLACK });
+      const vCenterBaseline = (y, h, fontSize) => {
+        // baseline tweak for pdf-lib text (looks visually centered)
+        return y + (h - fontSize) / 2 + 1.5;
+      };
+
+      const drawTextInCell = (page, text, x, y, w, h, {
+        size=10, font=helv, color=BLACK, padding=6, align="left"
+      } = {}) => {
+        if(!text) return;
+        const s = String(text);
+        let tx = x + padding;
+        if(align === "center"){
+          const tw = font.widthOfTextAtSize(s, size);
+          tx = x + (w - tw) / 2;
+        }else if(align === "right"){
+          const tw = font.widthOfTextAtSize(s, size);
+          tx = x + w - padding - tw;
+        }
+        const ty = vCenterBaseline(y, h, size);
+        page.drawText(s, { x: tx, y: ty, size, font, color });
       };
 
       const wrapLines = (font, text, size, maxWidth) => {
@@ -1030,14 +1042,42 @@
         }
       };
 
-      const drawYesNoBox = (page, x, y, size, isYes) => {
-        drawCell(page, x, y, size, size, { fill: undefined, border: 1 });
-        const centerX = x + (size / 2);
-        const centerY = y + (size / 2);
-        const radius = (size / 2) - 2;
-        if(isYes){
-          drawCheckmark(page, x + 1.5, y + 1.5, size - 3, size - 3);
+      const fitFontSizeToWidth = (font, text, startSize, maxWidth, minSize=6.2) => {
+        let size = startSize;
+        const t = String(text || "");
+        while(size > minSize && font.widthOfTextAtSize(t, size) > maxWidth){
+          size -= 0.2;
         }
+        return Math.max(minSize, size);
+      };
+
+      // Yellow highlight YES/NO (replaces tick/check)
+      const drawYesNoHighlight = (page, x, y, w, h, value) => {
+        const v = String(value || "").toLowerCase();
+        const isYes = v === "yes" || v === "y" || v === "true";
+        const pad = 2;
+        const boxH = Math.min(14, h - 4);
+        const boxW = Math.min(58, w - 4);
+        const bx = x + w - boxW - pad;
+        const by = y + (h - boxH) / 2;
+
+        const half = boxW / 2;
+
+        // YES half
+        drawCell(page, bx, by, half, boxH, { fill: isYes ? YELLOW : WHITE, border: 1 });
+        // NO half
+        drawCell(page, bx + half, by, half, boxH, { fill: (!isYes) ? YELLOW : WHITE, border: 1 });
+
+        drawTextInCell(page, "YES", bx, by, half, boxH, { size:7.2, font:helvBold, align:"center" });
+        drawTextInCell(page, "NO", bx + half, by, half, boxH, { size:7.2, font:helvBold, align:"center" });
+      };
+
+      const drawCheckmark = (page, boxX, boxY, boxW, boxH) => {
+        // (kept for points grid)
+        const centerX = boxX + (boxW / 2);
+        const centerY = boxY + (boxH / 2);
+        const radius = Math.min(boxW, boxH) * 0.28;
+        page.drawCircle({ x: centerX, y: centerY, size: radius, color: BLACK });
       };
 
       const ddmmyyyy = toDDMMYYYY(data.dateISO);
@@ -1072,14 +1112,21 @@
 
         rows.forEach((row, i) => {
           const y = tableTop - (rowH * (i + 1));
+
           drawCell(page, marginX, y, labelW, rowH, { fill: undefined });
-          drawCell(page, marginX + labelW, y, valueW, rowH, { fill: LIGHT_BLUE });
+          drawCell(page, marginX + labelW, y, valueW, rowH, { fill: LIGHT_FILL });
+
           drawCell(page, marginX + labelW + valueW, y, label2W, rowH, { fill: undefined });
-          drawCell(page, marginX + labelW + valueW + label2W, y, value2W, rowH, { fill: LIGHT_BLUE });
-          drawWrappedFromTop(page, row[0], marginX + 6, y + rowH - 10, labelW - 10, 10, 8, 2, BLACK);
-          drawText(page, row[1], marginX + labelW + 6, y + 10, 10);
-          drawWrappedFromTop(page, row[2], marginX + labelW + valueW + 6, y + rowH - 10, label2W - 10, 10, 8, 2, BLACK);
-          drawText(page, row[3], marginX + labelW + valueW + label2W + 6, y + 10, 10);
+          drawCell(page, marginX + labelW + valueW + label2W, y, value2W, rowH, { fill: LIGHT_FILL });
+
+          drawWrappedFromTop(page, row[0], marginX + 6, y + rowH - 9, labelW - 10, 10, 8, 2, BLACK, helvBold);
+
+          // VALUE CELLS: left aligned + vertically centered
+          drawTextInCell(page, row[1], marginX + labelW, y, valueW, rowH, { size:10, font:helv });
+
+          drawWrappedFromTop(page, row[2], marginX + labelW + valueW + 6, y + rowH - 9, label2W - 10, 10, 8, 2, BLACK, helvBold);
+
+          drawTextInCell(page, row[3], marginX + labelW + valueW + label2W, y, value2W, rowH, { size:10, font:helv });
         });
 
         return tableTop - (rowH * rows.length) - 10;
@@ -1088,40 +1135,57 @@
       function drawPreviousDay(page, startY){
         const marginX = 40;
         const headerH = 20;
+
         drawCell(page, marginX, startY - headerH, 395, headerH, { fill: RED });
         drawCell(page, marginX + 395, startY - headerH, 120, headerH, { fill: RED });
+
         drawText(page, "PREVIOUS DAY'S ACTIVITIES", marginX + 6, startY - 14, 9, helvBold, HEADER_TEXT);
-        drawWrappedFromTop(page, "DID THEY GO AS\nPLANNED? [Yes / No]", marginX + 402, startY - 6, 110, 9, 7, 2, HEADER_TEXT, helvBold);
 
-        const boxSize = 14;
-        const yesX = marginX + 495;
-        const yesY = startY - headerH + 3;
-        drawYesNoBox(page, yesX, yesY, boxSize, data.prevPlanned === "Yes");
+        // Right header: remove checkmark; add YES/NO yellow highlight
+        const rightX = marginX + 395;
+        const rightY = startY - headerH;
+        // Keep the question text but tighter so it doesn't crash
+        drawWrappedFromTop(page, "DID THEY GO AS\nPLANNED?", rightX + 6, startY - 6, 60, 9, 7.2, 2, HEADER_TEXT, helvBold);
+        drawYesNoHighlight(page, rightX, rightY, 120, headerH, data.prevPlanned);
 
-        const qH = 55;
-        const qY = startY - headerH - qH;
-        drawCell(page, marginX, qY, 515, qH, { fill: undefined });
-        drawText(page, "Any concerns from the previous day?", marginX + 6, qY + qH - 18, 9);
-        drawCell(page, marginX, qY - 55, 515, 55, { fill: LIGHT_BLUE });
-        drawWrappedFromTop(page, data.prevConcerns, marginX + 6, qY - 8, 500, 12, 10, 4);
+        // Reduce wasted space under the question (picture 3)
+        const qRowH = 24;     // smaller question row
+        const aRowH = 64;     // writing area
+        const qY = startY - headerH - qRowH;
 
-        return qY - 70;
+        // Question row
+        drawCell(page, marginX, qY, 515, qRowH, { fill: undefined });
+        drawTextInCell(page, "Any concerns from the previous day?", marginX, qY, 515, qRowH, { size:9.2, font:helvBold });
+
+        // Answer row directly below
+        const aY = qY - aRowH;
+        drawCell(page, marginX, aY, 515, aRowH, { fill: LIGHT_FILL });
+        drawWrappedFromTop(page, data.prevConcerns, marginX + 6, aY + aRowH - 10, 500, 12, 10, 5, BLACK, helv);
+
+        return aY - 12;
       }
 
       function drawTodayPlanned(page, startY){
         const marginX = 40;
         const headerH = 18;
+
         drawCell(page, marginX, startY - headerH, 515, headerH, { fill: RED });
         drawText(page, "TODAY'S PLANNED ACTIVITIES BRIEFING", marginX + 6, startY - 12, 9, helvBold, HEADER_TEXT);
-        const bodyH = 120;
-        drawCell(page, marginX, startY - headerH - bodyH, 515, bodyH, { fill: LIGHT_BLUE });
-        drawWrappedFromTop(page, data.todayPlanned, marginX + 6, startY - headerH - 8, 500, 12, 10, 8);
-        return startY - headerH - bodyH - 18;
+
+        // Slightly tighter to help bottom spacing
+        const bodyH = 110;
+        const bodyY = startY - headerH - bodyH;
+
+        drawCell(page, marginX, bodyY, 515, bodyH, { fill: LIGHT_FILL });
+        drawWrappedFromTop(page, data.todayPlanned, marginX + 6, bodyY + bodyH - 10, 500, 12, 10, 8, BLACK, helv);
+
+        return bodyY - 14;
       }
 
       function drawPointsGrid(page, startY){
         const marginX = 40;
         const headerH = 16;
+
         drawCell(page, marginX, startY - headerH, 515, headerH, { fill: RED });
         drawText(page, "Points discussed for today's operation:", marginX + 6, startY - 12, 8, helvBold, HEADER_TEXT);
 
@@ -1161,14 +1225,23 @@
         };
 
         let y = startY - headerH;
+
         rows.forEach((row) => {
           y -= rowH;
           let x = marginX;
+
           row.forEach((key, idx) => {
             const group = colGroups[idx];
             drawCell(page, x, y, group.labelW, rowH, { fill: undefined });
-            drawCell(page, x + group.labelW, y, group.checkW, rowH, { fill: LIGHT_BLUE });
-            drawText(page, labels[key], x + 6, y + 6, 8);
+            drawCell(page, x + group.labelW, y, group.checkW, rowH, { fill: LIGHT_FILL });
+
+            // Reduce text size if it would overflow (picture 4)
+            const maxW = group.labelW - 10;
+            const txt = labels[key];
+            const size = fitFontSizeToWidth(helvBold, txt, 8.0, maxW, 6.4);
+            // draw slightly higher baseline to keep inside row
+            page.drawText(txt, { x: x + 6, y: y + 5.2, size, font: helvBold, color: BLACK });
+
             if(data.points && data.points[key]){
               drawCheckmark(page, x + group.labelW + 2, y + 3, group.checkW - 4, rowH - 6);
             }
@@ -1176,36 +1249,59 @@
           });
         });
 
-        const footerY = y - 18;
-        drawCell(page, marginX, footerY, 515, 16, { fill: RED });
+        // Footer bar under the grid (keep, but tighten gap under it to avoid clashing later)
+        const footerH = 16;
+        const gapAboveFooter = 2; // small gap like your template
+        const footerY = y - gapAboveFooter - footerH;
+
+        drawCell(page, marginX, footerY, 515, footerH, { fill: RED });
         drawCenteredText(page, "This list is not exhaustive  -  REMEMBER – MANAGE HEALTH & SAFETY", 297.5, footerY + 4, 8, helvBold, HEADER_TEXT);
-        return footerY - 16;
+
+        // Return: start next section close under this bar (reduces wasted gap + fixes bottom clash)
+        return footerY - 4;
       }
 
       function drawConfirmations(page, startY){
         const marginX = 40;
-        const rowH = 32;
+
+        // Tighter rows so footer doesn't clash (picture 5 fix)
+        const rowH = 28;
         const textW = 460;
         const boxW = 55;
+
         const items = [
           { text: "Are all today's activities covered by the Operation Procedure / Method Statement / Risk Assessment / Work Instruction?", value: data.covered },
           { text: "Are all Control Measures in place?", value: data.controls },
           { text: "Are all operatives compliant with the site requirements for PPE?", value: data.ppe }
         ];
+
         let y = startY;
+
         items.forEach(item => {
           y -= rowH;
+
           drawCell(page, marginX, y, textW, rowH, { fill: undefined });
           drawCell(page, marginX + textW, y, boxW, rowH, { fill: undefined });
-        drawWrappedFromTop(page, item.text, marginX + 6, y + rowH - 10, textW - 10, 10, 8, 3, BLACK);
-          drawYesNoBox(page, marginX + textW + 18, y + 9, 12, item.value === "Yes");
+
+          // Slightly smaller font to prevent overflow
+          drawWrappedFromTop(page, item.text, marginX + 6, y + rowH - 8.5, textW - 10, 9.5, 7.4, 3, BLACK, helvBold);
+
+          // Yellow YES/NO highlight box (replaces circle/tick)
+          drawYesNoHighlight(page, marginX + textW, y, boxW, rowH, item.value);
         });
+      }
+
+      function drawHeaderFooter(page, pageIndex, totalPages){
+        drawText(page, "QPFS12.4", 40, 24, 9, helvBold, BLACK);
+        drawText(page, `Page No. ${pageIndex} of ${totalPages}`, 455, 24, 9, helvBold, BLACK);
       }
 
       function drawSignUpPage(page){
         drawHeader(page);
+
         drawCell(page, 40, 675, 515, 20, { fill: RED });
         drawCenteredText(page, "HEALTH & SAFETY – MORNING BRIEFING SIGN-UP Sheet", 297.5, 680, 9, helvBold, HEADER_TEXT);
+
         drawCell(page, 40, 645, 515, 30, { fill: undefined });
         drawWrappedFromTop(
           page,
@@ -1216,25 +1312,33 @@
           10,
           8,
           3,
-          BLACK
+          BLACK,
+          helv
         );
+
         drawCell(page, 40, 632, 515, 20, { fill: RED });
         drawCenteredText(page, "ATTENDEES", 297.5, 637, 8, helvBold, HEADER_TEXT);
       }
 
       async function drawAttendeeTable(page, startY, attendees, startIndex){
         const marginX = 40;
-        const rowH = 22;
+
+        // More spaces per your request
+        const rowH = 20;
+        const rowsPerPage = 24;
+
         const nameW = 250;
         const dateW = 110;
         const sigW = 155;
+
         const headerY = startY;
         drawCell(page, marginX, headerY, nameW, rowH, { fill: RED });
         drawCell(page, marginX + nameW, headerY, dateW, rowH, { fill: RED });
         drawCell(page, marginX + nameW + dateW, headerY, sigW, rowH, { fill: RED });
-        drawText(page, "NAME", marginX + 6, headerY + 8, 8, helvBold, HEADER_TEXT);
-        drawText(page, "DATE", marginX + nameW + 6, headerY + 8, 8, helvBold, HEADER_TEXT);
-        drawText(page, "SIGNATURE", marginX + nameW + dateW + 6, headerY + 8, 8, helvBold, HEADER_TEXT);
+
+        drawTextInCell(page, "NAME", marginX, headerY, nameW, rowH, { size:8, font:helvBold, color:HEADER_TEXT });
+        drawTextInCell(page, "DATE", marginX + nameW, headerY, dateW, rowH, { size:8, font:helvBold, color:HEADER_TEXT });
+        drawTextInCell(page, "SIGNATURE", marginX + nameW + dateW, headerY, sigW, rowH, { size:8, font:helvBold, color:HEADER_TEXT });
 
         const fitInto = (imgW, imgH, maxW, maxH) => {
           const r = Math.min(maxW / imgW, maxH / imgH);
@@ -1245,11 +1349,10 @@
           if(!dataUrl || typeof dataUrl !== "string") return null;
           const match = dataUrl.match(/^data:(image\/(png|jpeg|jpg));base64,(.+)$/i);
           if(!match) return null;
-          const mime = match[1].toLowerCase();
           const b64 = match[3];
           if(!b64) return null;
           const bytes = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
-          return { mime, bytes };
+          return { bytes };
         };
 
         const embedImageFromDataUrl = async (dataUrl) => {
@@ -1260,23 +1363,26 @@
 
         let y = headerY - rowH;
         let idx = startIndex;
-        for(let i=0;i<20;i++){
-          drawCell(page, marginX, y, nameW, rowH, { fill: LIGHT_BLUE });
-          drawCell(page, marginX + nameW, y, dateW, rowH, { fill: LIGHT_BLUE });
-          drawCell(page, marginX + nameW + dateW, y, sigW, rowH, { fill: LIGHT_BLUE });
+
+        for(let i=0;i<rowsPerPage;i++){
+          drawCell(page, marginX, y, nameW, rowH, { fill: LIGHT_FILL });
+          drawCell(page, marginX + nameW, y, dateW, rowH, { fill: LIGHT_FILL });
+          drawCell(page, marginX + nameW + dateW, y, sigW, rowH, { fill: LIGHT_FILL });
+
           const a = attendees[idx];
           if(a){
-            drawText(page, a.name, marginX + 6, y + 6, 10);
-            drawText(page, toDDMMYYYY(a.dateISO), marginX + nameW + 6, y + 6, 10);
+            drawTextInCell(page, a.name, marginX, y, nameW, rowH, { size:10, font:helv });
+            drawTextInCell(page, toDDMMYYYY(a.dateISO), marginX + nameW, y, dateW, rowH, { size:10, font:helv });
+
             if(a.signature){
               const embed = await embedImageFromDataUrl(a.signature);
               if(embed){
                 const maxW = sigW - 12;
                 const maxH = rowH - 6;
                 const s = fitInto(embed.width, embed.height, maxW, maxH);
-                const x = marginX + nameW + dateW + 6 + ((maxW - s.w) / 2);
+                const xImg = marginX + nameW + dateW + 6 + ((maxW - s.w) / 2);
                 const yImg = y + 3 + ((maxH - s.h) / 2);
-                page.drawImage(embed, { x, y: yImg, width:s.w, height:s.h });
+                page.drawImage(embed, { x: xImg, y: yImg, width:s.w, height:s.h });
               }
             }
             idx++;
@@ -1286,6 +1392,7 @@
         return idx;
       }
 
+      // --- Page 1 ---
       drawHeader(page1);
       let cursorY = drawIntroTable(page1);
       cursorY = drawPreviousDay(page1, cursorY);
@@ -1293,29 +1400,30 @@
       cursorY = drawPointsGrid(page1, cursorY);
       drawConfirmations(page1, cursorY);
 
+      // --- Sign-up pages ---
       drawSignUpPage(page2);
 
-      const attendeesAll = (data.attendees || []).slice(0, 36).map(a=>({
+      const MAX_PDF_ATTENDEES = 96;
+      const attendeesAll = (data.attendees || []).slice(0, MAX_PDF_ATTENDEES).map(a=>({
         name: (a.name||"").trim(),
         dateISO: (a.dateISO||data.dateISO||todayISO()),
         signature: (a.signature||"")
       }));
-      let next = await drawAttendeeTable(page2, 612, attendeesAll, 0);
-      if(next < attendeesAll.length){
-        const page3 = pdfDoc.addPage(A4);
-        drawSignUpPage(page3);
-        await drawAttendeeTable(page3, 612, attendeesAll, next);
+
+      // Start the table slightly lower so it doesn't touch the red "ATTENDEES" bar
+      let next = await drawAttendeeTable(page2, 610, attendeesAll, 0);
+
+      while(next < attendeesAll.length){
+        const p = pdfDoc.addPage(A4);
+        drawSignUpPage(p);
+        next = await drawAttendeeTable(p, 610, attendeesAll, next);
       }
 
-      const addPageFooter = (page, pageIndex, totalPages) => {
-        drawText(page, "QPFS12.4", 40, 24, 9);
-        drawText(page, `Page No. ${pageIndex} of ${totalPages}`, 455, 24, 9);
-      };
-
+      // Footers
       const pages = pdfDoc.getPages();
-      pages.forEach((page, idx) => addPageFooter(page, idx + 1, pages.length));
+      pages.forEach((p, idx) => drawHeaderFooter(p, idx + 1, pages.length));
 
-      // Save + download (with fallback)
+      // Save + download
       const outBytes = await pdfDoc.save();
       const blob = new Blob([outBytes], { type:"application/pdf" });
       const url = URL.createObjectURL(blob);
