@@ -940,18 +940,36 @@
       const page2 = pdfDoc.addPage(A4);
       const page3 = pdfDoc.addPage(A4);
 
+      const detectImageType = (bytes) => {
+        if(!bytes || bytes.length < 4) return null;
+        if(bytes[0] === 0xff && bytes[1] === 0xd8) return "jpeg";
+        if(bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47) return "png";
+        return null;
+      };
+
+      const embedImageBytes = async (bytes) => {
+        const type = detectImageType(bytes);
+        if(type === "jpeg") return await pdfDoc.embedJpg(bytes);
+        if(type === "png") return await pdfDoc.embedPng(bytes);
+        return null;
+      };
+
       async function fetchImage(url){
-        const res = await fetch(url, { cache:"no-store" });
-        if(!res.ok) return null;
-        return await res.arrayBuffer();
+        try{
+          const res = await fetch(url, { cache:"no-store" });
+          if(!res.ok) return null;
+          return new Uint8Array(await res.arrayBuffer());
+        }catch(err){
+          return null;
+        }
       }
 
       let atlLogo;
       let tpLogo;
       const atlBytes = await fetchImage("/atl-logo.png") || await fetchImage("atl-logo.png");
       const tpBytes = await fetchImage("/tp-logo.png") || await fetchImage("tp-logo.png");
-      if(atlBytes) atlLogo = await pdfDoc.embedPng(atlBytes);
-      if(tpBytes) tpLogo = await pdfDoc.embedPng(tpBytes);
+      if(atlBytes) atlLogo = await embedImageBytes(atlBytes);
+      if(tpBytes) tpLogo = await embedImageBytes(tpBytes);
 
       const BLACK = rgb(0,0,0);
       const LIGHT_BLUE = rgb(0.84, 0.91, 0.97);
@@ -1234,10 +1252,7 @@
         const embedImageFromDataUrl = async (dataUrl) => {
           const decoded = decodeDataUrl(dataUrl);
           if(!decoded) return null;
-          if(decoded.mime.includes("jpeg") || decoded.mime.includes("jpg")){
-            return await pdfDoc.embedJpg(decoded.bytes);
-          }
-          return await pdfDoc.embedPng(decoded.bytes);
+          return await embedImageBytes(decoded.bytes);
         };
 
         let y = headerY - rowH;
