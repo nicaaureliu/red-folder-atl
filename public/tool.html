@@ -1179,12 +1179,7 @@
       document.body.appendChild(a);
       a.click();
       a.remove();
-
-      // Fallback: open in new tab if browser blocks downloads
-      setTimeout(()=> {
-        try{ window.open(url, "_blank"); }catch(e){}
-      }, 200);
-
+      
       setTimeout(()=> URL.revokeObjectURL(url), 2500);
     }
 
