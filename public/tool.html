@@ -948,7 +948,6 @@
 
       const pdfDoc = await PDFDocument.load(templateBytes);
       const helv = await pdfDoc.embedFont(StandardFonts.Helvetica);
-      
       const pages = pdfDoc.getPages();
 
       if(pages.length < 3){
@@ -959,20 +958,13 @@
       const page2 = pages[1];
       const page3 = pages[2];
 
-      const WHITE = rgb(1,1,1);
-      const cover = (page, x, y, w, h) => page.drawRectangle({ x, y, width:w, height:h, color: WHITE });
-      const coverInside = (page, x, y, w, h, pad=1) => {
-        const width = Math.max(w - (pad * 2), 0);
-        const height = Math.max(h - (pad * 2), 0);
-        if(width <= 0 || height <= 0) return;
-        page.drawRectangle({ x: x + pad, y: y + pad, width, height, color: WHITE });
-      };
       const drawText = (page, text, x, y, size=10) => {
         if(!text) return;
         page.drawText(String(text), { x, y, size, font: helv, color: rgb(0,0,0) });
       };
- const drawCheckmark = (page, boxX, boxY, boxW, boxH) => { 
-   const color = rgb(0,0,0);
+
+      const drawCheckmark = (page, boxX, boxY, boxW, boxH) => {
+        const color = rgb(0,0,0);
         const left = boxX + (boxW * 0.25);
         const midX = boxX + (boxW * 0.45);
         const right = boxX + (boxW * 0.7);
@@ -982,7 +974,7 @@
         page.drawLine({ start:{ x:left, y:lower }, end:{ x:midX, y:midY }, thickness:1.0, color });
         page.drawLine({ start:{ x:midX, y:midY }, end:{ x:right, y:upper }, thickness:1.0, color });
       };
-      
+
       const wrapLines = (font, text, size, maxWidth) => {
         const words = String(text || "").replace(/\r/g,"").split(/\s+/).filter(Boolean);
         const lines = [];
@@ -1007,9 +999,8 @@
       };
 
       const drawYesNo = (page, value, x, y, boxW=20, boxH=14) => {
-      const boxX = x - 3;
+        const boxX = x - 3;
         const boxY = y - 2;
-        coverInside(page, boxX, boxY, boxW, boxH, 1);
         if(value === "Yes") drawCheckmark(page, boxX, boxY, boxW, boxH);
         else page.drawText("X", { x, y, size: 10, font: helv, color: rgb(0,0,0) });
       };
@@ -1036,41 +1027,32 @@
       const attendeesCount = (data.attendees || []).length;
 
       // Header fields
-       coverInside(page1, p1.projectTitle.x, p1.projectTitle.y, p1.projectTitle.w, p1.projectTitle.h, 1);
       drawText(page1, data.projectTitle, p1.projectTitle.x, p1.projectTitle.y, 10);
 
-            coverInside(page1, p1.siteLocation.x, p1.siteLocation.y, p1.siteLocation.w, p1.siteLocation.h, 1);
       drawText(page1, data.siteLocation, p1.siteLocation.x, p1.siteLocation.y, 10);
 
-      coverInside(page1, p1.workLocation.x, p1.workLocation.y, p1.workLocation.w, p1.workLocation.h, 1);
       drawText(page1, data.workLocation, p1.workLocation.x, p1.workLocation.y, 10);
 
-      coverInside(page1, p1.projectNo.x, p1.projectNo.y, p1.projectNo.w, p1.projectNo.h, 1);
       drawText(page1, data.projectNo, p1.projectNo.x, p1.projectNo.y, 10);
 
-      coverInside(page1, p1.brieferName.x, p1.brieferName.y, p1.brieferName.w, p1.brieferName.h, 1);
       drawText(page1, data.brieferName, p1.brieferName.x, p1.brieferName.y, 10);
 
-      coverInside(page1, p1.date.x, p1.date.y, p1.date.w, p1.date.h, 1);
       drawText(page1, ddmmyyyy, p1.date.x, p1.date.y, 10);
 
-      coverInside(page1, p1.date.x, p1.date.y, p1.date.w, p1.date.h, 1);
       drawText(page1, data.jobTitle, p1.jobTitle.x, p1.jobTitle.y, 10);
 
-      coverInside(page1, p1.numPersons.x, p1.numPersons.y, p1.numPersons.w, p1.numPersons.h, 1);
       drawText(page1, String(attendeesCount || ""), p1.numPersons.x, p1.numPersons.y, 10);
 
       drawYesNo(page1, data.prevPlanned, p1.prevPlanned.x, p1.prevPlanned.y, 34, 16);
 
       // Text areas
-      coverInside(page1, p1.concerns.x, p1.concerns.topY-60, p1.concerns.w, p1.concerns.h, 2);
       drawWrappedFromTop(page1, data.prevConcerns, p1.concerns.x, p1.concerns.topY, p1.concerns.w, 12, 10, 6);
 
-      cover(page1, p1.planned.x-5, p1.planned.topY-120, p1.planned.w+10, p1.planned.h);
-      coverInside(page1, p1.planned.x, p1.planned.topY-120, p1.planned.w, p1.planned.h, 2);
+      drawWrappedFromTop(page1, data.todayPlanned, p1.planned.x, p1.planned.topY, p1.planned.w, 12, 10, 10);
+
       // Points discussed tick grid
       const rowY = [252.37, 241.28, 230.58, 219.75, 208.40, 197.57];
-      const colX = [219.04, 380.11, 539.13];
+      const colX = [213.04, 374.11, 533.13];
       const pointsMatrix = [
         ["confined","barriers","coshh"],
         ["emergency","clearAccess","fire"],
@@ -1083,11 +1065,10 @@
         for(let c=0;c<3;c++){
           const key = pointsMatrix[r][c];
           const x = colX[c], y = rowY[r];
-           const boxX = x - 2;
+          const boxX = x - 2;
           const boxY = y - 2;
-          coverInside(page1, boxX, boxY, 14, 14, 1);
           if(data.points && data.points[key]){
-          drawCheckmark(page1, boxX, boxY, 14, 14);
+            drawCheckmark(page1, boxX, boxY, 14, 14);
           }
         }
       }
@@ -1117,15 +1098,21 @@
       const dateX = 294;
 
       // Signature cell area
-      const sigBox = { x:365, w:210, h:18, yOffset:-12, padX:6, padY:2 };
-      
+      const sigBox = { x:365, w:210, h:16, yOffset:-10, padX:6, padY:2 };
+      const coverInside = (page, x, y, w, h, pad=2) => {
+        const width = Math.max(w - (pad * 2), 0);
+        const height = Math.max(h - (pad * 2), 0);
+        if(width <= 0 || height <= 0) return;
+        page.drawRectangle({ x: x + pad, y: y + pad, width, height, color: rgb(1,1,1) });
+      };
+
       const fitInto = (imgW, imgH, maxW, maxH) => {
         const r = Math.min(maxW / imgW, maxH / imgH);
         return { w: imgW * r, h: imgH * r };
       };
 
       async function drawSignatureIfAny(page, sigDataUrl, rowY){
-        coverInside(page, sigBox.x, rowY + sigBox.yOffset, sigBox.w, sigBox.h, 1); // clears "SIGN"
+        coverInside(page, sigBox.x, rowY + sigBox.yOffset, sigBox.w, sigBox.h, 2); // clears "SIGN"
         if(!sigDataUrl) return;
 
         const b64 = sigDataUrl.split(",")[1] || "";
@@ -1144,8 +1131,6 @@
       }
 
       function fillTextCells(page, a, rowY){
-         coverInside(page, nameX-2, rowY-3, 190, 16, 1);
-        coverInside(page, dateX-2, rowY-3, 90, 16, 1);
         page.drawText(a.name, { x:nameX, y:rowY, size:10, font: helv, color: rgb(0,0,0) });
         page.drawText(toDDMMYYYY(a.dateISO), { x:dateX, y:rowY, size:10, font: helv, color: rgb(0,0,0) });
       }
@@ -1156,7 +1141,7 @@
           const a = attendeesAll[idx];
           const y = rowsY[i];
           // clear signature cell always
-          coverInside(page, sigBox.x, y + sigBox.yOffset, sigBox.w, sigBox.h, 1);
+          coverInside(page, sigBox.x, y + sigBox.yOffset, sigBox.w, sigBox.h, 2);
 
           if(a){
             fillTextCells(page, a, y);
@@ -1183,7 +1168,7 @@
       document.body.appendChild(a);
       a.click();
       a.remove();
-      
+
       setTimeout(()=> URL.revokeObjectURL(url), 2500);
     }
 
