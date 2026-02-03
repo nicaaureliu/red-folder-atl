@@ -966,14 +966,14 @@
         if(!text) return;
         page.drawText(String(text), { x, y, size, font: helv, color: rgb(0,0,0) });
       };
-      const drawCheckmark = (page, x, y) => {
-        const color = rgb(0,0,0);
-        const left = x + 2;
-        const midX = x + 6;
-        const right = x + 14;
-        const lower = y + 2;
-        const midY = y - 1;
-        const upper = y + 8;
+ const drawCheckmark = (page, boxX, boxY, boxW, boxH) => { 
+   const color = rgb(0,0,0);
+        const left = boxX + (boxW * 0.2);
+        const midX = boxX + (boxW * 0.45);
+        const right = boxX + (boxW * 0.8);
+        const lower = boxY + (boxH * 0.3);
+        const midY = boxY + (boxH * 0.15);
+        const upper = boxY + (boxH * 0.75);
         page.drawLine({ start:{ x:left, y:lower }, end:{ x:midX, y:midY }, thickness:1.5, color });
         page.drawLine({ start:{ x:midX, y:midY }, end:{ x:right, y:upper }, thickness:1.5, color });
       };
@@ -1002,8 +1002,10 @@
       };
 
       const drawYesNo = (page, value, x, y, boxW=20, boxH=14) => {
-        cover(page, x-3, y-2, boxW, boxH);
-         if(value === "Yes") drawCheckmark(page, x, y);
+      const boxX = x - 3;
+        const boxY = y - 2;
+        cover(page, boxX, boxY, boxW, boxH);
+        if(value === "Yes") drawCheckmark(page, boxX, boxY, boxW, boxH);
         else page.drawText("X", { x, y, size: 10, font: helv, color: rgb(0,0,0) });
       };
 
@@ -1077,9 +1079,11 @@
         for(let c=0;c<3;c++){
           const key = pointsMatrix[r][c];
           const x = colX[c], y = rowY[r];
-          cover(page1, x-2, y-2, 14, 14);
+           const boxX = x - 2;
+          const boxY = y - 2;
+          cover(page1, boxX, boxY, 14, 14);
           if(data.points && data.points[key]){
-          drawCheckmark(page1, x, y);
+          drawCheckmark(page1, boxX, boxY, 14, 14);
           }
         }
       }
@@ -1109,7 +1113,7 @@
       const dateX = 294;
 
       // Signature cell area
-      const sigBox = { x:365, w:210, h:18, yOffset:-12, padX:6, padY:2 };
+      const sigBox = { x:355, w:230, h:20, yOffset:-14, padX:6, padY:2 };
 
       const fitInto = (imgW, imgH, maxW, maxH) => {
         const r = Math.min(maxW / imgW, maxH / imgH);
@@ -1129,7 +1133,7 @@
         const maxH = sigBox.h - (sigBox.padY*2);
         const s = fitInto(img.width, img.height, maxW, maxH);
 
-        const x = sigBox.x + sigBox.padX;
+        const x = sigBox.x + sigBox.padX + ((maxW - s.w) / 2);
         const y = (rowY + sigBox.yOffset) + sigBox.padY + ((maxH - s.h)/2);
 
         page.drawImage(img, { x, y, width:s.w, height:s.h });
