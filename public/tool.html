@@ -587,20 +587,18 @@
 
       let ok = false;
       if(mode === "csp"){
-        ok = (await tryFetch("assets/csp-1.jpg")) &&
-             (await tryFetch("assets/csp-2.jpg")) &&
-             (await tryFetch("assets/csp-3.jpg")) &&
-             (await tryFetch("assets/csp-4.jpg"));
+        // For CSP, we now generate programmatically, so we just check the logo
+        ok = await tryFetch("atl-logo.png") || await tryFetch("/atl-logo.png");
       }else{
         ok = await tryFetch("templates/daily-briefing.pdf");
       }
 
       if(ok){
         tplPill.className = "pill ok";
-        tplPill.textContent = "Template: OK";
+        tplPill.textContent = "Assets: OK";
       }else{
         tplPill.className = "pill bad";
-        tplPill.textContent = "Template: MISSING";
+        tplPill.textContent = "Assets: MISSING";
       }
     }
 
@@ -1182,150 +1180,358 @@
       const helv = await pdfDoc.embedFont(StandardFonts.Helvetica);
       const helvBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
 
+      const A4 = [595.28, 841.89];
+      const BLACK = rgb(0,0,0);
+      const RED = rgb(0.78, 0.1, 0.1);
+      const HEADER_TEXT = rgb(1, 1, 1);
+      const LIGHT_FILL = rgb(0.985, 0.985, 0.99);
+
+      // --- Helpers ---
       async function fetchImage(url){
         try{
           const res = await fetch(url, { cache:"no-store" });
           if(!res.ok) return null;
           return new Uint8Array(await res.arrayBuffer());
-        }catch(err){
-          return null;
+        }catch(err){ return null; }
+      }
+
+      const detectImageType = (bytes) => {
+        if(!bytes || bytes.length < 4) return null;
+        if(bytes[0] === 0xff && bytes[1] === 0xd8) return "jpeg";
+        if(bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47) return "png";
+        return null;
+      };
+
+      const embedImageBytes = async (bytes) => {
+        const type = detectImageType(bytes);
+        if(type === "jpeg") return await pdfDoc.embedJpg(bytes);
+        if(type === "png") return await pdfDoc.embedPng(bytes);
+        return null;
+      };
+
+      let atlLogo;
+      const atlBytes = await fetchImage("/atl-logo.png") || await fetchImage("atl-logo.png");
+      if(atlBytes) atlLogo = await embedImageBytes(atlBytes);
+
+      const drawCell = (page, x, y, w, h, { fill, border=1, borderColor=BLACK } = {}) => {
+        const opts = { x, y, width:w, height:h, borderColor, borderWidth: border };
+        if(fill) opts.color = fill;
+        page.drawRectangle(opts);
+      };
+
+      const drawTextInCell = (page, text, x, y, w, h, {
+        size=10, font=helv, color=BLACK, padding=6, align="left"
+      } = {}) => {
+        if(text === undefined || text === null) return;
+        const s = String(text);
+        let tx = x + padding;
+        if(align === "center"){
+          const tw = font.widthOfTextAtSize(s, size);
+          tx = x + (w - tw) / 2;
+        }else if(align === "right"){
+          const tw = font.widthOfTextAtSize(s, size);
+          tx = x + w - padding - tw;
         }
-      }
-
-      const imgBytes1 = await fetchImage("assets/csp-1.jpg");
-      const imgBytes2 = await fetchImage("assets/csp-2.jpg");
-      const imgBytes3 = await fetchImage("assets/csp-3.jpg");
-      const imgBytes4 = await fetchImage("assets/csp-4.jpg");
-
-      if(!imgBytes1 || !imgBytes2 || !imgBytes3 || !imgBytes4){
-        throw new Error("Could not load template images.");
-      }
-
-      const img1 = await pdfDoc.embedJpg(imgBytes1);
-      const img2 = await pdfDoc.embedJpg(imgBytes2);
-      const img3 = await pdfDoc.embedJpg(imgBytes3);
-      const img4 = await pdfDoc.embedJpg(imgBytes4);
-
-      const A4 = [595.28, 841.89];
-      const BLACK = rgb(0,0,0);
-
-      const drawText = (page, text, x, y, size=10, font=helv) => {
-        if(!text) return;
-        page.drawText(String(text), { x, y, size, font, color: BLACK });
+        const ty = y + (h - size) / 2 + (size * 0.2);
+        page.drawText(s, { x: tx, y: ty, size, font, color });
       };
 
       const wrapLines = (font, text, size, maxWidth) => {
-        const words = String(text || "").split(/\s+/);
+        const raw = String(text || "").replace(/\r/g, "");
+        const parts = raw.split("\n");
         const lines = [];
-        let line = "";
-        for(const w of words){
-          const test = line ? line + " " + w : w;
-          if(font.widthOfTextAtSize(test, size) <= maxWidth) line = test;
-          else { lines.push(line); line = w; }
+        for(const part of parts){
+          const words = part.split(/\s+/).filter(Boolean);
+          if(words.length === 0){ lines.push(""); continue; }
+          let line = "";
+          for(const w of words){
+            const test = line ? (line + " " + w) : w;
+            if(font.widthOfTextAtSize(test, size) <= maxWidth) line = test;
+            else { if(line) lines.push(line); line = w; }
+          }
+          if(line) lines.push(line);
         }
-        if(line) lines.push(line);
         return lines;
       };
 
-      const drawWrapped = (page, text, x, y, maxWidth, size=9, font=helv, lineHeight=11) => {
-        const lines = wrapLines(font, text, size, maxWidth);
+      const drawWrappedText = (page, text, x, y, w, h, { size=9, font=helv, color=BLACK, padding=6, lineHeight=11 } = {}) => {
+        const lines = wrapLines(font, text, size, w - (padding * 2));
         lines.forEach((ln, i) => {
-          page.drawText(ln, { x, y: y - (i * lineHeight), size, font, color: BLACK });
+          const ty = y + h - padding - size - (i * lineHeight);
+          if (ty > y) {
+            page.drawText(ln, { x: x + padding, y: ty, size, font, color });
+          }
         });
       };
 
-      const drawCheck = (page, x, y) => {
-        page.drawText("X", { x, y, size: 10, font: helvBold, color: BLACK });
+      const drawCheckbox = (page, x, y, size=10, checked=false) => {
+        drawCell(page, x, y, size, size, { border: 1 });
+        if(checked){
+          page.drawText("X", { x: x+2, y: y+1.5, size: size-1, font: helvBold, color: BLACK });
+        }
       };
+
+      function drawHeader(page, pageNo, total){
+        if(atlLogo){
+          const scale = 120 / atlLogo.width;
+          page.drawImage(atlLogo, { x:40, y:775, width: atlLogo.width * scale, height: atlLogo.height * scale });
+        }
+        page.drawText("Title: Confined Space Permit", { x: 40, y: 760, size: 12, font: helvBold });
+        page.drawLine({ start: { x: 40, y: 755 }, end: { x: 555, y: 755 }, thickness: 1 });
+
+        // Footer
+        page.drawText("Document Ref: QPFS18.0", { x: 40, y: 30, size: 8, font: helv });
+        page.drawText("August 2024", { x: 280, y: 30, size: 8, font: helv });
+        page.drawText(String(pageNo).padStart(2, "0"), { x: 540, y: 30, size: 8, font: helv });
+      }
+
+      // --- Content Generation ---
 
       // Page 1
       const p1 = pdfDoc.addPage(A4);
-      p1.drawImage(img1, { x:0, y:0, width: A4[0], height: A4[1] });
+      drawHeader(p1, 1, 4);
 
-      drawText(p1, toDDMMYYYY(data.dateISO), 75, 762);
-      drawText(p1, data.permitNo, 450, 762);
-      drawText(p1, data.startTime, 75, 742);
-      drawText(p1, data.finishTime, 200, 742);
-      drawText(p1, data.location, 75, 722);
+      // Section 1: Work Description
+      drawCell(p1, 40, 725, 515, 20, { fill: RED });
+      drawTextInCell(p1, "1 Work Description", 40, 725, 515, 20, { color: HEADER_TEXT, font: helvBold, size: 11 });
 
-      drawWrapped(p1, data.workDescription, 55, 665, 500);
-      drawWrapped(p1, data.personnel, 55, 595, 500);
-      drawWrapped(p1, data.equipment, 55, 520, 500);
+      const rowH = 20;
+      let curY = 705;
 
-      // Section 3 Risks
-      const ra = data.riskAssessment;
-      if(ra.o2) drawCheck(p1, 442, 412);
-      if(ra.toxic) drawCheck(p1, 442, 398);
-      if(ra.flammable) drawCheck(p1, 442, 384);
-      if(ra.ingress) drawCheck(p1, 442, 370);
-      if(ra.sludge) drawCheck(p1, 442, 356);
-      if(ra.animals) drawCheck(p1, 442, 342);
-      if(ra.mechanical) drawCheck(p1, 442, 328);
-      if(ra.hotwork) drawCheck(p1, 442, 314);
-      if(ra.chemicals) drawCheck(p1, 442, 300);
-      if(ra.physical) drawCheck(p1, 442, 286);
-      if(ra.temperature) drawCheck(p1, 442, 272);
-      if(ra.radiation) drawCheck(p1, 442, 258);
-      drawText(p1, data.riskOthers, 120, 244, 8);
+      const drawRow = (p, label, value, x, y, w, lw) => {
+        drawCell(p, x, y, lw, rowH);
+        drawTextInCell(p, label, x, y, lw, rowH, { font: helvBold, size: 9 });
+        drawCell(p, x + lw, y, w - lw, rowH, { fill: LIGHT_FILL });
+        drawTextInCell(p, value, x + lw, y, w - lw, rowH, { size: 9 });
+      };
+
+      drawRow(p1, "Date:", toDDMMYYYY(data.dateISO), 40, curY, 257.5, 80);
+      drawRow(p1, "Permit No.", data.permitNo, 297.5, curY, 257.5, 80);
+      curY -= rowH;
+      drawRow(p1, "Start Time:", data.startTime, 40, curY, 257.5, 80);
+      drawRow(p1, "Finish Time:", data.finishTime, 297.5, curY, 257.5, 80);
+      curY -= rowH;
+      drawRow(p1, "Location:", data.location, 40, curY, 515, 80);
+      curY -= 60;
+      drawCell(p1, 40, curY, 515, 60);
+      drawTextInCell(p1, "Description of work to be carried out:", 40, curY + 45, 515, 15, { font: helvBold, size: 9 });
+      drawWrappedText(p1, data.workDescription, 40, curY, 515, 45, { size: 9 });
+      curY -= 60;
+      drawCell(p1, 40, curY, 515, 60);
+      drawTextInCell(p1, "Personnel entering the confined space:", 40, curY + 45, 515, 15, { font: helvBold, size: 9 });
+      drawWrappedText(p1, data.personnel, 40, curY, 515, 45, { size: 9 });
+
+      // Section 2: Equipment
+      curY -= 25;
+      drawCell(p1, 40, curY, 515, 20, { fill: RED });
+      drawTextInCell(p1, "2 Equipment / Tools to be used", 40, curY, 515, 20, { color: HEADER_TEXT, font: helvBold, size: 11 });
+      curY -= 60;
+      drawCell(p1, 40, curY, 515, 60);
+      drawWrappedText(p1, data.equipment, 40, curY, 515, 60, { size: 9 });
+
+      // Section 3: Risk Assessment
+      curY -= 25;
+      drawCell(p1, 40, curY, 515, 20, { fill: RED });
+      drawTextInCell(p1, "3 Risk Assessment", 40, curY, 515, 20, { color: HEADER_TEXT, font: helvBold, size: 11 });
+      curY -= 20;
+      drawCell(p1, 40, curY, 415, 20);
+      drawTextInCell(p1, "Hazards Identified", 40, curY, 415, 20, { font: helvBold, size: 9 });
+      drawCell(p1, 455, curY, 100, 20);
+      drawTextInCell(p1, "Tick if applicable", 455, curY, 100, 20, { font: helvBold, size: 9, align: "center" });
+
+      const risks = [
+        ["Oxygen enrichment / deficiency", data.riskAssessment.o2],
+        ["Toxic gases / vapours / fumes", data.riskAssessment.toxic],
+        ["Flammable gases / vapours / fumes", data.riskAssessment.flammable],
+        ["Ingress of liquids / gas / solids", data.riskAssessment.ingress],
+        ["Sludge / deposits / waste", data.riskAssessment.sludge],
+        ["Animals / biological hazards", data.riskAssessment.animals],
+        ["Mechanical / electrical hazards", data.riskAssessment.mechanical],
+        ["Hot work within space", data.riskAssessment.hotwork],
+        ["Use of chemicals", data.riskAssessment.chemicals],
+        ["Physical / structural hazards", data.riskAssessment.physical],
+        ["Temperature extremes", data.riskAssessment.temperature],
+        ["Ionising radiation", data.riskAssessment.radiation]
+      ];
+
+      risks.forEach(([label, checked]) => {
+        curY -= 15;
+        drawCell(p1, 40, curY, 415, 15);
+        drawTextInCell(p1, label, 40, curY, 415, 15, { size: 8 });
+        drawCell(p1, 455, curY, 100, 15);
+        drawCheckbox(p1, 498, curY + 2.5, 10, checked);
+      });
+      curY -= 20;
+      drawRow(p1, "Others (specify):", data.riskOthers, 40, curY, 515, 100);
 
       // Page 2
       const p2 = pdfDoc.addPage(A4);
-      p2.drawImage(img2, { x:0, y:0, width: A4[0], height: A4[1] });
+      drawHeader(p2, 2, 4);
 
-      const co = data.controls;
-      if(co.isoPhys) drawCheck(p2, 442, 748);
-      if(co.isoElec) drawCheck(p2, 442, 734);
-      if(co.isoMech) drawCheck(p2, 442, 720);
-      if(co.cleaning) drawCheck(p2, 442, 706);
-      if(co.ventNat) drawCheck(p2, 442, 692);
-      if(co.ventForced) drawCheck(p2, 442, 678);
-      if(co.light110) drawCheck(p2, 442, 664);
-      if(co.lightLow) drawCheck(p2, 442, 650);
-      if(co.signage) drawCheck(p2, 442, 636);
-      if(co.comms) drawCheck(p2, 442, 622);
-      if(co.testing) drawCheck(p2, 442, 608);
-      if(co.monitoring) drawCheck(p2, 442, 594);
-      if(co.extinguishers) drawCheck(p2, 442, 580);
-      if(co.rpe) drawCheck(p2, 442, 566);
-      if(co.ppe) drawCheck(p2, 442, 552);
-      if(co.training) drawCheck(p2, 442, 538);
-      drawText(p2, data.controlsOthers, 120, 524, 8);
+      // Section 4: Controls
+      curY = 725;
+      drawCell(p2, 40, curY, 515, 20, { fill: RED });
+      drawTextInCell(p2, "4 Controls", 40, curY, 515, 20, { color: HEADER_TEXT, font: helvBold, size: 11 });
+      curY -= 20;
+      drawCell(p2, 40, curY, 415, 20);
+      drawTextInCell(p2, "Precautions / Control Measures", 40, curY, 415, 20, { font: helvBold, size: 9 });
+      drawCell(p2, 455, curY, 100, 20);
+      drawTextInCell(p2, "Tick if applicable", 455, curY, 100, 20, { font: helvBold, size: 9, align: "center" });
 
-      const em = data.emergency;
-      if(em.plan) drawCheck(p2, 442, 400);
-      if(em.tripod) drawCheck(p2, 442, 386);
-      if(em.harness) drawCheck(p2, 442, 372);
-      if(em.fallArrest) drawCheck(p2, 442, 358);
-      if(em.stretcher) drawCheck(p2, 442, 344);
-      if(em.resuscitation) drawCheck(p2, 442, 330);
-      if(em.ba) drawCheck(p2, 442, 316);
-      if(em.light) drawCheck(p2, 442, 302);
-      if(em.alarm) drawCheck(p2, 442, 288);
-      if(em.comms) drawCheck(p2, 442, 274);
-      if(em.standby) drawCheck(p2, 442, 260);
+      const controls = [
+        ["Isolation - Physical (e.g. blanks, disconnected)", data.controls.isoPhys],
+        ["Isolation - Electrical", data.controls.isoElec],
+        ["Isolation - Mechanical", data.controls.isoMech],
+        ["Cleaning / Purging of space", data.controls.cleaning],
+        ["Ventilation - Natural", data.controls.ventNat],
+        ["Ventilation - Forced", data.controls.ventForced],
+        ["Lighting - 110V (Internal)", data.controls.light110],
+        ["Lighting - Low Voltage (Internal)", data.controls.lightLow],
+        ["Safety signage / Barricades", data.controls.signage],
+        ["Communication equipment", data.controls.comms],
+        ["Atmospheric testing (initial)", data.controls.testing],
+        ["Constant monitoring", data.controls.monitoring],
+        ["Fire extinguishers", data.controls.extinguishers],
+        ["RPE (BA / Escape set)", data.controls.rpe],
+        ["Specific PPE (e.g. gloves, overalls)", data.controls.ppe],
+        ["Training / Competence", data.controls.training]
+      ];
 
-      drawText(p2, data.firstAid, 160, 240, 9);
-      drawText(p2, data.commMethod, 180, 225, 9);
+      controls.forEach(([label, checked]) => {
+        curY -= 15;
+        drawCell(p2, 40, curY, 415, 15);
+        drawTextInCell(p2, label, 40, curY, 415, 15, { size: 8 });
+        drawCell(p2, 455, curY, 100, 15);
+        drawCheckbox(p2, 498, curY + 2.5, 10, checked);
+      });
+      curY -= 20;
+      drawRow(p2, "Others (specify):", data.controlsOthers, 40, curY, 515, 100);
 
-      // Page 3
+      // Section 5: Emergency Arrangements
+      curY -= 30;
+      drawCell(p2, 40, curY, 515, 20, { fill: RED });
+      drawTextInCell(p2, "5 Emergency Arrangements", 40, curY, 515, 20, { color: HEADER_TEXT, font: helvBold, size: 11 });
+      curY -= 20;
+      drawCell(p2, 40, curY, 415, 20);
+      drawTextInCell(p2, "Emergency Equipment / Procedures", 40, curY, 415, 20, { font: helvBold, size: 9 });
+      drawCell(p2, 455, curY, 100, 20);
+      drawTextInCell(p2, "Tick if applicable", 455, curY, 100, 20, { font: helvBold, size: 9, align: "center" });
+
+      const emergency = [
+        ["Rescue plan in place", data.emergency.plan],
+        ["Tripod / Winch / Davit", data.emergency.tripod],
+        ["Harness / Rescue line", data.emergency.harness],
+        ["Fall arrest equipment", data.emergency.fallArrest],
+        ["Recovery stretcher", data.emergency.stretcher],
+        ["Resuscitation equipment", data.emergency.resuscitation],
+        ["Breathing apparatus (Rescue)", data.emergency.ba],
+        ["Emergency lighting", data.emergency.light],
+        ["Method of raising alarm", data.emergency.alarm],
+        ["Method of communication", data.emergency.comms],
+        ["Standby person (Top-man)", data.emergency.standby]
+      ];
+
+      emergency.forEach(([label, checked]) => {
+        curY -= 15;
+        drawCell(p2, 40, curY, 415, 15);
+        drawTextInCell(p2, label, 40, curY, 415, 15, { size: 8 });
+        drawCell(p2, 455, curY, 100, 15);
+        drawCheckbox(p2, 498, curY + 2.5, 10, checked);
+      });
+      curY -= 20;
+      drawRow(p2, "Emergency First Aid provision:", data.firstAid, 40, curY, 515, 150);
+      curY -= rowH;
+      drawRow(p2, "Method of Communication:", data.commMethod, 40, curY, 515, 150);
+
+      // Page 3: Air Monitoring Results (to be completed during work)
       const p3 = pdfDoc.addPage(A4);
-      p3.drawImage(img3, { x:0, y:0, width: A4[0], height: A4[1] });
+      drawHeader(p3, 3, 4);
+      curY = 725;
+      drawCell(p3, 40, curY, 515, 20, { fill: RED });
+      drawTextInCell(p3, "5 Air Monitoring Results", 40, curY, 515, 20, { color: HEADER_TEXT, font: helvBold, size: 11 });
+      curY -= 15;
+      drawTextInCell(p3, "(to be completed during the work)", 40, curY, 515, 15, { size: 8, font: helv });
 
-      // Page 4
+      curY -= 20;
+      drawCell(p3, 40, curY, 200, 20, { fill: RED });
+      drawTextInCell(p3, "Device(s)", 40, curY, 200, 20, { color: HEADER_TEXT, font: helvBold, size: 9 });
+      drawCell(p3, 240, curY, 315, 20, { fill: RED });
+      drawTextInCell(p3, "Serial number", 240, curY, 315, 20, { color: HEADER_TEXT, font: helvBold, size: 9 });
+
+      curY -= 20;
+      drawCell(p3, 40, curY, 200, 20);
+      drawTextInCell(p3, data.monitorDevice1, 40, curY, 200, 20, { size: 9 });
+      drawCell(p3, 240, curY, 315, 20);
+      drawTextInCell(p3, data.monitorSerial1, 240, curY, 315, 20, { size: 9 });
+
+      curY -= 20;
+      drawCell(p3, 40, curY, 200, 20);
+      drawTextInCell(p3, data.monitorDevice2, 40, curY, 200, 20, { size: 9 });
+      drawCell(p3, 240, curY, 315, 20);
+      drawTextInCell(p3, data.monitorSerial2, 240, curY, 315, 20, { size: 9 });
+
+      curY -= 25;
+      // Monitoring table header
+      const colW = [60, 80, 100, 100, 175];
+      const colLabels = ["Time", "Sampled by", "O2 (19.5-21%)", "CO (<25 ppm)", "Other (from section 3)"];
+      let curX = 40;
+      colW.forEach((w, i) => {
+        drawCell(p3, curX, curY, w, 25, { fill: RED });
+        drawWrappedText(p3, colLabels[i], curX, curY, w, 25, { color: HEADER_TEXT, font: helvBold, size: 8, padding: 2, lineHeight: 9 });
+        curX += w;
+      });
+
+      // Monitoring table rows (empty for handwriting)
+      for(let i=0; i<25; i++){
+        curY -= 20;
+        curX = 40;
+        colW.forEach(w => {
+          drawCell(p3, curX, curY, w, 20);
+          curX += w;
+        });
+      }
+
+      // Page 4: Certification and Closure
       const p4 = pdfDoc.addPage(A4);
-      p4.drawImage(img4, { x:0, y:0, width: A4[0], height: A4[1] });
+      drawHeader(p4, 4, 4);
 
-      drawText(p4, data.monitorDevice1, 105, 715, 9);
-      drawText(p4, data.monitorSerial1, 405, 715, 9);
-      drawText(p4, data.monitorDevice2, 105, 700, 9);
-      drawText(p4, data.monitorSerial2, 405, 700, 9);
+      curY = 725;
+      drawCell(p4, 40, curY, 515, 20, { fill: RED });
+      drawTextInCell(p4, "6 Pre-entry Certification", 40, curY, 515, 20, { color: HEADER_TEXT, font: helvBold, size: 11 });
+      curY -= 15;
+      drawTextInCell(p4, "(must be signed by the confined space authorising person before entry)", 40, curY, 515, 15, { size: 8, font: helv });
 
-      drawText(p4, data.authorisingPerson, 335, 310, 10);
-      drawText(p4, toDDMMYYYY(data.dateISO), 490, 288, 10);
+      curY -= 35;
+      drawCell(p4, 40, curY, 515, 35);
+      drawWrappedText(p4, "I hereby certify that all required hazard controls are in place, that air monitoring is being conducted as required and results show that the atmosphere is acceptable for entry, and that all required information is documented on this permit.", 40, curY, 515, 35, { size: 9 });
 
-      drawText(p4, data.closureName, 80, 152, 10);
-      drawText(p4, toDDMMYYYY(data.dateISO), 490, 130, 10);
+      curY -= 20;
+      drawRow(p4, "Confined space entry authorising person:", data.authorisingPerson, 40, curY, 515, 220);
+      curY -= 30;
+      drawCell(p4, 40, curY, 350, 30);
+      drawTextInCell(p4, "Signature:", 40, curY, 350, 30, { font: helvBold, size: 9 });
+      drawCell(p4, 390, curY, 165, 30);
+      drawTextInCell(p4, "Date: " + toDDMMYYYY(data.dateISO), 390, curY, 165, 30, { font: helvBold, size: 9 });
 
+      curY -= 50;
+      drawCell(p4, 40, curY, 515, 20, { fill: RED });
+      drawTextInCell(p4, "7 Permit Closure", 40, curY, 515, 20, { color: HEADER_TEXT, font: helvBold, size: 11 });
+      curY -= 15;
+      drawTextInCell(p4, "(must be signed by the confined space authorising person after work is completed)", 40, curY, 515, 15, { size: 8, font: helv });
+
+      curY -= 30;
+      drawCell(p4, 40, curY, 515, 30);
+      drawWrappedText(p4, "The work was done in accordance with this permit. A copy of this permit will be forwarded to the confined space Supervisor/Project Manager.", 40, curY, 515, 30, { size: 9 });
+
+      curY -= 20;
+      drawRow(p4, "Name:", data.closureName, 40, curY, 515, 80);
+      curY -= 30;
+      drawCell(p4, 40, curY, 350, 30);
+      drawTextInCell(p4, "Signature:", 40, curY, 350, 30, { font: helvBold, size: 9 });
+      drawCell(p4, 390, curY, 165, 30);
+      drawTextInCell(p4, "Date: " + toDDMMYYYY(data.dateISO), 390, curY, 165, 30, { font: helvBold, size: 9 });
+
+      // Save and Download
       const outBytes = await pdfDoc.save();
       const blob = new Blob([outBytes], { type:"application/pdf" });
       const url = URL.createObjectURL(blob);
