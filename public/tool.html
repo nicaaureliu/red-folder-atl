@@ -1,1198 +1,559 @@
-<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-  <title>Form</title>
-
-  <style>
-    :root{
-      --bg:#f6f7f9;
-      --card:#ffffff;
-      --text:#111111;
-      --muted:#6b7280;
-      --line:#e5e7eb;
-      --yellow:#ffd600;
-      --radius:18px;
-
-      --btn:#111;
-      --btnText:#fff;
-
-      --okBg:#ecfdf5;    --okBd:#a7f3d0;  --okTx:#065f46;
-      --badBg:#fef2f2;   --badBd:#fecaca; --badTx:#7f1d1d;
-      --warnBg:#fffbeb;  --warnBd:#fde68a;--warnTx:#92400e;
-    }
-
-    *{ box-sizing:border-box; }
-    html, body{ width:100%; max-width:100%; overflow-x:hidden; }
-
-    body{
-      margin:0;
-      font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
-      background: var(--bg);
-      color: var(--text);
-    }
-
-    .wrap{ max-width: 980px; margin: 16px auto; padding: 0 14px; }
-    .shell{
-      border: 1px solid #e8eaee;
-      border-radius: 24px;
-      padding: 10px;
-      box-shadow: 0 8px 22px rgba(0,0,0,.05);
-      background: transparent;
-    }
-
-    .card{
-      background: var(--card);
-      border: 1px solid var(--line);
-      border-radius: var(--radius);
-      padding: 16px;
-    }
-
-    .head{
-      display:flex;
-      align-items:flex-start;
-      justify-content:space-between;
-      gap:12px;
-    }
-    h1{
-      margin:0;
-      font-size: 22px;
-      font-weight: 900;
-      letter-spacing: .2px;
-    }
-    .sub{
-      margin:6px 0 0;
-      color: var(--muted);
-      font-weight: 700;
-      font-size: 13px;
-      line-height: 1.35;
-    }
-
-    .pillRow{
-      display:flex;
-      gap:8px;
-      flex-wrap:wrap;
-      justify-content:flex-end;
-      align-items:center;
-      margin-top: 2px;
-    }
-
-    .pill{
-      display:inline-flex;
-      align-items:center;
-      gap:8px;
-      padding: 7px 10px;
-      border-radius: 999px;
-      border: 1px solid var(--line);
-      background:#fff;
-      color: var(--muted);
-      font-weight: 800;
-      font-size: 12px;
-      white-space:nowrap;
-    }
-    .pill.ok{ background: var(--okBg); border-color: var(--okBd); color: var(--okTx); }
-    .pill.bad{ background: var(--badBg); border-color: var(--badBd); color: var(--badTx); }
-    .pill.warn{ background: var(--warnBg); border-color: var(--warnBd); color: var(--warnTx); }
-
-    .banner{
-      margin-top: 12px;
-      padding: 10px 12px;
-      border-radius: 14px;
-      border: 1px solid var(--warnBd);
-      background: var(--warnBg);
-      color: var(--warnTx);
-      font-weight: 800;
-      font-size: 13px;
-      display:none;
-    }
-
-    .section{
-      margin-top: 12px;
-      border: 1px solid var(--line);
-      border-radius: var(--radius);
-      padding: 14px;
-      background:#fff;
-    }
-    .sectionTitle{
-      margin:0 0 10px;
-      font-weight: 900;
-      font-size: 13px;
-      letter-spacing:.2px;
-      color:#111;
-    }
-
-    label{
-      display:block;
-      font-size: 12px;
-      font-weight: 800;
-      color:#111;
-      margin: 0 0 6px;
-    }
-    input, select, textarea{
-      width:100%;
-      border: 1px solid var(--line);
-      border-radius: 12px;
-      padding: 10px 12px;
-      font-size: 14px;
-      outline: none;
-      background:#fff;
-    }
-    textarea{ min-height: 92px; resize: vertical; }
-
-    .grid2{
-      display:grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 12px;
-    }
-    .grid3auto{
-      display:grid;
-      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-      gap: 10px;
-    }
-    .grid1{
-      display:grid;
-      grid-template-columns: 1fr;
-      gap: 12px;
-    }
-
-    .check{
-      display:flex;
-      align-items:center;
-      gap:10px;
-      border: 1px solid var(--line);
-      border-radius: 14px;
-      padding: 10px 12px;
-      background:#fff;
-      font-weight: 800;
-      font-size: 13px;
-    }
-    .check input{ width:18px; height:18px; }
-
-    .attTop{
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap:10px;
-      flex-wrap:wrap;
-      margin-bottom: 10px;
-    }
-
-    .attRow{
-      border: 1px solid var(--line);
-      border-radius: 14px;
-      padding: 10px;
-      background:#fff;
-      margin-top: 10px;
-      display:grid;
-      grid-template-columns: 2fr 1fr 2fr 1.2fr;
-      gap: 10px;
-      align-items:end;
-    }
-
-    .sigPreview{
-      height: 44px;
-      border: 1px dashed var(--line);
-      border-radius: 12px;
-      background:#fafafa;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      overflow:hidden;
-    }
-    .sigPreview img{
-      width:100%;
-      height:100%;
-      object-fit: contain;
-      background:#fff;
-    }
-    .sigPreview span{
-      color: var(--muted);
-      font-weight: 800;
-      font-size: 12px;
-    }
-
-    .btn{
-      display:inline-flex;
-      align-items:center;
-      justify-content:center;
-      border-radius: 999px;
-      padding: 10px 16px;
-      font-weight: 900;
-      text-decoration:none;
-      cursor:pointer;
-      border: 1px solid rgba(0,0,0,.10);
-      box-shadow: 0 2px 0 rgba(0,0,0,.10);
-      user-select:none;
-      background: var(--btn);
-      color: var(--btnText);
-      white-space:nowrap;
-    }
-    .btn:active{ transform: translateY(1px); }
-    .btnYellow{
-      background: var(--yellow);
-      border-color: #caa900;
-      color:#111;
-    }
-    .btnGhost{
-      background:#fff;
-      color:#111;
-      border:1px solid var(--line);
-      box-shadow:none;
-    }
-    .btnDanger{
-      background:#fff;
-      color: var(--badTx);
-      border:1px solid var(--badBd);
-      box-shadow:none;
-      font-weight: 900;
-    }
-
-    .btnRow{
-      display:flex;
-      gap:8px;
-      flex-wrap:wrap;
-    }
-
-    .stickyBar{
-      position: sticky;
-      bottom: 0;
-      margin-top: 14px;
-      padding-top: 12px;
-      background: linear-gradient(to top, rgba(246,247,249,1), rgba(246,247,249,.0));
-    }
-
-    .actionBar{
-      border: 1px solid var(--line);
-      border-radius: var(--radius);
-      background:#fff;
-      padding: 10px;
-      display:flex;
-      gap:10px;
-      align-items:center;
-      justify-content:space-between;
-      flex-wrap:wrap;
-    }
-
-    .note{
-      margin-top: 10px;
-      color: var(--muted);
-      font-weight: 700;
-      font-size: 12px;
-      line-height: 1.35;
-    }
-
-    /* Signature modal */
-    .modalOverlay{
-      position: fixed;
-      inset: 0;
-      background: rgba(0,0,0,.40);
-      display:none;
-      align-items:center;
-      justify-content:center;
-      padding: 14px;
-      z-index: 50;
-    }
-    .modal{
-      width: min(760px, 100%);
-      background: #fff;
-      border-radius: 18px;
-      border: 1px solid var(--line);
-      box-shadow: 0 20px 60px rgba(0,0,0,.25);
-      overflow:hidden;
-    }
-    .modalHead{
-      padding: 14px;
-      border-bottom: 1px solid var(--line);
-      display:flex;
-      justify-content:space-between;
-      align-items:center;
-      gap:10px;
-    }
-    .modalHead strong{ font-size: 14px; }
-    .modalBody{ padding: 12px 14px; }
-    .sigCanvasWrap{
-      border: 1px solid var(--line);
-      border-radius: 14px;
-      overflow:hidden;
-      background: #fff;
-      touch-action: none;
-    }
-    canvas{
-      width:100%;
-      height: 240px;
-      display:block;
-      background:#fff;
-    }
-    .modalFoot{
-      padding: 12px 14px 14px;
-      border-top: 1px solid var(--line);
-      display:flex;
-      gap:10px;
-      flex-wrap:wrap;
-      justify-content:space-between;
-      align-items:center;
-    }
-    .modalHelp{
-      color: var(--muted);
-      font-weight: 800;
-      font-size: 12px;
-    }
-
-    @media (max-width: 900px){
-      .grid2{ grid-template-columns: 1fr; }
-      .attRow{ grid-template-columns: 1fr; }
-      canvas{ height: 220px; }
-      .pillRow{ justify-content:flex-start; }
-    }
-  </style>
-
-  <!-- Try CDN 1 -->
-  <script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
-</head>
-
-<body>
-  <div class="wrap">
-    <div class="shell">
-      <div id="app" class="card"></div>
-    </div>
-  </div>
-
-  <!-- Signature Modal -->
-  <div id="sigOverlay" class="modalOverlay" aria-hidden="true">
-    <div class="modal" role="dialog" aria-modal="true" aria-label="Signature">
-      <div class="modalHead">
-        <strong id="sigTitle">Signature</strong>
-        <button id="sigCloseTop" class="btn btnGhost" type="button">Close</button>
-      </div>
-
-      <div class="modalBody">
-        <div class="sigCanvasWrap">
-          <canvas id="sigCanvas"></canvas>
-        </div>
-      </div>
-
-      <div class="modalFoot">
-        <div class="btnRow">
-          <button id="sigClear" class="btn btnGhost" type="button">Clear</button>
-          <button id="sigCancel" class="btn btnGhost" type="button">Cancel</button>
-        </div>
-
-        <div class="btnRow" style="align-items:center;">
-          <span class="modalHelp">Draw with finger/mouse, then Save.</span>
-          <button id="sigSave" class="btn btnYellow" type="button">Save signature</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <script>
-    // Fallback load (CDN 2) if pdf-lib blocked/failed
-    (function ensurePdfLib(){
-      const check = () => !!window.PDFLib;
-      if (check()) return;
-
-      const s = document.createElement("script");
-      s.src = "https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js";
-      s.onload = () => {};
-      s.onerror = () => {};
-      document.head.appendChild(s);
-    })();
-  </script>
-
-  <script>
-    const $ = (q) => document.querySelector(q);
-    const el = (tag, attrs={}, children=[]) => {
-      const n = document.createElement(tag);
-      Object.entries(attrs).forEach(([k,v])=>{
-        if(k === "class") n.className = v;
-        else if(k === "html") n.innerHTML = v;
-        else if(k.startsWith("on") && typeof v === "function") n.addEventListener(k.substring(2), v);
-        else n.setAttribute(k, v);
-      });
-      children.forEach(c => n.appendChild(typeof c === "string" ? document.createTextNode(c) : c));
-      return n;
-    };
-
-    const params = new URLSearchParams(location.search);
-    const t = (params.get("t") || "Form").trim();
-    document.title = t;
-
-    // Signature store: attendeeId -> dataURL
-    const sigStore = new Map();
-    const makeId = () => "id_" + Math.random().toString(16).slice(2) + "_" + Date.now().toString(16);
-
-    // Helpers
-    const pad2 = (n) => String(n).padStart(2,"0");
-    const todayISO = () => {
-      const d = new Date();
-      return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`;
-    };
-    const toDDMMYYYY = (iso) => {
-      if(!iso || !iso.includes("-")) return iso || "";
-      const [y,m,d] = iso.split("-");
-      return `${pad2(d)}/${pad2(m)}/${y}`;
-    };
-
-    function showBanner(msg, type="warn"){
-      const b = $("#banner");
-      b.style.display = "block";
-      b.style.borderColor = (type==="bad") ? "var(--badBd)" : "var(--warnBd)";
-      b.style.background = (type==="bad") ? "var(--badBg)" : "var(--warnBg)";
-      b.style.color = (type==="bad") ? "var(--badTx)" : "var(--warnTx)";
-      b.textContent = msg;
-    }
-    function hideBanner(){
-      const b = $("#banner");
-      if(!b) return;
-      b.style.display = "none";
-      b.textContent = "";
-    }
-
-    // Placeholder for other tools
-    function renderPlaceholder(title){
-      const app = $("#app");
-      app.innerHTML = "";
-      app.appendChild(el("div",{class:"head"},[
-        el("div",{},[
-          el("h1",{},[title]),
-          el("div",{class:"sub"},["This is a placeholder page."])
-        ]),
-        el("div",{class:"pillRow"},[
-          el("a",{class:"btn btnYellow", href:"daily.html"},["Back"])
-        ])
-      ]));
-    }
-
-    // Signature modal
-    const SigModal = (() => {
-      const overlay = $("#sigOverlay");
-      const canvas = $("#sigCanvas");
-      const titleEl = $("#sigTitle");
-      const btnClear = $("#sigClear");
-      const btnCancel = $("#sigCancel");
-      const btnSave = $("#sigSave");
-      const btnCloseTop = $("#sigCloseTop");
-
-      let ctx, drawing=false, hasInk=false;
-      let currentAttId=null;
-      let onSavedCb=null;
-
-      const resizeCanvas = () => {
-        const rect = canvas.getBoundingClientRect();
-        const dpr = window.devicePixelRatio || 1;
-        canvas.width = Math.floor(rect.width * dpr);
-        canvas.height = Math.floor(rect.height * dpr);
-        ctx = canvas.getContext("2d");
-        ctx.setTransform(dpr,0,0,dpr,0,0);
-        clearCanvas();
-      };
-
-      const clearCanvas = () => {
-        if(!ctx) return;
-        const rect = canvas.getBoundingClientRect();
-        ctx.clearRect(0,0,rect.width,rect.height);
-        ctx.fillStyle = "#fff";
-        ctx.fillRect(0,0,rect.width,rect.height);
-        ctx.strokeStyle = "#000";
-        ctx.lineWidth = 2.4;
-        ctx.lineCap = "round";
-        ctx.lineJoin = "round";
-        hasInk = false;
-      };
-
-      const getPos = (evt) => {
-        const rect = canvas.getBoundingClientRect();
-        return { x: (evt.clientX - rect.left), y: (evt.clientY - rect.top) };
-      };
-
-      const start = (evt) => {
-        evt.preventDefault();
-        drawing = true;
-        const p = getPos(evt);
-        ctx.beginPath();
-        ctx.moveTo(p.x, p.y);
-      };
-
-      const move = (evt) => {
-        if(!drawing) return;
-        evt.preventDefault();
-        const p = getPos(evt);
-        ctx.lineTo(p.x, p.y);
-        ctx.stroke();
-        hasInk = true;
-      };
-
-      const end = (evt) => {
-        if(!drawing) return;
-        evt.preventDefault();
-        drawing = false;
-      };
-
-      canvas.addEventListener("pointerdown", start);
-      canvas.addEventListener("pointermove", move);
-      window.addEventListener("pointerup", end);
-      window.addEventListener("pointercancel", end);
-
-      btnClear.addEventListener("click", clearCanvas);
-
-      const close = () => {
-        overlay.style.display = "none";
-        overlay.setAttribute("aria-hidden","true");
-        currentAttId = null;
-        onSavedCb = null;
-      };
-
-      btnCancel.addEventListener("click", close);
-      btnCloseTop.addEventListener("click", close);
-
-      btnSave.addEventListener("click", () => {
-        if(!currentAttId) return;
-        if(!hasInk){
-          alert("Please sign first, then Save.");
-          return;
-        }
-        const dataUrl = canvas.toDataURL("image/png");
-        sigStore.set(currentAttId, dataUrl);
-        if(typeof onSavedCb === "function") onSavedCb(currentAttId, dataUrl);
-        close();
-      });
-
-      window.addEventListener("resize", () => {
-        if(overlay.style.display === "flex") resizeCanvas();
-      });
-
-      const open = (attId, label, cb) => {
-        currentAttId = attId;
-        onSavedCb = cb;
-        titleEl.textContent = label ? `Signature: ${label}` : "Signature";
-        overlay.style.display = "flex";
-        overlay.setAttribute("aria-hidden","false");
-        setTimeout(resizeCanvas, 50);
-      };
-
-      return { open };
-    })();
-
-    async function checkTemplateAndLib(){
-      // PDFLib status
-      const libPill = $("#pillLib");
-      const tplPill = $("#pillTpl");
-
-      // Wait a bit for fallback loader
-      await new Promise(r => setTimeout(r, 400));
-
-      if(window.PDFLib){
-        libPill.className = "pill ok";
-        libPill.textContent = "PDF engine: OK";
-      }else{
-        libPill.className = "pill bad";
-        libPill.textContent = "PDF engine: BLOCKED";
-      }
-
-      // Template status (try absolute then relative)
-      const tryFetch = async (url) => {
-        try{
-          const res = await fetch(url, { method:"GET", cache:"no-store" });
-          return res.ok ? { ok:true, url } : { ok:false, status:res.status, url };
-        }catch(e){
-          return { ok:false, status:"ERR", url };
-        }
-      };
-
-      let r = await tryFetch("/templates/daily-briefing.pdf");
-      if(!r.ok) r = await tryFetch("templates/daily-briefing.pdf");
-
-      if(r.ok){
-        tplPill.className = "pill ok";
-        tplPill.textContent = "Template: OK";
-      }else{
-        tplPill.className = "pill bad";
-        tplPill.textContent = `Template: MISSING (${r.status})`;
-      }
-    }
-
-    // Daily Brief form
-    function renderDailyBrief(){
-      const app = $("#app");
-      app.innerHTML = "";
-
-      const state = {
-        projectTitle:"",
-        siteLocation:"",
-        workLocation:"",
-        projectNo:"",
-        brieferName:"",
-        dateISO: todayISO(),
-        jobTitle:"",
-        prevPlanned:"Yes",
-        prevConcerns:"",
-        todayPlanned:"",
-        covered:"Yes",
-        controls:"Yes",
-        ppe:"Yes",
-        points:{
-          confined:false, emergency:false, lifting:false, permits:false, plant:false, safetyPlanning:false,
-          barriers:false, clearAccess:false, methodStatements:false, suitablePPE:false, trenchCollapse:false, welfare:false,
-          coshh:false, fire:false, materials:false, competence:false, cables:false, trips:false
-        },
-        attendees:[ { id: makeId(), name:"", dateISO: todayISO() } ]
-      };
-
-      const head = el("div",{class:"head"},[
-        el("div",{},[
-          el("h1",{},["Daily Brief"]),
-          el("div",{class:"sub"},["Fill it in, collect signatures per attendee, then download the PDF."])
-        ]),
-        el("div",{class:"pillRow"},[
-          el("span",{id:"pillLib", class:"pill warn"},["PDF engine: checking…"]),
-          el("span",{id:"pillTpl", class:"pill warn"},["Template: checking…"])
-        ])
-      ]);
-
-      const banner = el("div",{id:"banner", class:"banner"},[""]);
-
-      // Sections
-      const sDetails = el("div",{class:"section"},[
-        el("div",{class:"sectionTitle"},["Project & briefing details"]),
-        el("div",{class:"grid2"},[
-          field("Project title","projectTitle","text","e.g. Sizewell C"),
-          field("Project no","projectNo","text","e.g. 836"),
-          field("Site location","siteLocation","text","e.g. Sizewell"),
-          field("Work location","workLocation","text","e.g. Cofferdams"),
-          field("Name of person giving briefing","brieferName","text","e.g. Aureliu Nica"),
-          field("Job title","jobTitle","text","e.g. Site Agent"),
-          field("Date","dateISO","date",""),
-          selectField("Did previous day go as planned?","prevPlanned",["Yes","No"])
-        ])
-      ]);
-
-      const sBrief = el("div",{class:"section"},[
-        el("div",{class:"sectionTitle"},["Briefing"]),
-        el("div",{class:"grid2"},[
-          textareaField("Any concerns from the previous day?","prevConcerns","Write concerns / issues / lessons learned…"),
-          textareaField("Today's planned activities briefing","todayPlanned","What are we doing today? Key risks, controls, sequence…")
-        ])
-      ]);
-
-      const sPoints = el("div",{class:"section"},[
-        el("div",{class:"sectionTitle"},["Points discussed for today’s operation"]),
-        el("div",{class:"grid3auto"},[
-          chk("confined","Confined Spaces / Areas"),
-          chk("emergency","Emergency Procedures"),
-          chk("lifting","Lifting Equipment – Chains / Slings"),
-          chk("permits","Permits to Work"),
-          chk("plant","Plant & Equipment"),
-          chk("safetyPlanning","Safety Planning"),
-          chk("barriers","Barriers / Edge Protection"),
-          chk("clearAccess","Clear Access Ways"),
-          chk("methodStatements","Method Statements / Risk Assessments"),
-          chk("suitablePPE","Suitable PPE"),
-          chk("trenchCollapse","Trench Collapse"),
-          chk("welfare","Welfare Facilities"),
-          chk("coshh","COSHH Assessments"),
-          chk("fire","Fire Precautions"),
-          chk("materials","Materials"),
-          chk("competence","Operative Experience / Competence"),
-          chk("cables","Overhead / Underground Cable Strike"),
-          chk("trips","Trips / Falls"),
-        ])
-      ]);
-
-      const sConfirm = el("div",{class:"section"},[
-        el("div",{class:"sectionTitle"},["Confirmations"]),
-        el("div",{class:"grid2"},[
-          selectField("Are all today’s activities covered by the procedure / MS / RA / WI?","covered",["Yes","No"]),
-          selectField("Are all control measures in place?","controls",["Yes","No"]),
-          selectField("Are all operatives compliant with PPE requirements?","ppe",["Yes","No"]),
-        ])
-      ]);
-
-      const sAtt = el("div",{class:"section"},[
-        el("div",{class:"attTop"},[
-          el("div",{class:"sectionTitle", style:"margin:0;"},["Attendees (sign-up sheet)"]),
-          el("button",{class:"btn btnGhost", type:"button", onclick:()=>addAttendee()},["+ Add attendee"])
-        ]),
-        el("div",{id:"attWrap"},[]),
-        el("div",{class:"note"},["Pages 2–3 support up to 36 attendees total. Each attendee can sign on their own row."])
-      ]);
-
-      // Sticky action bar
-      const sticky = el("div",{class:"stickyBar"},[
-        el("div",{class:"actionBar"},[
-          el("div",{class:"btnRow"},[
-            el("a",{class:"btn btnYellow", href:"daily.html"},["Back"]),
-            el("span",{id:"attCount", class:"pill"},["Attendees: 0"])
-          ]),
-          el("div",{class:"btnRow"},[
-            el("button",{id:"btnDownload", class:"btn", type:"button", onclick: async()=> {
-              hideBanner();
-              await onDownload();
-            }},["Download PDF"])
-          ])
-        ])
-      ]);
-
-      app.appendChild(head);
-      app.appendChild(banner);
-      app.appendChild(sDetails);
-      app.appendChild(sBrief);
-      app.appendChild(sPoints);
-      app.appendChild(sConfirm);
-      app.appendChild(sAtt);
-      app.appendChild(sticky);
-
-      // defaults
-      $("#prevPlanned").value = state.prevPlanned;
-      $("#covered").value = state.covered;
-      $("#controls").value = state.controls;
-      $("#ppe").value = state.ppe;
-
-      rebuildAttendees();
-      updateAttCount();
-      checkTemplateAndLib();
-
-      function field(labelText, id, type, placeholder){
-        return el("div",{},[
-          el("label",{for:id},[labelText]),
-          el("input",{id, type, placeholder})
-        ]);
-      }
-      function textareaField(labelText, id, placeholder){
-        return el("div",{},[
-          el("label",{for:id},[labelText]),
-          el("textarea",{id, placeholder})
-        ]);
-      }
-      function selectField(labelText, id, options){
-        return el("div",{},[
-          el("label",{for:id},[labelText]),
-          el("select",{id}, options.map(o=> el("option",{value:o},[o])) )
-        ]);
-      }
-      function chk(key, labelText){
-        const id = "pt_" + key;
-        return el("label",{class:"check", for:id},[
-          el("input",{type:"checkbox", id}),
-          el("span",{},[labelText])
-        ]);
-      }
-
-      function addAttendee(){
-        const list = collectAttendees();
-        if(list.length >= 36){
-          showBanner("Max 36 attendees (PDF pages 2–3).", "warn");
-          return;
-        }
-        list.push({ id: makeId(), name:"", dateISO: todayISO() });
-        state.attendees = list;
-        rebuildAttendees();
-        updateAttCount();
-      }
-
-      function rebuildAttendees(){
-        const wrap = $("#attWrap");
-        wrap.innerHTML = "";
-        const list = state.attendees;
-
-        list.forEach((a, idx)=>{
-          const sigUrl = sigStore.get(a.id) || "";
-
-          const sigPreview = el("div",{class:"sigPreview", "data-prev":a.id},[
-            sigUrl ? el("img",{src:sigUrl, alt:"Signature"}) : el("span",{},["No signature"])
-          ]);
-
-          const nameInput = el("input",{type:"text", value:a.name || "", placeholder:"Name", "data-name":a.id});
-          const dateInput = el("input",{type:"date", value:a.dateISO || todayISO(), "data-date":a.id});
-
-          nameInput.addEventListener("input", updateAttCount);
-
-          const btnSign = el("button",{class:"btn btnGhost", type:"button", onclick:()=>{
-            const nm = (nameInput.value || "").trim();
-            SigModal.open(a.id, nm || `Attendee ${idx+1}`, (id, url)=>{
-              const box = wrap.querySelector(`[data-prev="${id}"]`);
-              if(box){
-                box.innerHTML = "";
-                box.appendChild(el("img",{src:url, alt:"Signature"}));
-              }
-            });
-          }},["Sign"]);
-
-          const btnClearSig = el("button",{class:"btn btnDanger", type:"button", onclick:()=>{
-            sigStore.delete(a.id);
-            const box = wrap.querySelector(`[data-prev="${a.id}"]`);
-            if(box){
-              box.innerHTML = "";
-              box.appendChild(el("span",{},["No signature"]));
-            }
-          }},["Clear sig"]);
-
-          const btnDelete = el("button",{class:"btn btnDanger", type:"button", onclick:()=>{
-            const now = collectAttendees().filter(x=>x.id !== a.id);
-            sigStore.delete(a.id);
-            state.attendees = now.length ? now : [{ id: makeId(), name:"", dateISO: todayISO() }];
-            rebuildAttendees();
-            updateAttCount();
-          }},["Delete"]);
-
-          const row = el("div",{class:"attRow"},[
-            el("div",{},[
-              el("label",{},["Name"]),
-              nameInput
-            ]),
-            el("div",{},[
-              el("label",{},["Date"]),
-              dateInput
-            ]),
-            el("div",{},[
-              el("label",{},["Signature"]),
-              sigPreview,
-              el("div",{class:"btnRow", style:"margin-top:8px;"},[btnSign, btnClearSig])
-            ]),
-            el("div",{},[
-              el("label",{},["Remove"]),
-              btnDelete
-            ])
-          ]);
-
-          wrap.appendChild(row);
-        });
-      }
-
-      function collectAttendees(){
-        const wrap = $("#attWrap");
-        const rows = [...wrap.querySelectorAll(".attRow")];
-        return rows.map(r=>{
-          const nameInp = r.querySelector("input[data-name]");
-          const dateInp = r.querySelector("input[data-date]");
-          const id = nameInp.getAttribute("data-name");
-          return {
-            id,
-            name: (nameInp.value || "").trim(),
-            dateISO: (dateInp.value || todayISO()),
-            signature: sigStore.get(id) || ""
-          };
-        });
-      }
-
-      function updateAttCount(){
-        const count = collectAttendees().filter(a => a.name.length>0).length;
-        $("#attCount").textContent = `Attendees: ${count}`;
-      }
-
-      function readForm(){
-        const data = {
-          projectTitle: $("#projectTitle").value.trim(),
-          siteLocation: $("#siteLocation").value.trim(),
-          workLocation: $("#workLocation").value.trim(),
-          projectNo: $("#projectNo").value.trim(),
-          brieferName: $("#brieferName").value.trim(),
-          dateISO: $("#dateISO").value || todayISO(),
-          jobTitle: $("#jobTitle").value.trim(),
-          prevPlanned: $("#prevPlanned").value,
-          prevConcerns: $("#prevConcerns").value.trim(),
-          todayPlanned: $("#todayPlanned").value.trim(),
-          covered: $("#covered").value,
-          controls: $("#controls").value,
-          ppe: $("#ppe").value,
-          points: {}
-        };
-
-        Object.keys(state.points).forEach(k=>{
-          const box = document.getElementById("pt_"+k);
-          data.points[k] = !!(box && box.checked);
-        });
-
-        data.attendees = collectAttendees().filter(a => a.name.length>0);
-        return data;
-      }
-
-      async function onDownload(){
-        const btn = $("#btnDownload");
-        btn.disabled = true;
-        btn.textContent = "Generating…";
-
-        try{
-          const data = readForm();
-          await generateDailyBriefPDF(data);
-        }catch(err){
-          showBanner(String(err && err.message ? err.message : err), "bad");
-        }finally{
-          btn.disabled = false;
-          btn.textContent = "Download PDF";
-        }
-      }
-    }
-
-    async function generateDailyBriefPDF(data){
-      // 1) pdf-lib availability
-      if(!window.PDFLib){
-        throw new Error("PDF engine is blocked (pdf-lib did not load). If you use a strict Content-Security-Policy, you must allow the CDN or host pdf-lib locally.");
-      }
-
-      const { PDFDocument, StandardFonts, rgb } = PDFLib;
-
-      // 2) fetch template (absolute first, then relative)
-      async function fetchTemplate(url){
-        const res = await fetch(url, { cache:"no-store" });
-        if(!res.ok) throw new Error(`Template not found at ${url} (HTTP ${res.status}). Put the file in public/templates/daily-briefing.pdf`);
-        return await res.arrayBuffer();
-      }
-
-      let templateBytes;
-      try{
-        templateBytes = await fetchTemplate("/templates/daily-briefing.pdf");
-      }catch(e1){
-        templateBytes = await fetchTemplate("templates/daily-briefing.pdf");
-      }
-
-      const pdfDoc = await PDFDocument.load(templateBytes);
-      const helv = await pdfDoc.embedFont(StandardFonts.Helvetica);
-      
-      const pages = pdfDoc.getPages();
-
-      if(pages.length < 3){
-        throw new Error(`Template PDF has ${pages.length} page(s). This tool expects 3 pages (brief + 2 sign-up sheets).`);
-      }
-
-      const page1 = pages[0];
-      const page2 = pages[1];
-      const page3 = pages[2];
-
-      const WHITE = rgb(1,1,1);
-      const cover = (page, x, y, w, h) => page.drawRectangle({ x, y, width:w, height:h, color: WHITE });
-      const coverInside = (page, x, y, w, h, pad=1) => {
-        const width = Math.max(w - (pad * 2), 0);
-        const height = Math.max(h - (pad * 2), 0);
-        if(width <= 0 || height <= 0) return;
-        page.drawRectangle({ x: x + pad, y: y + pad, width, height, color: WHITE });
-      };
-      const drawText = (page, text, x, y, size=10) => {
-        if(!text) return;
-        page.drawText(String(text), { x, y, size, font: helv, color: rgb(0,0,0) });
-      };
- const drawCheckmark = (page, boxX, boxY, boxW, boxH) => { 
-   const color = rgb(0,0,0);
-        const left = boxX + (boxW * 0.25);
-        const midX = boxX + (boxW * 0.45);
-        const right = boxX + (boxW * 0.7);
-        const lower = boxY + (boxH * 0.3);
-        const midY = boxY + (boxH * 0.18);
-        const upper = boxY + (boxH * 0.6);
-        page.drawLine({ start:{ x:left, y:lower }, end:{ x:midX, y:midY }, thickness:1.0, color });
-        page.drawLine({ start:{ x:midX, y:midY }, end:{ x:right, y:upper }, thickness:1.0, color });
-      };
-      
-      const wrapLines = (font, text, size, maxWidth) => {
-        const words = String(text || "").replace(/\r/g,"").split(/\s+/).filter(Boolean);
-        const lines = [];
-        let line = "";
-        for(const w of words){
-          const test = line ? (line + " " + w) : w;
-          const width = font.widthOfTextAtSize(test, size);
-          if(width <= maxWidth) line = test;
-          else { if(line) lines.push(line); line = w; }
-        }
-        if(line) lines.push(line);
-        return lines;
-      };
-
-      const drawWrappedFromTop = (page, text, x, topY, maxWidth, lineHeight=12, size=10, maxLines=20) => {
-        const lines = wrapLines(helv, text, size, maxWidth).slice(0, maxLines);
-        let y = topY;
-        for(const ln of lines){
-          page.drawText(ln, { x, y, size, font: helv, color: rgb(0,0,0) });
-          y -= lineHeight;
-        }
-      };
-
-      const drawYesNo = (page, value, x, y, boxW=20, boxH=14) => {
-      const boxX = x - 3;
-        const boxY = y - 2;
-        coverInside(page, boxX, boxY, boxW, boxH, 1);
-        if(value === "Yes") drawCheckmark(page, boxX, boxY, boxW, boxH);
-        else page.drawText("X", { x, y, size: 10, font: helv, color: rgb(0,0,0) });
-      };
-
-      // Page 1 coordinates (calibrated to your template)
-      const p1 = {
-        projectTitle: { x:185, y:656.5, w:265, h:14 },
-        siteLocation:  { x:492, y:648.9, w:105, h:14 },
-        workLocation:  { x:185, y:622.5, w:265, h:14 },
-        projectNo:      { x:502, y:621.8, w:95,  h:14 },
-        brieferName:   { x:185, y:592.1, w:265, h:14 },
-        date:          { x:486, y:592.0, w:120, h:14 },
-        jobTitle:      { x:185, y:571.0, w:265, h:14 },
-        numPersons:    { x:486, y:571.0, w:120, h:14 },
-        prevPlanned:   { x:530, y:548.0, w:40, h:16 },
-        concerns: { x:90, topY: 482, w:460, h:60 },
-        planned:  { x:90, topY: 394, w:460, h:120 },
-        covered:  { x:518, y:140.9 },
-        controls: { x:518, y:94.1  },
-        ppe:      { x:518, y:44.5  },
-      };
-
-      const ddmmyyyy = toDDMMYYYY(data.dateISO);
-      const attendeesCount = (data.attendees || []).length;
-
-      // Header fields
-       coverInside(page1, p1.projectTitle.x, p1.projectTitle.y, p1.projectTitle.w, p1.projectTitle.h, 1);
-      drawText(page1, data.projectTitle, p1.projectTitle.x, p1.projectTitle.y, 10);
-
-            coverInside(page1, p1.siteLocation.x, p1.siteLocation.y, p1.siteLocation.w, p1.siteLocation.h, 1);
-      drawText(page1, data.siteLocation, p1.siteLocation.x, p1.siteLocation.y, 10);
-
-      coverInside(page1, p1.workLocation.x, p1.workLocation.y, p1.workLocation.w, p1.workLocation.h, 1);
-      drawText(page1, data.workLocation, p1.workLocation.x, p1.workLocation.y, 10);
-
-      coverInside(page1, p1.projectNo.x, p1.projectNo.y, p1.projectNo.w, p1.projectNo.h, 1);
-      drawText(page1, data.projectNo, p1.projectNo.x, p1.projectNo.y, 10);
-
-      coverInside(page1, p1.brieferName.x, p1.brieferName.y, p1.brieferName.w, p1.brieferName.h, 1);
-      drawText(page1, data.brieferName, p1.brieferName.x, p1.brieferName.y, 10);
-
-      coverInside(page1, p1.date.x, p1.date.y, p1.date.w, p1.date.h, 1);
-      drawText(page1, ddmmyyyy, p1.date.x, p1.date.y, 10);
-
-      coverInside(page1, p1.date.x, p1.date.y, p1.date.w, p1.date.h, 1);
-      drawText(page1, data.jobTitle, p1.jobTitle.x, p1.jobTitle.y, 10);
-
-      coverInside(page1, p1.numPersons.x, p1.numPersons.y, p1.numPersons.w, p1.numPersons.h, 1);
-      drawText(page1, String(attendeesCount || ""), p1.numPersons.x, p1.numPersons.y, 10);
-
-      drawYesNo(page1, data.prevPlanned, p1.prevPlanned.x, p1.prevPlanned.y, 34, 16);
-
-      // Text areas
-      coverInside(page1, p1.concerns.x, p1.concerns.topY-60, p1.concerns.w, p1.concerns.h, 2);
-      drawWrappedFromTop(page1, data.prevConcerns, p1.concerns.x, p1.concerns.topY, p1.concerns.w, 12, 10, 6);
-
-      cover(page1, p1.planned.x-5, p1.planned.topY-120, p1.planned.w+10, p1.planned.h);
-      coverInside(page1, p1.planned.x, p1.planned.topY-120, p1.planned.w, p1.planned.h, 2);
-      // Points discussed tick grid
-      const rowY = [252.37, 241.28, 230.58, 219.75, 208.40, 197.57];
-      const colX = [219.04, 380.11, 539.13];
-      const pointsMatrix = [
-        ["confined","barriers","coshh"],
-        ["emergency","clearAccess","fire"],
-        ["lifting","methodStatements","materials"],
-        ["permits","suitablePPE","competence"],
-        ["plant","trenchCollapse","cables"],
-        ["safetyPlanning","welfare","trips"],
-      ];
-      for(let r=0;r<6;r++){
-        for(let c=0;c<3;c++){
-          const key = pointsMatrix[r][c];
-          const x = colX[c], y = rowY[r];
-           const boxX = x - 2;
-          const boxY = y - 2;
-          coverInside(page1, boxX, boxY, 14, 14, 1);
-          if(data.points && data.points[key]){
-          drawCheckmark(page1, boxX, boxY, 14, 14);
-          }
-        }
-      }
-
-      // Confirmations
-      drawYesNo(page1, data.covered,  p1.covered.x,  p1.covered.y,  20, 14);
-      drawYesNo(page1, data.controls, p1.controls.x, p1.controls.y, 20, 14);
-      drawYesNo(page1, data.ppe,      p1.ppe.x,      p1.ppe.y,      20, 14);
-
-      // Sign-up pages (2 & 3)
-      const page2Rows = [
-        587.96, 557.96, 527.87, 497.87, 467.33, 437.87, 407.96, 377.63, 347.63,
-        317.99, 287.28, 257.99, 224.89, 189.51, 154.50, 120.19, 84.47, 49.23
-      ];
-      const page3Rows = [
-        676.29, 641.50, 605.32, 570.47, 535.37, 500.51, 464.67, 429.59, 394.96,
-        359.88, 324.58, 288.70, 253.60, 219.27, 183.43, 148.48, 113.65, 78.55
-      ];
-
-      const attendeesAll = (data.attendees || []).slice(0, 36).map(a=>({
-        name: (a.name||"").trim(),
-        dateISO: (a.dateISO||data.dateISO||todayISO()),
-        signature: (a.signature||"")
-      }));
-
-      const nameX = 88;
-      const dateX = 294;
-
-      // Signature cell area
-      const sigBox = { x:365, w:210, h:18, yOffset:-12, padX:6, padY:2 };
-      
-      const fitInto = (imgW, imgH, maxW, maxH) => {
-        const r = Math.min(maxW / imgW, maxH / imgH);
-        return { w: imgW * r, h: imgH * r };
-      };
-
-      async function drawSignatureIfAny(page, sigDataUrl, rowY){
-        coverInside(page, sigBox.x, rowY + sigBox.yOffset, sigBox.w, sigBox.h, 1); // clears "SIGN"
-        if(!sigDataUrl) return;
-
-        const b64 = sigDataUrl.split(",")[1] || "";
-        if(!b64) return;
-        const bytes = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
-
-        const img = await pdfDoc.embedPng(bytes);
-        const maxW = sigBox.w - (sigBox.padX*2);
-        const maxH = sigBox.h - (sigBox.padY*2);
-        const s = fitInto(img.width, img.height, maxW, maxH);
-
-        const x = sigBox.x + sigBox.padX + ((maxW - s.w) / 2);
-        const y = (rowY + sigBox.yOffset) + sigBox.padY + ((maxH - s.h)/2);
-
-        page.drawImage(img, { x, y, width:s.w, height:s.h });
-      }
-
-      function fillTextCells(page, a, rowY){
-         coverInside(page, nameX-2, rowY-3, 190, 16, 1);
-        coverInside(page, dateX-2, rowY-3, 90, 16, 1);
-        page.drawText(a.name, { x:nameX, y:rowY, size:10, font: helv, color: rgb(0,0,0) });
-        page.drawText(toDDMMYYYY(a.dateISO), { x:dateX, y:rowY, size:10, font: helv, color: rgb(0,0,0) });
-      }
-
-      async function fillAttPage(page, rowsY, startIndex){
-        let idx = startIndex;
-        for(let i=0;i<rowsY.length;i++){
-          const a = attendeesAll[idx];
-          const y = rowsY[i];
-          // clear signature cell always
-          coverInside(page, sigBox.x, y + sigBox.yOffset, sigBox.w, sigBox.h, 1);
-
-          if(a){
-            fillTextCells(page, a, y);
-            await drawSignatureIfAny(page, a.signature, y);
-            idx++;
-          }
-        }
-        return idx;
-      }
-
-      let next = await fillAttPage(page2, page2Rows, 0);
-      await fillAttPage(page3, page3Rows, next);
-
-      // Save + download (with fallback)
-      const outBytes = await pdfDoc.save();
-      const blob = new Blob([outBytes], { type:"application/pdf" });
-      const url = URL.createObjectURL(blob);
-      const filename = `Daily-Briefing_${data.dateISO || todayISO()}.pdf`;
-
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = filename;
-      a.rel = "noopener";
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      
-      setTimeout(()=> URL.revokeObjectURL(url), 2500);
-    }
-
-    // Router
-    if(t.toLowerCase() === "daily brief" || t.toLowerCase() === "daily briefing"){
-      renderDailyBrief();
-    }else{
-      renderPlaceholder(t);
-    }
-  </script>
-</body>
-</html>
+ (cd "$(git rev-parse --show-toplevel)" && git apply --3way <<'EOF' 
+diff --git a/public/tool.html b/public/tool.html
+index f736904402b9581c738ca1332775307b3329161d..77b2a8f4046f9732f37c419b4e99916a034d5d42 100644
+--- a/public/tool.html
++++ b/public/tool.html
+@@ -910,275 +910,387 @@
+       async function onDownload(){
+         const btn = $("#btnDownload");
+         btn.disabled = true;
+         btn.textContent = "Generating…";
+ 
+         try{
+           const data = readForm();
+           await generateDailyBriefPDF(data);
+         }catch(err){
+           showBanner(String(err && err.message ? err.message : err), "bad");
+         }finally{
+           btn.disabled = false;
+           btn.textContent = "Download PDF";
+         }
+       }
+     }
+ 
+     async function generateDailyBriefPDF(data){
+       // 1) pdf-lib availability
+       if(!window.PDFLib){
+         throw new Error("PDF engine is blocked (pdf-lib did not load). If you use a strict Content-Security-Policy, you must allow the CDN or host pdf-lib locally.");
+       }
+ 
+       const { PDFDocument, StandardFonts, rgb } = PDFLib;
+ 
+-      // 2) fetch template (absolute first, then relative)
+-      async function fetchTemplate(url){
++      const pdfDoc = await PDFDocument.create();
++      const helv = await pdfDoc.embedFont(StandardFonts.Helvetica);
++      const helvBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
++      const A4 = [595.28, 841.89];
++      const page1 = pdfDoc.addPage(A4);
++      const page2 = pdfDoc.addPage(A4);
++      const page3 = pdfDoc.addPage(A4);
++
++      async function fetchImage(url){
+         const res = await fetch(url, { cache:"no-store" });
+-        if(!res.ok) throw new Error(`Template not found at ${url} (HTTP ${res.status}). Put the file in public/templates/daily-briefing.pdf`);
++        if(!res.ok) return null;
+         return await res.arrayBuffer();
+       }
+ 
+-      let templateBytes;
+-      try{
+-        templateBytes = await fetchTemplate("/templates/daily-briefing.pdf");
+-      }catch(e1){
+-        templateBytes = await fetchTemplate("templates/daily-briefing.pdf");
+-      }
++      let atlLogo;
++      let tpLogo;
++      const atlBytes = await fetchImage("/atl-logo.png") || await fetchImage("atl-logo.png");
++      const tpBytes = await fetchImage("/tp-logo.png") || await fetchImage("tp-logo.png");
++      if(atlBytes) atlLogo = await pdfDoc.embedPng(atlBytes);
++      if(tpBytes) tpLogo = await pdfDoc.embedPng(tpBytes);
+ 
+-      const pdfDoc = await PDFDocument.load(templateBytes);
+-      const helv = await pdfDoc.embedFont(StandardFonts.Helvetica);
+-      const zapf = await pdfDoc.embedFont(StandardFonts.ZapfDingbats);
+-      const pages = pdfDoc.getPages();
++      const BLACK = rgb(0,0,0);
++      const LIGHT_BLUE = rgb(0.84, 0.91, 0.97);
++      const LIGHT_GRAY = rgb(0.93, 0.93, 0.93);
+ 
+-      if(pages.length < 3){
+-        throw new Error(`Template PDF has ${pages.length} page(s). This tool expects 3 pages (brief + 2 sign-up sheets).`);
+-      }
++      const drawText = (page, text, x, y, size=10, font=helv) => {
++        if(!text) return;
++        page.drawText(String(text), { x, y, size, font, color: BLACK });
++      };
+ 
+-      const page1 = pages[0];
+-      const page2 = pages[1];
+-      const page3 = pages[2];
++      const drawCenteredText = (page, text, centerX, y, size=12, font=helvBold) => {
++        if(!text) return;
++        const width = font.widthOfTextAtSize(text, size);
++        page.drawText(String(text), { x: centerX - (width / 2), y, size, font, color: BLACK });
++      };
+ 
+-      const WHITE = rgb(1,1,1);
+-      const cover = (page, x, y, w, h) => page.drawRectangle({ x, y, width:w, height:h, color: WHITE });
++      const drawCell = (page, x, y, w, h, { fill, border=1 } = {}) => {
++        page.drawRectangle({
++          x,
++          y,
++          width: w,
++          height: h,
++          color: fill,
++          borderColor: BLACK,
++          borderWidth: border
++        });
++      };
+ 
+-      const drawText = (page, text, x, y, size=10) => {
+-        if(!text) return;
+-        page.drawText(String(text), { x, y, size, font: helv, color: rgb(0,0,0) });
++      const drawCheckmark = (page, boxX, boxY, boxW, boxH) => {
++        const left = boxX + (boxW * 0.2);
++        const midX = boxX + (boxW * 0.42);
++        const right = boxX + (boxW * 0.75);
++        const lower = boxY + (boxH * 0.3);
++        const midY = boxY + (boxH * 0.15);
++        const upper = boxY + (boxH * 0.65);
++        page.drawLine({ start:{ x:left, y:lower }, end:{ x:midX, y:midY }, thickness:1.2, color: BLACK });
++        page.drawLine({ start:{ x:midX, y:midY }, end:{ x:right, y:upper }, thickness:1.2, color: BLACK });
+       };
+ 
+       const wrapLines = (font, text, size, maxWidth) => {
+         const words = String(text || "").replace(/\r/g,"").split(/\s+/).filter(Boolean);
+         const lines = [];
+         let line = "";
+         for(const w of words){
+           const test = line ? (line + " " + w) : w;
+           const width = font.widthOfTextAtSize(test, size);
+           if(width <= maxWidth) line = test;
+           else { if(line) lines.push(line); line = w; }
+         }
+         if(line) lines.push(line);
+         return lines;
+       };
+ 
+       const drawWrappedFromTop = (page, text, x, topY, maxWidth, lineHeight=12, size=10, maxLines=20) => {
+         const lines = wrapLines(helv, text, size, maxWidth).slice(0, maxLines);
+         let y = topY;
+         for(const ln of lines){
+-          page.drawText(ln, { x, y, size, font: helv, color: rgb(0,0,0) });
++          page.drawText(ln, { x, y, size, font: helv, color: BLACK });
+           y -= lineHeight;
+         }
+       };
+ 
+-      const drawYesNo = (page, value, x, y, boxW=20, boxH=14) => {
+-        cover(page, x-3, y-2, boxW, boxH);
+-        if(value === "Yes") page.drawText("4", { x, y, size: 12, font: zapf, color: rgb(0,0,0) });
+-        else page.drawText("X", { x, y, size: 10, font: helv, color: rgb(0,0,0) });
+-      };
+-
+-      // Page 1 coordinates (calibrated to your template)
+-      const p1 = {
+-        projectTitle: { x:185, y:656.5, w:265, h:14 },
+-        siteLocation:  { x:492, y:648.9, w:105, h:14 },
+-        workLocation:  { x:185, y:622.5, w:265, h:14 },
+-        projectNo:      { x:502, y:621.8, w:95,  h:14 },
+-        brieferName:   { x:185, y:592.1, w:265, h:14 },
+-        date:          { x:486, y:592.0, w:120, h:14 },
+-        jobTitle:      { x:185, y:571.0, w:265, h:14 },
+-        numPersons:    { x:486, y:571.0, w:120, h:14 },
+-        prevPlanned:   { x:530, y:548.0, w:40, h:16 },
+-        concerns: { x:90, topY: 482, w:460, h:60 },
+-        planned:  { x:90, topY: 394, w:460, h:120 },
+-        covered:  { x:518, y:140.9 },
+-        controls: { x:518, y:94.1  },
+-        ppe:      { x:518, y:44.5  },
++      const drawYesNoBox = (page, x, y, size, isYes) => {
++        drawCell(page, x, y, size, size, { fill: undefined, border: 1 });
++        if(isYes) drawCheckmark(page, x, y, size, size);
+       };
+ 
+       const ddmmyyyy = toDDMMYYYY(data.dateISO);
+       const attendeesCount = (data.attendees || []).length;
+ 
+-      // Header fields
+-      cover(page1, p1.projectTitle.x-2, p1.projectTitle.y-2, p1.projectTitle.w, p1.projectTitle.h);
+-      drawText(page1, data.projectTitle, p1.projectTitle.x, p1.projectTitle.y, 10);
+-
+-      cover(page1, p1.siteLocation.x-2, p1.siteLocation.y-2, p1.siteLocation.w, p1.siteLocation.h);
+-      drawText(page1, data.siteLocation, p1.siteLocation.x, p1.siteLocation.y, 10);
+-
+-      cover(page1, p1.workLocation.x-2, p1.workLocation.y-2, p1.workLocation.w, p1.workLocation.h);
+-      drawText(page1, data.workLocation, p1.workLocation.x, p1.workLocation.y, 10);
+-
+-      cover(page1, p1.projectNo.x-2, p1.projectNo.y-2, p1.projectNo.w, p1.projectNo.h);
+-      drawText(page1, data.projectNo, p1.projectNo.x, p1.projectNo.y, 10);
+-
+-      cover(page1, p1.brieferName.x-2, p1.brieferName.y-2, p1.brieferName.w, p1.brieferName.h);
+-      drawText(page1, data.brieferName, p1.brieferName.x, p1.brieferName.y, 10);
+-
+-      cover(page1, p1.date.x-2, p1.date.y-2, p1.date.w, p1.date.h);
+-      drawText(page1, ddmmyyyy, p1.date.x, p1.date.y, 10);
+-
+-      cover(page1, p1.jobTitle.x-2, p1.jobTitle.y-2, p1.jobTitle.w, p1.jobTitle.h);
+-      drawText(page1, data.jobTitle, p1.jobTitle.x, p1.jobTitle.y, 10);
+-
+-      cover(page1, p1.numPersons.x-2, p1.numPersons.y-2, p1.numPersons.w, p1.numPersons.h);
+-      drawText(page1, String(attendeesCount || ""), p1.numPersons.x, p1.numPersons.y, 10);
+-
+-      drawYesNo(page1, data.prevPlanned, p1.prevPlanned.x, p1.prevPlanned.y, 34, 16);
+-
+-      // Text areas
+-      cover(page1, p1.concerns.x-5, p1.concerns.topY-60, p1.concerns.w+10, p1.concerns.h);
+-      drawWrappedFromTop(page1, data.prevConcerns, p1.concerns.x, p1.concerns.topY, p1.concerns.w, 12, 10, 6);
+-
+-      cover(page1, p1.planned.x-5, p1.planned.topY-120, p1.planned.w+10, p1.planned.h);
+-      drawWrappedFromTop(page1, data.todayPlanned, p1.planned.x, p1.planned.topY, p1.planned.w, 12, 10, 10);
+-
+-      // Points discussed tick grid
+-      const rowY = [252.37, 241.28, 230.58, 219.75, 208.40, 197.57];
+-      const colX = [219.04, 380.11, 539.13];
+-      const pointsMatrix = [
+-        ["confined","barriers","coshh"],
+-        ["emergency","clearAccess","fire"],
+-        ["lifting","methodStatements","materials"],
+-        ["permits","suitablePPE","competence"],
+-        ["plant","trenchCollapse","cables"],
+-        ["safetyPlanning","welfare","trips"],
+-      ];
+-      for(let r=0;r<6;r++){
+-        for(let c=0;c<3;c++){
+-          const key = pointsMatrix[r][c];
+-          const x = colX[c], y = rowY[r];
+-          cover(page1, x-2, y-2, 14, 14);
+-          if(data.points && data.points[key]){
+-            page1.drawText("4", { x, y, size: 12, font: zapf, color: rgb(0,0,0) });
+-          }
++      function drawHeader(page){
++        if(atlLogo){
++          const scale = 140 / atlLogo.width;
++          page.drawImage(atlLogo, { x:40, y:760, width: atlLogo.width * scale, height: atlLogo.height * scale });
+         }
++        if(tpLogo){
++          const scale = 90 / tpLogo.width;
++          page.drawImage(tpLogo, { x:430, y:760, width: tpLogo.width * scale, height: tpLogo.height * scale });
++        }
++        drawText(page, "ATL Daily Task Briefing", 430, 795, 9, helvBold);
++        drawText(page, "QPFS12.4", 430, 783, 9, helvBold);
++        drawCell(page, 40, 705, 515, 22, { fill: undefined, border: 1 });
++        drawCenteredText(page, "HEALTH & SAFETY - MORNING BRIEFING", 297.5, 712, 12, helvBold);
+       }
+ 
+-      // Confirmations
+-      drawYesNo(page1, data.covered,  p1.covered.x,  p1.covered.y,  20, 14);
+-      drawYesNo(page1, data.controls, p1.controls.x, p1.controls.y, 20, 14);
+-      drawYesNo(page1, data.ppe,      p1.ppe.x,      p1.ppe.y,      20, 14);
+-
+-      // Sign-up pages (2 & 3)
+-      const page2Rows = [
+-        587.96, 557.96, 527.87, 497.87, 467.33, 437.87, 407.96, 377.63, 347.63,
+-        317.99, 287.28, 257.99, 224.89, 189.51, 154.50, 120.19, 84.47, 49.23
+-      ];
+-      const page3Rows = [
+-        676.29, 641.50, 605.32, 570.47, 535.37, 500.51, 464.67, 429.59, 394.96,
+-        359.88, 324.58, 288.70, 253.60, 219.27, 183.43, 148.48, 113.65, 78.55
+-      ];
+-
+-      const attendeesAll = (data.attendees || []).slice(0, 36).map(a=>({
+-        name: (a.name||"").trim(),
+-        dateISO: (a.dateISO||data.dateISO||todayISO()),
+-        signature: (a.signature||"")
+-      }));
+-
+-      const nameX = 88;
+-      const dateX = 294;
++      function drawIntroTable(page){
++        const marginX = 40;
++        const tableTop = 680;
++        const rowH = 26;
++        const labelW = 140;
++        const valueW = 220;
++        const label2W = 110;
++        const value2W = 65;
++
++        const rows = [
++          ["PROJECT TITLE", data.projectTitle, "SITE LOCATION", data.siteLocation],
++          ["Work Location", data.workLocation, "Project no:", data.projectNo],
++          ["NAME OF PERSON\nGIVING BRIEFING", data.brieferName, "DATE", ddmmyyyy],
++          ["JOB TITLE", data.jobTitle, "NO. OF PERSONS\nATTENDING BRIEFING", String(attendeesCount || "")]
++        ];
++
++        rows.forEach((row, i) => {
++          const y = tableTop - (rowH * (i + 1));
++          drawCell(page, marginX, y, labelW, rowH, { fill: undefined });
++          drawCell(page, marginX + labelW, y, valueW, rowH, { fill: LIGHT_BLUE });
++          drawCell(page, marginX + labelW + valueW, y, label2W, rowH, { fill: undefined });
++          drawCell(page, marginX + labelW + valueW + label2W, y, value2W, rowH, { fill: LIGHT_BLUE });
++          drawWrappedFromTop(page, row[0], marginX + 6, y + rowH - 6, labelW - 10, 10, 8, 2);
++          drawText(page, row[1], marginX + labelW + 6, y + 8, 10, helv);
++          drawWrappedFromTop(page, row[2], marginX + labelW + valueW + 6, y + rowH - 6, label2W - 10, 10, 8, 2);
++          drawText(page, row[3], marginX + labelW + valueW + label2W + 6, y + 8, 10, helv);
++        });
+ 
+-      // Signature cell area
+-      const sigBox = { x:365, w:210, h:18, yOffset:-12, padX:6, padY:2 };
++        return tableTop - (rowH * rows.length) - 10;
++      }
+ 
+-      const fitInto = (imgW, imgH, maxW, maxH) => {
+-        const r = Math.min(maxW / imgW, maxH / imgH);
+-        return { w: imgW * r, h: imgH * r };
+-      };
++      function drawPreviousDay(page, startY){
++        const marginX = 40;
++        const headerH = 20;
++        drawCell(page, marginX, startY - headerH, 395, headerH, { fill: undefined });
++        drawCell(page, marginX + 395, startY - headerH, 120, headerH, { fill: undefined });
++        drawText(page, "PREVIOUS DAY'S ACTIVITIES", marginX + 6, startY - 14, 9, helvBold);
++        drawWrappedFromTop(page, "DID THEY GO AS\nPLANNED? [Yes / No]", marginX + 402, startY - 4, 110, 9, 7, 2);
++
++        const boxSize = 14;
++        const yesX = marginX + 495;
++        const yesY = startY - headerH + 3;
++        drawYesNoBox(page, yesX, yesY, boxSize, data.prevPlanned === "Yes");
++
++        const qH = 55;
++        const qY = startY - headerH - qH;
++        drawCell(page, marginX, qY, 515, qH, { fill: undefined });
++        drawText(page, "Any concerns from the previous day?", marginX + 6, qY + qH - 16, 9, helvBold);
++        drawCell(page, marginX, qY - 55, 515, 55, { fill: LIGHT_BLUE });
++        drawWrappedFromTop(page, data.prevConcerns, marginX + 6, qY - 8, 500, 12, 10, 4);
++
++        return qY - 70;
++      }
+ 
+-      async function drawSignatureIfAny(page, sigDataUrl, rowY){
+-        cover(page, sigBox.x, rowY + sigBox.yOffset, sigBox.w, sigBox.h); // clears "SIGN"
+-        if(!sigDataUrl) return;
++      function drawTodayPlanned(page, startY){
++        const marginX = 40;
++        const headerH = 18;
++        drawCell(page, marginX, startY - headerH, 515, headerH, { fill: undefined });
++        drawText(page, "TODAY'S PLANNED ACTIVITIES BRIEFING", marginX + 6, startY - 12, 9, helvBold);
++        const bodyH = 120;
++        drawCell(page, marginX, startY - headerH - bodyH, 515, bodyH, { fill: LIGHT_BLUE });
++        drawWrappedFromTop(page, data.todayPlanned, marginX + 6, startY - headerH - 8, 500, 12, 10, 8);
++        return startY - headerH - bodyH - 18;
++      }
+ 
+-        const b64 = sigDataUrl.split(",")[1] || "";
+-        if(!b64) return;
+-        const bytes = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
++      function drawPointsGrid(page, startY){
++        const marginX = 40;
++        const headerH = 16;
++        drawCell(page, marginX, startY - headerH, 515, headerH, { fill: LIGHT_GRAY });
++        drawText(page, "Points discussed for today's operation:", marginX + 6, startY - 12, 8, helvBold);
++
++        const rowH = 18;
++        const colLabelW = 160;
++        const colCheckW = 18;
++        const gap = 0;
++        const rows = [
++          ["confined", "barriers", "coshh"],
++          ["emergency", "clearAccess", "fire"],
++          ["lifting", "methodStatements", "materials"],
++          ["permits", "suitablePPE", "competence"],
++          ["plant", "trenchCollapse", "cables"],
++          ["safetyPlanning", "welfare", "trips"],
++        ];
++        const labels = {
++          confined: "Confined Spaces / Areas",
++          emergency: "Emergency Procedures",
++          lifting: "Lifting Equipment – Chains / Slings",
++          permits: "Permits to Work",
++          plant: "Plant & Equipment",
++          safetyPlanning: "Safety Planning",
++          barriers: "Barriers / Edge Protection",
++          clearAccess: "Clear Access Ways",
++          methodStatements: "Method Statements / Risk Assessments",
++          suitablePPE: "Suitable PPE",
++          trenchCollapse: "Trench Collapse",
++          welfare: "Welfare Facilities",
++          coshh: "COSHH Assessments",
++          fire: "Fire Precautions",
++          materials: "Materials",
++          competence: "Operative Experience / Competence",
++          cables: "Overhead / Underground Cable Strike",
++          trips: "Trips / Falls"
++        };
+ 
+-        const img = await pdfDoc.embedPng(bytes);
+-        const maxW = sigBox.w - (sigBox.padX*2);
+-        const maxH = sigBox.h - (sigBox.padY*2);
+-        const s = fitInto(img.width, img.height, maxW, maxH);
++        let y = startY - headerH;
++        rows.forEach((row) => {
++          y -= rowH;
++          let x = marginX;
++          row.forEach((key) => {
++            drawCell(page, x, y, colLabelW, rowH, { fill: undefined });
++            drawCell(page, x + colLabelW + gap, y, colCheckW, rowH, { fill: LIGHT_BLUE });
++            drawText(page, labels[key], x + 6, y + 5, 8, helv);
++            if(data.points && data.points[key]){
++              drawCheckmark(page, x + colLabelW + 2, y + 3, colCheckW - 4, rowH - 6);
++            }
++            x += colLabelW + colCheckW + gap;
++          });
++        });
+ 
+-        const x = sigBox.x + sigBox.padX;
+-        const y = (rowY + sigBox.yOffset) + sigBox.padY + ((maxH - s.h)/2);
++        const footerY = y - 18;
++        drawCell(page, marginX, footerY, 515, 16, { fill: LIGHT_GRAY });
++        drawCenteredText(page, "This list is not exhaustive  -  REMEMBER – MANAGE HEALTH & SAFETY", 297.5, footerY + 4, 8, helvBold);
++        return footerY - 16;
++      }
+ 
+-        page.drawImage(img, { x, y, width:s.w, height:s.h });
++      function drawConfirmations(page, startY){
++        const marginX = 40;
++        const rowH = 32;
++        const textW = 460;
++        const boxW = 55;
++        const items = [
++          { text: "Are all today's activities covered by the Operation Procedure / Method Statement / Risk Assessment / Work Instruction?", value: data.covered },
++          { text: "Are all Control Measures in place?", value: data.controls },
++          { text: "Are all operatives compliant with the site requirements for PPE?", value: data.ppe }
++        ];
++        let y = startY;
++        items.forEach(item => {
++          y -= rowH;
++          drawCell(page, marginX, y, textW, rowH, { fill: undefined });
++          drawCell(page, marginX + textW, y, boxW, rowH, { fill: undefined });
++          drawWrappedFromTop(page, item.text, marginX + 6, y + rowH - 8, textW - 10, 10, 8, 3);
++          drawYesNoBox(page, marginX + textW + 18, y + 9, 12, item.value === "Yes");
++        });
+       }
+ 
+-      function fillTextCells(page, a, rowY){
+-        cover(page, nameX-5, rowY-3, 190, 16);
+-        cover(page, dateX-5, rowY-3, 90, 16);
+-        page.drawText(a.name, { x:nameX, y:rowY, size:10, font: helv, color: rgb(0,0,0) });
+-        page.drawText(toDDMMYYYY(a.dateISO), { x:dateX, y:rowY, size:10, font: helv, color: rgb(0,0,0) });
++      function drawSignUpPage(page){
++        drawHeader(page);
++        drawCell(page, 40, 675, 515, 20, { fill: undefined });
++        drawCenteredText(page, "HEALTH & SAFETY – MORNING BRIEFING SIGN-UP Sheet", 297.5, 680, 9, helvBold);
++        drawCell(page, 40, 645, 515, 30, { fill: undefined });
++        drawWrappedFromTop(
++          page,
++          "Signing of this briefing confirms that all control measures defined in the associated risk assessments are in place, anyone joining the working group must be briefed prior to starting",
++          50,
++          668,
++          495,
++          10,
++          8,
++          3
++        );
++        drawCell(page, 40, 620, 515, 20, { fill: undefined });
++        drawCenteredText(page, "ATTENDEES", 297.5, 625, 8, helvBold);
+       }
+ 
+-      async function fillAttPage(page, rowsY, startIndex){
+-        let idx = startIndex;
+-        for(let i=0;i<rowsY.length;i++){
+-          const a = attendeesAll[idx];
+-          const y = rowsY[i];
+-          // clear signature cell always
+-          cover(page, sigBox.x, y + sigBox.yOffset, sigBox.w, sigBox.h);
++      async function drawAttendeeTable(page, startY, attendees, startIndex){
++        const marginX = 40;
++        const rowH = 24;
++        const nameW = 250;
++        const dateW = 110;
++        const sigW = 155;
++        const headerY = startY;
++        drawCell(page, marginX, headerY, nameW, rowH, { fill: undefined });
++        drawCell(page, marginX + nameW, headerY, dateW, rowH, { fill: undefined });
++        drawCell(page, marginX + nameW + dateW, headerY, sigW, rowH, { fill: undefined });
++        drawText(page, "NAME", marginX + 6, headerY + 7, 8, helvBold);
++        drawText(page, "DATE", marginX + nameW + 6, headerY + 7, 8, helvBold);
++        drawText(page, "SIGNATURE", marginX + nameW + dateW + 6, headerY + 7, 8, helvBold);
++
++        const fitInto = (imgW, imgH, maxW, maxH) => {
++          const r = Math.min(maxW / imgW, maxH / imgH);
++          return { w: imgW * r, h: imgH * r };
++        };
+ 
++        let y = headerY - rowH;
++        let idx = startIndex;
++        for(let i=0;i<18;i++){
++          drawCell(page, marginX, y, nameW, rowH, { fill: LIGHT_BLUE });
++          drawCell(page, marginX + nameW, y, dateW, rowH, { fill: LIGHT_BLUE });
++          drawCell(page, marginX + nameW + dateW, y, sigW, rowH, { fill: LIGHT_BLUE });
++          const a = attendees[idx];
+           if(a){
+-            fillTextCells(page, a, y);
+-            await drawSignatureIfAny(page, a.signature, y);
++            drawText(page, a.name, marginX + 6, y + 7, 10, helv);
++            drawText(page, toDDMMYYYY(a.dateISO), marginX + nameW + 6, y + 7, 10, helv);
++            if(a.signature){
++              const b64 = a.signature.split(",")[1] || "";
++              if(b64){
++                const bytes = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
++                const embed = await pdfDoc.embedPng(bytes);
++                const maxW = sigW - 12;
++                const maxH = rowH - 6;
++                const s = fitInto(embed.width, embed.height, maxW, maxH);
++                const x = marginX + nameW + dateW + 6 + ((maxW - s.w) / 2);
++                const yImg = y + 3 + ((maxH - s.h) / 2);
++                page.drawImage(embed, { x, y: yImg, width:s.w, height:s.h });
++              }
++            }
+             idx++;
+           }
++          y -= rowH;
+         }
+         return idx;
+       }
+ 
+-      let next = await fillAttPage(page2, page2Rows, 0);
+-      await fillAttPage(page3, page3Rows, next);
++      drawHeader(page1);
++      let cursorY = drawIntroTable(page1);
++      cursorY = drawPreviousDay(page1, cursorY);
++      cursorY = drawTodayPlanned(page1, cursorY);
++      cursorY = drawPointsGrid(page1, cursorY);
++      drawConfirmations(page1, cursorY);
++
++      drawSignUpPage(page2);
++      drawSignUpPage(page3);
++
++      const attendeesAll = (data.attendees || []).slice(0, 36).map(a=>({
++        name: (a.name||"").trim(),
++        dateISO: (a.dateISO||data.dateISO||todayISO()),
++        signature: (a.signature||"")
++      }));
++      let next = await drawAttendeeTable(page2, 596, attendeesAll, 0);
++      await drawAttendeeTable(page3, 596, attendeesAll, next);
+ 
+       // Save + download (with fallback)
+       const outBytes = await pdfDoc.save();
+       const blob = new Blob([outBytes], { type:"application/pdf" });
+       const url = URL.createObjectURL(blob);
+       const filename = `Daily-Briefing_${data.dateISO || todayISO()}.pdf`;
+ 
+       const a = document.createElement("a");
+       a.href = url;
+       a.download = filename;
+       a.rel = "noopener";
+       document.body.appendChild(a);
+       a.click();
+       a.remove();
+ 
+-      // Fallback: open in new tab if browser blocks downloads
+-      setTimeout(()=> {
+-        try{ window.open(url, "_blank"); }catch(e){}
+-      }, 200);
+-
+       setTimeout(()=> URL.revokeObjectURL(url), 2500);
+     }
+ 
+     // Router
+     if(t.toLowerCase() === "daily brief" || t.toLowerCase() === "daily briefing"){
+       renderDailyBrief();
+     }else{
+       renderPlaceholder(t);
+     }
+   </script>
+ </body>
+ </html>
+ 
+EOF
+)
