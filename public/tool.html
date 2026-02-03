@@ -968,14 +968,14 @@
       };
  const drawCheckmark = (page, boxX, boxY, boxW, boxH) => { 
    const color = rgb(0,0,0);
-        const left = boxX + (boxW * 0.2);
-        const midX = boxX + (boxW * 0.45);
-        const right = boxX + (boxW * 0.8);
-        const lower = boxY + (boxH * 0.3);
-        const midY = boxY + (boxH * 0.15);
-        const upper = boxY + (boxH * 0.75);
-        page.drawLine({ start:{ x:left, y:lower }, end:{ x:midX, y:midY }, thickness:1.5, color });
-        page.drawLine({ start:{ x:midX, y:midY }, end:{ x:right, y:upper }, thickness:1.5, color });
+       const left = boxX + (boxW * 0.18);
+        const midX = boxX + (boxW * 0.42);
+        const right = boxX + (boxW * 0.72);
+        const lower = boxY + (boxH * 0.35);
+        const midY = boxY + (boxH * 0.18);
+        const upper = boxY + (boxH * 0.68);
+        page.drawLine({ start:{ x:left, y:lower }, end:{ x:midX, y:midY }, thickness:1.2, color });
+        page.drawLine({ start:{ x:midX, y:midY }, end:{ x:right, y:upper }, thickness:1.2, color });
       };
       
       const wrapLines = (font, text, size, maxWidth) => {
