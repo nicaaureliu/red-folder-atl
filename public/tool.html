@@ -967,6 +967,7 @@
       const atlBytes = await fetchImage("/atl-logo.png") || await fetchImage("atl-logo.png");
       if(atlBytes) atlLogo = await embedImageBytes(atlBytes);
       const RED = rgb(0.78, 0.1, 0.1);
+      const HEADER_TEXT = rgb(1, 1, 1);
 
       const BLACK = rgb(0,0,0);
       const LIGHT_BLUE = rgb(1, 1, 1);
@@ -1043,8 +1044,8 @@
         }
         drawText(page, "ATL Daily Task Briefing", 430, 795, 9, helvBold, RED);
         drawText(page, "QPFS12.4", 430, 783, 9, helvBold, RED);
-        drawCell(page, 40, 705, 515, 22, { fill: undefined, border: 1 });
-        drawCenteredText(page, "HEALTH & SAFETY - MORNING BRIEFING", 297.5, 712, 12, helvBold, RED);
+        drawCell(page, 40, 705, 515, 22, { fill: RED, border: 1 });
+        drawCenteredText(page, "HEALTH & SAFETY - MORNING BRIEFING", 297.5, 712, 12, helvBold, HEADER_TEXT);
       }
 
       function drawIntroTable(page){
@@ -1081,10 +1082,10 @@
       function drawPreviousDay(page, startY){
         const marginX = 40;
         const headerH = 20;
-        drawCell(page, marginX, startY - headerH, 395, headerH, { fill: undefined });
-        drawCell(page, marginX + 395, startY - headerH, 120, headerH, { fill: undefined });
-        drawText(page, "PREVIOUS DAY'S ACTIVITIES", marginX + 6, startY - 14, 9, helvBold, RED);
-        drawWrappedFromTop(page, "DID THEY GO AS\nPLANNED? [Yes / No]", marginX + 402, startY - 6, 110, 9, 7, 2, BLACK);
+        drawCell(page, marginX, startY - headerH, 395, headerH, { fill: RED });
+        drawCell(page, marginX + 395, startY - headerH, 120, headerH, { fill: RED });
+        drawText(page, "PREVIOUS DAY'S ACTIVITIES", marginX + 6, startY - 14, 9, helvBold, HEADER_TEXT);
+        drawWrappedFromTop(page, "DID THEY GO AS\nPLANNED? [Yes / No]", marginX + 402, startY - 6, 110, 9, 7, 2, HEADER_TEXT);
 
         const boxSize = 14;
         const yesX = marginX + 495;
@@ -1104,8 +1105,8 @@
       function drawTodayPlanned(page, startY){
         const marginX = 40;
         const headerH = 18;
-        drawCell(page, marginX, startY - headerH, 515, headerH, { fill: undefined });
-        drawText(page, "TODAY'S PLANNED ACTIVITIES BRIEFING", marginX + 6, startY - 12, 9, helvBold, RED);
+        drawCell(page, marginX, startY - headerH, 515, headerH, { fill: RED });
+        drawText(page, "TODAY'S PLANNED ACTIVITIES BRIEFING", marginX + 6, startY - 12, 9, helvBold, HEADER_TEXT);
         const bodyH = 120;
         drawCell(page, marginX, startY - headerH - bodyH, 515, bodyH, { fill: LIGHT_BLUE });
         drawWrappedFromTop(page, data.todayPlanned, marginX + 6, startY - headerH - 8, 500, 12, 10, 8);
@@ -1115,13 +1116,15 @@
       function drawPointsGrid(page, startY){
         const marginX = 40;
         const headerH = 16;
-        drawCell(page, marginX, startY - headerH, 515, headerH, { fill: LIGHT_GRAY });
-        drawText(page, "Points discussed for today's operation:", marginX + 6, startY - 12, 8, helvBold, RED);
+        drawCell(page, marginX, startY - headerH, 515, headerH, { fill: RED });
+        drawText(page, "Points discussed for today's operation:", marginX + 6, startY - 12, 8, helvBold, HEADER_TEXT);
 
         const rowH = 18;
-        const colLabelW = 150;
-        const colCheckW = 20;
-        const gap = 0;
+        const colGroups = [
+          { labelW: 150, checkW: 20 },
+          { labelW: 150, checkW: 20 },
+          { labelW: 155, checkW: 20 }
+        ];
         const rows = [
           ["confined", "barriers", "coshh"],
           ["emergency", "clearAccess", "fire"],
@@ -1155,20 +1158,21 @@
         rows.forEach((row) => {
           y -= rowH;
           let x = marginX;
-          row.forEach((key) => {
-            drawCell(page, x, y, colLabelW, rowH, { fill: undefined });
-            drawCell(page, x + colLabelW + gap, y, colCheckW, rowH, { fill: LIGHT_BLUE });
-        drawText(page, labels[key], x + 6, y + 6, 8, helv);
+          row.forEach((key, idx) => {
+            const group = colGroups[idx];
+            drawCell(page, x, y, group.labelW, rowH, { fill: undefined });
+            drawCell(page, x + group.labelW, y, group.checkW, rowH, { fill: LIGHT_BLUE });
+            drawText(page, labels[key], x + 6, y + 6, 8, helv);
             if(data.points && data.points[key]){
-              drawCheckmark(page, x + colLabelW + 2, y + 3, colCheckW - 4, rowH - 6);
+              drawCheckmark(page, x + group.labelW + 2, y + 3, group.checkW - 4, rowH - 6);
             }
-            x += colLabelW + colCheckW + gap;
+            x += group.labelW + group.checkW;
           });
         });
 
         const footerY = y - 18;
-        drawCell(page, marginX, footerY, 515, 16, { fill: LIGHT_GRAY });
-        drawCenteredText(page, "This list is not exhaustive  -  REMEMBER – MANAGE HEALTH & SAFETY", 297.5, footerY + 4, 8, helvBold, RED);
+        drawCell(page, marginX, footerY, 515, 16, { fill: RED });
+        drawCenteredText(page, "This list is not exhaustive  -  REMEMBER – MANAGE HEALTH & SAFETY", 297.5, footerY + 4, 8, helvBold, HEADER_TEXT);
         return footerY - 16;
       }
 
@@ -1194,8 +1198,8 @@
 
       function drawSignUpPage(page){
         drawHeader(page);
-        drawCell(page, 40, 675, 515, 20, { fill: undefined });
-        drawCenteredText(page, "HEALTH & SAFETY – MORNING BRIEFING SIGN-UP Sheet", 297.5, 680, 9, helvBold, RED);
+        drawCell(page, 40, 675, 515, 20, { fill: RED });
+        drawCenteredText(page, "HEALTH & SAFETY – MORNING BRIEFING SIGN-UP Sheet", 297.5, 680, 9, helvBold, HEADER_TEXT);
         drawCell(page, 40, 645, 515, 30, { fill: undefined });
         drawWrappedFromTop(
           page,
@@ -1207,8 +1211,8 @@
           8,
           3
         );
-        drawCell(page, 40, 620, 515, 20, { fill: undefined });
-        drawCenteredText(page, "ATTENDEES", 297.5, 625, 8, helvBold, RED);
+        drawCell(page, 40, 620, 515, 20, { fill: RED });
+        drawCenteredText(page, "ATTENDEES", 297.5, 625, 8, helvBold, HEADER_TEXT);
       }
 
       async function drawAttendeeTable(page, startY, attendees, startIndex){
@@ -1218,12 +1222,12 @@
         const dateW = 110;
         const sigW = 155;
         const headerY = startY;
-        drawCell(page, marginX, headerY, nameW, rowH, { fill: undefined });
-        drawCell(page, marginX + nameW, headerY, dateW, rowH, { fill: undefined });
-        drawCell(page, marginX + nameW + dateW, headerY, sigW, rowH, { fill: undefined });
-        drawText(page, "NAME", marginX + 6, headerY + 8, 8, helvBold, RED);
-        drawText(page, "DATE", marginX + nameW + 6, headerY + 8, 8, helvBold, RED);
-        drawText(page, "SIGNATURE", marginX + nameW + dateW + 6, headerY + 8, 8, helvBold, RED);
+        drawCell(page, marginX, headerY, nameW, rowH, { fill: RED });
+        drawCell(page, marginX + nameW, headerY, dateW, rowH, { fill: RED });
+        drawCell(page, marginX + nameW + dateW, headerY, sigW, rowH, { fill: RED });
+        drawText(page, "NAME", marginX + 6, headerY + 8, 8, helvBold, HEADER_TEXT);
+        drawText(page, "DATE", marginX + nameW + 6, headerY + 8, 8, helvBold, HEADER_TEXT);
+        drawText(page, "SIGNATURE", marginX + nameW + dateW + 6, headerY + 8, 8, helvBold, HEADER_TEXT);
 
         const fitInto = (imgW, imgH, maxW, maxH) => {
           const r = Math.min(maxW / imgW, maxH / imgH);
