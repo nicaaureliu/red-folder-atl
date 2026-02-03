@@ -19,12 +19,14 @@
     }
     *{ box-sizing:border-box; }
     html, body{ width:100%; max-width:100%; overflow-x:hidden; }
+
     body{
       margin:0;
       font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
       background: var(--bg);
       color: var(--text);
     }
+
     .wrap{ max-width: 980px; margin: 18px auto; padding: 0 14px; }
     .shell{
       border: 1px solid #e8eaee;
@@ -39,10 +41,13 @@
       border-radius: var(--radius);
       padding: 18px;
     }
+
     h1{ margin:0 0 6px; font-size: 22px; font-weight: 900; }
     .sub{ margin:0 0 14px; color: var(--muted); font-weight: 700; font-size: 13px; }
+
     .row{ display:flex; gap:12px; flex-wrap:wrap; }
     .col{ flex: 1 1 240px; min-width: 240px; }
+
     label{ display:block; font-size:12px; font-weight:800; color:#111; margin: 10px 0 6px; }
     input, select, textarea{
       width:100%;
@@ -54,6 +59,7 @@
       background:#fff;
     }
     textarea{ min-height: 92px; resize: vertical; }
+
     .actions{
       margin-top: 14px;
       display:flex;
@@ -62,7 +68,8 @@
       align-items:center;
       justify-content:space-between;
     }
-    .leftActions{ display:flex; gap:10px; flex-wrap:wrap; }
+    .leftActions{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+
     .btn{
       display:inline-block;
       border-radius: 999px;
@@ -77,6 +84,7 @@
       color: var(--btnText);
     }
     .btn:active{ transform: translateY(1px); }
+
     .btnYellow{
       background: var(--yellow);
       border-color: #caa900;
@@ -86,7 +94,9 @@
       background:#fff;
       color:#111;
       border:1px solid var(--line);
+      box-shadow:none;
     }
+
     .pill{
       display:inline-flex;
       align-items:center;
@@ -117,6 +127,7 @@
       font-size: 13px;
     }
     .checkBox input{ width:18px; height:18px; }
+
     .sectionTitle{
       margin-top: 14px;
       font-weight: 900;
@@ -128,7 +139,7 @@
       display:flex;
       gap:10px;
       flex-wrap:wrap;
-      align-items:center;
+      align-items:flex-end;
       margin-top: 10px;
       padding: 10px;
       border:1px solid var(--line);
@@ -137,10 +148,37 @@
     }
     .attRow .small{ flex: 1 1 220px; min-width:220px; }
     .attRow .mini{ flex: 1 1 160px; min-width:160px; }
+    .attRow .sigCol{ flex: 1 1 240px; min-width:240px; }
+
+    .sigPreview{
+      margin-top: 6px;
+      width: 100%;
+      height: 54px;
+      border: 1px dashed var(--line);
+      border-radius: 12px;
+      background: #fafafa;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      overflow:hidden;
+    }
+    .sigPreview img{
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      background:#fff;
+    }
+    .sigPreview span{
+      color: var(--muted);
+      font-weight: 800;
+      font-size: 12px;
+    }
+
     .danger{
       background:#fff;
       border:1px solid #fecaca;
       color:#7f1d1d;
+      box-shadow:none;
     }
 
     .note{
@@ -163,10 +201,69 @@
       display:none;
     }
 
+    /* Signature modal */
+    .modalOverlay{
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.40);
+      display:none;
+      align-items:center;
+      justify-content:center;
+      padding: 14px;
+      z-index: 50;
+    }
+    .modal{
+      width: min(760px, 100%);
+      background: #fff;
+      border-radius: 18px;
+      border: 1px solid var(--line);
+      box-shadow: 0 20px 60px rgba(0,0,0,.25);
+      overflow:hidden;
+    }
+    .modalHead{
+      padding: 14px 14px 10px;
+      border-bottom: 1px solid var(--line);
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:10px;
+    }
+    .modalHead strong{ font-size: 14px; }
+    .modalBody{ padding: 12px 14px; }
+    .sigCanvasWrap{
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      overflow:hidden;
+      background: #fff;
+      touch-action: none; /* important for mobile drawing */
+    }
+    canvas{
+      width:100%;
+      height: 240px;
+      display:block;
+      background:#fff;
+    }
+    .modalFoot{
+      padding: 12px 14px 14px;
+      border-top: 1px solid var(--line);
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      justify-content:space-between;
+      align-items:center;
+    }
+    .modalFoot .leftActions{ justify-content:flex-start; }
+    .modalHelp{
+      color: var(--muted);
+      font-weight: 800;
+      font-size: 12px;
+    }
+
     @media (max-width: 860px){
       .grid3{ grid-template-columns: 1fr; }
       .col{ min-width: 100%; }
       .actions{ justify-content:flex-start; }
+      canvas{ height: 220px; }
     }
   </style>
 
@@ -178,6 +275,34 @@
   <div class="wrap">
     <div class="shell">
       <div id="app" class="card"></div>
+    </div>
+  </div>
+
+  <!-- Signature Modal -->
+  <div id="sigOverlay" class="modalOverlay" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true" aria-label="Signature">
+      <div class="modalHead">
+        <strong id="sigTitle">Signature</strong>
+        <button id="sigCloseTop" class="btn btnGhost" type="button">Close</button>
+      </div>
+
+      <div class="modalBody">
+        <div class="sigCanvasWrap">
+          <canvas id="sigCanvas"></canvas>
+        </div>
+      </div>
+
+      <div class="modalFoot">
+        <div class="leftActions">
+          <button id="sigClear" class="btn btnGhost" type="button">Clear</button>
+          <button id="sigCancel" class="btn btnGhost" type="button">Cancel</button>
+        </div>
+
+        <div class="leftActions">
+          <span class="modalHelp">Draw with finger/mouse. Then Save.</span>
+          <button id="sigSave" class="btn btnYellow" type="button">Save signature</button>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -199,10 +324,16 @@
     const t = (params.get("t") || "Form").trim();
     document.title = t;
 
+    // ===== Signature storage: attendeeId -> dataURL(PNG)
+    const sigStore = new Map();
+
+    const makeId = () => {
+      return "id_" + Math.random().toString(16).slice(2) + "_" + Date.now().toString(16);
+    };
+
     // ===== Helpers =====
     const pad2 = (n) => String(n).padStart(2,"0");
     const toDDMMYYYY = (iso) => {
-      // iso: yyyy-mm-dd
       if(!iso || !iso.includes("-")) return iso || "";
       const [y,m,d] = iso.split("-");
       return `${pad2(d)}\/${pad2(m)}\/${y}`;
@@ -215,7 +346,7 @@
       return `${y}-${m}-${day}`;
     };
 
-    // ===== UI: Placeholder for non-Daily Brief tools =====
+    // ===== Placeholder for non-Daily Brief tools =====
     function renderPlaceholder(title){
       const app = $("#app");
       app.innerHTML = "";
@@ -228,7 +359,124 @@
       ]));
     }
 
-    // ===== UI: Daily Brief form =====
+    // ===== Signature Modal (canvas drawing) =====
+    const SigModal = (() => {
+      const overlay = $("#sigOverlay");
+      const canvas = $("#sigCanvas");
+      const titleEl = $("#sigTitle");
+      const btnClear = $("#sigClear");
+      const btnCancel = $("#sigCancel");
+      const btnSave = $("#sigSave");
+      const btnCloseTop = $("#sigCloseTop");
+
+      let ctx, drawing = false, hasInk = false;
+      let currentAttId = null;
+      let onSavedCb = null;
+
+      const resizeCanvas = () => {
+        // Keep high DPI crisp
+        const rect = canvas.getBoundingClientRect();
+        const dpr = window.devicePixelRatio || 1;
+        canvas.width = Math.floor(rect.width * dpr);
+        canvas.height = Math.floor(rect.height * dpr);
+        ctx = canvas.getContext("2d");
+        ctx.scale(dpr, dpr);
+        clearCanvas();
+      };
+
+      const clearCanvas = () => {
+        if(!ctx) return;
+        const rect = canvas.getBoundingClientRect();
+        ctx.clearRect(0,0,rect.width,rect.height);
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0,0,rect.width,rect.height);
+        ctx.strokeStyle = "#000000";
+        ctx.lineWidth = 2.4;
+        ctx.lineCap = "round";
+        ctx.lineJoin = "round";
+        hasInk = false;
+      };
+
+      const getPos = (evt) => {
+        const rect = canvas.getBoundingClientRect();
+        const x = (evt.clientX - rect.left);
+        const y = (evt.clientY - rect.top);
+        return { x, y };
+      };
+
+      const start = (evt) => {
+        evt.preventDefault();
+        drawing = true;
+        const p = getPos(evt);
+        ctx.beginPath();
+        ctx.moveTo(p.x, p.y);
+      };
+
+      const move = (evt) => {
+        if(!drawing) return;
+        evt.preventDefault();
+        const p = getPos(evt);
+        ctx.lineTo(p.x, p.y);
+        ctx.stroke();
+        hasInk = true;
+      };
+
+      const end = (evt) => {
+        if(!drawing) return;
+        evt.preventDefault();
+        drawing = false;
+      };
+
+      // Pointer events (best for mobile+desktop)
+      canvas.addEventListener("pointerdown", start);
+      canvas.addEventListener("pointermove", move);
+      window.addEventListener("pointerup", end);
+      window.addEventListener("pointercancel", end);
+
+      btnClear.addEventListener("click", clearCanvas);
+
+      const close = () => {
+        overlay.style.display = "none";
+        overlay.setAttribute("aria-hidden","true");
+        currentAttId = null;
+        onSavedCb = null;
+      };
+
+      btnCancel.addEventListener("click", close);
+      btnCloseTop.addEventListener("click", close);
+
+      btnSave.addEventListener("click", () => {
+        if(!currentAttId) return;
+        if(!hasInk){
+          alert("Please sign first (draw something), then Save.");
+          return;
+        }
+        // Export PNG
+        const dataUrl = canvas.toDataURL("image/png");
+        sigStore.set(currentAttId, dataUrl);
+        if(typeof onSavedCb === "function") onSavedCb(currentAttId, dataUrl);
+        close();
+      });
+
+      // Resize when shown / window changes
+      window.addEventListener("resize", () => {
+        if(overlay.style.display === "flex") resizeCanvas();
+      });
+
+      const open = (attId, attName, cb) => {
+        currentAttId = attId;
+        onSavedCb = cb;
+        titleEl.textContent = attName ? `Signature: ${attName}` : "Signature";
+        overlay.style.display = "flex";
+        overlay.setAttribute("aria-hidden","false");
+        // Allow layout to settle before resize
+        setTimeout(resizeCanvas, 50);
+      };
+
+      return { open };
+    })();
+
+    // ===== Daily Brief form =====
     function renderDailyBrief(){
       const app = $("#app");
       app.innerHTML = "";
@@ -255,12 +503,12 @@
           coshh:false, fire:false, materials:false, competence:false, cables:false, trips:false
         },
         attendees: [
-          { name:"", dateISO: todayISO() },
+          { id: makeId(), name:"", dateISO: todayISO() },
         ]
       };
 
       const title = el("h1",{},["Daily Brief"]);
-      const sub = el("div",{class:"sub"},["Fill in the briefing, then press Download PDF."]);
+      const sub = el("div",{class:"sub"},["Fill in the briefing, sign each attendee row, then press Download PDF."]);
 
       const headerRow1 = el("div",{class:"row"},[
         el("div",{class:"col"},[
@@ -314,7 +562,7 @@
         ]),
       ]);
 
-      // Points discussed (matches the PDF list)
+      // Points discussed
       const pointsTitle = el("div",{class:"sectionTitle"},["Points discussed for today’s operation"]);
       const pointsGrid = el("div",{class:"grid3"},[
         el("div",{},[
@@ -343,7 +591,7 @@
         ])
       ]);
 
-      // Bottom compliance questions
+      // Confirmations
       const bottomTitle = el("div",{class:"sectionTitle"},["Confirmations"]);
       const bottomRow = el("div",{class:"row"},[
         el("div",{class:"col"},[
@@ -372,11 +620,11 @@
       // Attendees
       const attTitle = el("div",{class:"sectionTitle"},["Attendees (sign-up sheet)"]);
       const attWrap = el("div",{id:"attWrap"},[]);
-      const addAtt = el("button",{class:"btn btnGhost", type:"button", onclick:()=>addAttendee(attWrap)},["+ Add attendee"]);
+      const addAttBtn = el("button",{class:"btn btnGhost", type:"button", onclick:()=>addAttendee(attWrap)},["+ Add attendee"]);
 
       const note = el("div",{class:"note"},[
-        "Tip: number of persons attending is calculated from attendee names. ",
-        "For now we fill Name + Date on the sign-up sheet (signatures can be added next)."
+        "This embeds each attendee signature into the SIGNATURE column in the PDF. ",
+        "Pages 2–3 support up to 36 attendees total."
       ]);
 
       // Actions
@@ -406,12 +654,12 @@
       app.appendChild(attTitle);
       app.appendChild(attWrap);
       app.appendChild(el("div",{class:"actions"},[
-        el("div",{class:"leftActions"},[addAtt]),
+        el("div",{class:"leftActions"},[addAttBtn]),
       ]));
       app.appendChild(note);
       app.appendChild(actions);
 
-      // set defaults
+      // defaults
       $("#prevPlanned").value = f.prevPlanned;
       $("#covered").value = f.covered;
       $("#controls").value = f.controls;
@@ -420,7 +668,7 @@
       $("#prevConcerns").value = f.prevConcerns;
       $("#todayPlanned").value = f.todayPlanned;
 
-      // initial attendee row
+      // build attendee UI
       rebuildAttendees(attWrap, f.attendees);
       updateAttendeeCount(attWrap);
 
@@ -434,38 +682,86 @@
 
       function addAttendee(container){
         const list = collectAttendees(container);
-        list.push({name:"", dateISO: todayISO()});
+        list.push({ id: makeId(), name:"", dateISO: todayISO() });
         rebuildAttendees(container, list);
         updateAttendeeCount(container);
       }
 
       function rebuildAttendees(container, list){
         container.innerHTML = "";
+
         list.forEach((a, idx)=>{
+          const attId = a.id;
+          const sigUrl = sigStore.get(attId) || "";
+
+          const preview = el("div",{class:"sigPreview", "data-sig-prev":attId},[
+            sigUrl ? el("img",{src:sigUrl, alt:"Signature preview"}) : el("span",{},["No signature yet"])
+          ]);
+
+          const signBtn = el("button",{
+            class:"btn btnGhost",
+            type:"button",
+            onclick:()=>{
+              const nameNow = (container.querySelector(`input[data-att-name="${attId}"]`)?.value || "").trim();
+              SigModal.open(attId, nameNow || `Attendee ${idx+1}`, (id, url)=>{
+                // update preview
+                const box = container.querySelector(`[data-sig-prev="${id}"]`);
+                if(box){
+                  box.innerHTML = "";
+                  box.appendChild(el("img",{src:url, alt:"Signature preview"}));
+                }
+              });
+            }
+          },["Sign"]);
+
+          const clearSigBtn = el("button",{
+            class:"btn danger",
+            type:"button",
+            onclick:()=>{
+              sigStore.delete(attId);
+              const box = container.querySelector(`[data-sig-prev="${attId}"]`);
+              if(box){
+                box.innerHTML = "";
+                box.appendChild(el("span",{},["No signature yet"]));
+              }
+            }
+          },["Clear sig"]);
+
           const row = el("div",{class:"attRow"},[
             el("div",{class:"small"},[
               el("label",{},["Name"]),
-              el("input",{type:"text", value:a.name, "data-att-name":idx, placeholder:"e.g. John Smith"})
+              el("input",{type:"text", value:a.name, placeholder:"e.g. John Smith", "data-att-name":attId})
             ]),
             el("div",{class:"mini"},[
               el("label",{},["Date"]),
-              el("input",{type:"date", value:a.dateISO, "data-att-date":idx})
+              el("input",{type:"date", value:a.dateISO, "data-att-date":attId})
+            ]),
+            el("div",{class:"sigCol"},[
+              el("label",{},["Signature"]),
+              preview,
+              el("div",{class:"row", style:"margin-top:8px; gap:8px;"},[
+                signBtn,
+                clearSigBtn
+              ])
             ]),
             el("div",{class:"mini"},[
               el("label",{},["Remove"]),
               el("button",{class:"btn danger", type:"button", onclick:()=>{
                 const now = collectAttendees(container);
-                now.splice(idx,1);
-                if(now.length===0) now.push({name:"", dateISO: todayISO()});
+                const i = now.findIndex(x=>x.id===attId);
+                if(i>=0) now.splice(i,1);
+                sigStore.delete(attId);
+                if(now.length===0) now.push({ id: makeId(), name:"", dateISO: todayISO() });
                 rebuildAttendees(container, now);
                 updateAttendeeCount(container);
               }},["Delete"])
             ]),
           ]);
+
           container.appendChild(row);
         });
 
-        // live count updates
+        // live updates
         container.querySelectorAll("input[type='text']").forEach(inp=>{
           inp.addEventListener("input", ()=> updateAttendeeCount(container));
         });
@@ -474,20 +770,23 @@
       function collectAttendees(container){
         const rows = [...container.querySelectorAll(".attRow")];
         return rows.map((r)=> {
-          const name = r.querySelector("input[type='text']").value.trim();
-          const dateISO = r.querySelector("input[type='date']").value || todayISO();
-          return { name, dateISO };
+          const nameInp = r.querySelector("input[type='text']");
+          const dateInp = r.querySelector("input[type='date']");
+          const attId = nameInp.getAttribute("data-att-name");
+          const name = (nameInp.value || "").trim();
+          const dateISO = (dateInp.value || todayISO());
+          const signature = sigStore.get(attId) || "";
+          return { id: attId, name, dateISO, signature };
         });
       }
 
       function updateAttendeeCount(container){
         const list = collectAttendees(container);
-        const count = list.filter(x => x.name.length>0).length;
+        const count = list.filter(x => (x.name||"").trim().length>0).length;
         $("#attCountPill").textContent = `Attendees: ${count}`;
       }
 
       function readForm(state, container){
-        // read header
         state.projectTitle = $("#projectTitle").value.trim();
         state.siteLocation = $("#siteLocation").value.trim();
         state.workLocation = $("#workLocation").value.trim();
@@ -499,20 +798,16 @@
         state.prevConcerns = $("#prevConcerns").value.trim();
         state.todayPlanned = $("#todayPlanned").value.trim();
 
-        // points
         Object.keys(state.points).forEach(k=>{
           const box = document.getElementById("pt_"+k);
           state.points[k] = !!(box && box.checked);
         });
 
-        // confirm
         state.covered = $("#covered").value;
         state.controls = $("#controls").value;
         state.ppe = $("#ppe").value;
 
-        // attendees
         state.attendees = collectAttendees(container);
-
         return state;
       }
     }
@@ -521,7 +816,7 @@
     async function generateDailyBriefPDF(data){
       const { PDFDocument, StandardFonts, rgb } = PDFLib;
 
-      const TEMPLATE_URL = "templates/daily-briefing.pdf"; // <-- must exist in /public/templates/
+      const TEMPLATE_URL = "templates/daily-briefing.pdf";
       let templateBytes;
       try{
         const res = await fetch(TEMPLATE_URL, { cache:"no-store" });
@@ -543,7 +838,6 @@
 
       const WHITE = rgb(1,1,1);
 
-      // ---- Drawing helpers
       const cover = (page, x, y, w, h) => {
         page.drawRectangle({ x, y, width:w, height:h, color: WHITE });
       };
@@ -581,7 +875,6 @@
       };
 
       const drawYesNo = (page, value, x, y, boxW=20, boxH=14) => {
-        // Clears box area then draws a tick for Yes, X for No
         cover(page, x-3, y-2, boxW, boxH);
         if(value === "Yes"){
           page.drawText("4", { x, y, size: 12, font: zapf, color: rgb(0,0,0) });
@@ -590,8 +883,7 @@
         }
       };
 
-      // ---- Page 1 coordinates (tuned to your template)
-      // Header fields (cover a small area, then write)
+      // ---- Page 1 coords
       const p1 = {
         projectTitle: { x:185, y:656.5, w:265, h:14 },
         siteLocation:  { x:492, y:648.9, w:105, h:14 },
@@ -601,23 +893,25 @@
         date:          { x:486, y:592.0, w:120, h:14 },
         jobTitle:      { x:185, y:571.0, w:265, h:14 },
         numPersons:    { x:486, y:571.0, w:120, h:14 },
-
-        // Yes/No cell for "Did they go as planned?"
         prevPlanned:   { x:530, y:548.0, w:40, h:16 },
-
-        // Text areas
         concerns: { x:90, topY: 482, w:460, h:60 },
         planned:  { x:90, topY: 394, w:460, h:120 },
-
-        // Bottom questions tick boxes (far right)
         covered:  { x:518, y:140.9 },
         controls: { x:518, y:94.1  },
         ppe:      { x:518, y:44.5  },
       };
 
-      // Clear + write header
       const ddmmyyyy = toDDMMYYYY(data.dateISO);
-      const attendeesCount = (data.attendees || []).filter(a=> (a.name||"").trim().length>0).length;
+      const attendeesAll = (data.attendees || [])
+        .map(a => ({
+          id: a.id,
+          name: (a.name || "").trim(),
+          dateISO: (a.dateISO || data.dateISO || todayISO()),
+          signature: (a.signature || "")
+        }))
+        .filter(a => a.name.length > 0);
+
+      const attendeesCount = attendeesAll.length;
 
       cover(page1, p1.projectTitle.x-2, p1.projectTitle.y-2, p1.projectTitle.w, p1.projectTitle.h);
       drawText(page1, data.projectTitle, p1.projectTitle.x, p1.projectTitle.y, 10);
@@ -643,21 +937,17 @@
       cover(page1, p1.numPersons.x-2, p1.numPersons.y-2, p1.numPersons.w, p1.numPersons.h);
       drawText(page1, String(attendeesCount || ""), p1.numPersons.x, p1.numPersons.y, 10);
 
-      // Did they go as planned? (tick or X)
       drawYesNo(page1, data.prevPlanned, p1.prevPlanned.x, p1.prevPlanned.y, 34, 16);
 
-      // Concerns box (cover a safe inner strip, then write)
       cover(page1, p1.concerns.x-5, p1.concerns.topY-60, p1.concerns.w+10, p1.concerns.h);
       drawWrappedFromTop(page1, data.prevConcerns, p1.concerns.x, p1.concerns.topY, p1.concerns.w, 12, 10, 6);
 
-      // Planned activities box
       cover(page1, p1.planned.x-5, p1.planned.topY-120, p1.planned.w+10, p1.planned.h);
       drawWrappedFromTop(page1, data.todayPlanned, p1.planned.x, p1.planned.topY, p1.planned.w, 12, 10, 10);
 
-      // Points discussed tick grid (clear all ticks first, then draw selected)
+      // Points discussed tick grid
       const rowY = [252.37, 241.28, 230.58, 219.75, 208.40, 197.57];
       const colX = [219.04, 380.11, 539.13];
-
       const pointsMatrix = [
         ["confined","barriers","coshh"],
         ["emergency","clearAccess","fire"],
@@ -671,7 +961,6 @@
         for(let c=0;c<3;c++){
           const key = pointsMatrix[r][c];
           const x = colX[c], y = rowY[r];
-          // clear existing
           cover(page1, x-2, y-2, 14, 14);
           if(data.points && data.points[key]){
             page1.drawText("4", { x, y, size: 12, font: zapf, color: rgb(0,0,0) });
@@ -679,16 +968,11 @@
         }
       }
 
-      // Bottom confirmations
       drawYesNo(page1, data.covered,  p1.covered.x,  p1.covered.y,  20, 14);
       drawYesNo(page1, data.controls, p1.controls.x, p1.controls.y, 20, 14);
       drawYesNo(page1, data.ppe,      p1.ppe.x,      p1.ppe.y,      20, 14);
 
-      // ---- Sign-up sheets (pages 2 & 3): fill Name + Date, clear "SIGN"
-      const nameX = 88;
-      const dateX = 294;
-      const sigClearX = 365;
-
+      // ---- Sign-up sheets (pages 2 & 3): Name + Date + Signature image
       const page2 = pages[1];
       const page3 = pages[2];
 
@@ -701,30 +985,68 @@
         359.88, 324.58, 288.70, 253.60, 219.27, 183.43, 148.48, 113.65, 78.55
       ];
 
-      const attendees = (data.attendees || [])
-        .map(a=>({ name:(a.name||"").trim(), dateISO:(a.dateISO||data.dateISO||todayISO()) }))
-        .filter(a=>a.name.length>0);
+      const nameX = 88;
+      const dateX = 294;
 
-      function fillAttPage(page, rowsY, startIndex){
+      // Signature box area (calibrated)
+      const sigBox = { x:365, w:210, h:18, yOffset:-12, padX:6, padY:2 };
+
+      const fitInto = (imgW, imgH, maxW, maxH) => {
+        const r = Math.min(maxW / imgW, maxH / imgH);
+        return { w: imgW * r, h: imgH * r };
+      };
+
+      async function drawSignatureIfAny(page, sigDataUrl, rowY){
+        if(!sigDataUrl) return;
+
+        // Clear the cell area so the tiny "SIGN" text disappears
+        cover(page, sigBox.x, rowY + sigBox.yOffset, sigBox.w, sigBox.h);
+
+        // Convert dataURL -> bytes
+        const b64 = sigDataUrl.split(",")[1] || "";
+        if(!b64) return;
+        const bytes = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+
+        const img = await pdfDoc.embedPng(bytes);
+        const maxW = sigBox.w - (sigBox.padX * 2);
+        const maxH = sigBox.h - (sigBox.padY * 2);
+        const s = fitInto(img.width, img.height, maxW, maxH);
+
+        const x = sigBox.x + sigBox.padX;
+        const y = (rowY + sigBox.yOffset) + sigBox.padY + ((maxH - s.h) / 2);
+
+        page.drawImage(img, { x, y, width: s.w, height: s.h });
+      }
+
+      function fillTextCells(page, a, rowY){
+        // clear inside cells (avoid borders)
+        cover(page, nameX-5, rowY-3, 190, 16);
+        cover(page, dateX-5, rowY-3, 90, 16);
+
+        page.drawText(a.name, { x:nameX, y:rowY, size:10, font: helv, color: rgb(0,0,0) });
+        page.drawText(toDDMMYYYY(a.dateISO), { x:dateX, y:rowY, size:10, font: helv, color: rgb(0,0,0) });
+      }
+
+      async function fillAttPage(page, rowsY, startIndex){
         let idx = startIndex;
         for(let i=0;i<rowsY.length;i++){
-          const a = attendees[idx];
+          const a = attendeesAll[idx];
           const y = rowsY[i];
-          // clear inside cells (avoid touching borders)
-          cover(page, nameX-5, y-3, 190, 16);
-          cover(page, dateX-5, y-3, 90, 16);
-          cover(page, sigClearX, y-6, 210, 20); // clears tiny "SIGN"
+
+          // clear signature cell area even if no signature, to remove placeholder "SIGN"
+          cover(page, sigBox.x, y + sigBox.yOffset, sigBox.w, sigBox.h);
+
           if(a){
-            page.drawText(a.name, { x:nameX, y, size:10, font: helv, color: rgb(0,0,0) });
-            page.drawText(toDDMMYYYY(a.dateISO), { x:dateX, y, size:10, font: helv, color: rgb(0,0,0) });
+            fillTextCells(page, a, y);
+            await drawSignatureIfAny(page, a.signature, y);
             idx++;
           }
         }
         return idx;
       }
 
-      let next = fillAttPage(page2, page2Rows, 0);
-      fillAttPage(page3, page3Rows, next);
+      let next = await fillAttPage(page2, page2Rows, 0);
+      await fillAttPage(page3, page3Rows, next);
 
       // Save + download
       const outBytes = await pdfDoc.save();
