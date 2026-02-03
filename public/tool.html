@@ -1071,10 +1071,10 @@
           drawCell(page, marginX + labelW, y, valueW, rowH, { fill: LIGHT_BLUE });
           drawCell(page, marginX + labelW + valueW, y, label2W, rowH, { fill: undefined });
           drawCell(page, marginX + labelW + valueW + label2W, y, value2W, rowH, { fill: LIGHT_BLUE });
-          drawWrappedFromTop(page, row[0], marginX + 6, y + rowH - 6, labelW - 10, 10, 8, 2, RED);
-          drawText(page, row[1], marginX + labelW + 6, y + 8, 10, helv);
-          drawWrappedFromTop(page, row[2], marginX + labelW + valueW + 6, y + rowH - 6, label2W - 10, 10, 8, 2, RED);
-          drawText(page, row[3], marginX + labelW + valueW + label2W + 6, y + 8, 10, helv);
+          drawWrappedFromTop(page, row[0], marginX + 6, y + rowH - 10, labelW - 10, 10, 8, 2, BLACK);
+          drawText(page, row[1], marginX + labelW + 6, y + 10, 10, helv);
+          drawWrappedFromTop(page, row[2], marginX + labelW + valueW + 6, y + rowH - 10, label2W - 10, 10, 8, 2, BLACK);
+          drawText(page, row[3], marginX + labelW + valueW + label2W + 6, y + 10, 10, helv);
         });
 
         return tableTop - (rowH * rows.length) - 10;
@@ -1086,7 +1086,7 @@
         drawCell(page, marginX, startY - headerH, 395, headerH, { fill: undefined });
         drawCell(page, marginX + 395, startY - headerH, 120, headerH, { fill: undefined });
         drawText(page, "PREVIOUS DAY'S ACTIVITIES", marginX + 6, startY - 14, 9, helvBold, RED);
-        drawWrappedFromTop(page, "DID THEY GO AS\nPLANNED? [Yes / No]", marginX + 402, startY - 4, 110, 9, 7, 2, RED);
+        drawWrappedFromTop(page, "DID THEY GO AS\nPLANNED? [Yes / No]", marginX + 402, startY - 6, 110, 9, 7, 2, BLACK);
 
         const boxSize = 14;
         const yesX = marginX + 495;
@@ -1096,7 +1096,7 @@
         const qH = 55;
         const qY = startY - headerH - qH;
         drawCell(page, marginX, qY, 515, qH, { fill: undefined });
-        drawText(page, "Any concerns from the previous day?", marginX + 6, qY + qH - 16, 9, helvBold, RED);
+        drawText(page, "Any concerns from the previous day?", marginX + 6, qY + qH - 18, 9, helvBold, BLACK);
         drawCell(page, marginX, qY - 55, 515, 55, { fill: LIGHT_BLUE });
         drawWrappedFromTop(page, data.prevConcerns, marginX + 6, qY - 8, 500, 12, 10, 4);
 
@@ -1160,7 +1160,7 @@
           row.forEach((key) => {
             drawCell(page, x, y, colLabelW, rowH, { fill: undefined });
             drawCell(page, x + colLabelW + gap, y, colCheckW, rowH, { fill: LIGHT_BLUE });
-            drawText(page, labels[key], x + 6, y + 5, 8, helv);
+        drawText(page, labels[key], x + 6, y + 6, 8, helv);
             if(data.points && data.points[key]){
               drawCheckmark(page, x + colLabelW + 2, y + 3, colCheckW - 4, rowH - 6);
             }
@@ -1189,7 +1189,7 @@
           y -= rowH;
           drawCell(page, marginX, y, textW, rowH, { fill: undefined });
           drawCell(page, marginX + textW, y, boxW, rowH, { fill: undefined });
-          drawWrappedFromTop(page, item.text, marginX + 6, y + rowH - 8, textW - 10, 10, 8, 3, RED);
+          drawWrappedFromTop(page, item.text, marginX + 6, y + rowH - 10, textW - 10, 10, 8, 3, BLACK);
           drawYesNoBox(page, marginX + textW + 18, y + 9, 12, item.value === "Yes");
         });
       }
@@ -1223,9 +1223,9 @@
         drawCell(page, marginX, headerY, nameW, rowH, { fill: undefined });
         drawCell(page, marginX + nameW, headerY, dateW, rowH, { fill: undefined });
         drawCell(page, marginX + nameW + dateW, headerY, sigW, rowH, { fill: undefined });
-        drawText(page, "NAME", marginX + 6, headerY + 7, 8, helvBold, RED);
-        drawText(page, "DATE", marginX + nameW + 6, headerY + 7, 8, helvBold, RED);
-        drawText(page, "SIGNATURE", marginX + nameW + dateW + 6, headerY + 7, 8, helvBold, RED);
+        drawText(page, "NAME", marginX + 6, headerY + 8, 8, helvBold, RED);
+        drawText(page, "DATE", marginX + nameW + 6, headerY + 8, 8, helvBold, RED);
+        drawText(page, "SIGNATURE", marginX + nameW + dateW + 6, headerY + 8, 8, helvBold, RED);
 
         const fitInto = (imgW, imgH, maxW, maxH) => {
           const r = Math.min(maxW / imgW, maxH / imgH);
