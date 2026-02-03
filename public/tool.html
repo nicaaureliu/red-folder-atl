@@ -561,6 +561,49 @@
       return { open };
     })();
 
+    async function checkTemplateAndLib(mode){
+      const libPill = $("#pillLib");
+      const tplPill = $("#pillTpl");
+      if(!libPill || !tplPill) return;
+
+      await new Promise(r => setTimeout(r, 400));
+
+      if(window.PDFLib){
+        libPill.className = "pill ok";
+        libPill.textContent = "PDF engine: OK";
+      }else{
+        libPill.className = "pill bad";
+        libPill.textContent = "PDF engine: BLOCKED";
+      }
+
+      const tryFetch = async (url) => {
+        try{
+          const res = await fetch(url, { method:"HEAD", cache:"no-store" });
+          return res.ok;
+        }catch(e){
+          return false;
+        }
+      };
+
+      let ok = false;
+      if(mode === "csp"){
+        ok = (await tryFetch("assets/csp-1.jpg")) &&
+             (await tryFetch("assets/csp-2.jpg")) &&
+             (await tryFetch("assets/csp-3.jpg")) &&
+             (await tryFetch("assets/csp-4.jpg"));
+      }else{
+        ok = await tryFetch("templates/daily-briefing.pdf");
+      }
+
+      if(ok){
+        tplPill.className = "pill ok";
+        tplPill.textContent = "Template: OK";
+      }else{
+        tplPill.className = "pill bad";
+        tplPill.textContent = "Template: MISSING";
+      }
+    }
+
     function renderConfinedSpacePermit(){
       const app = $("#app");
       app.innerHTML = "";
@@ -609,7 +652,7 @@
         ]),
         el("div",{class:"pillRow"},[
           el("span",{id:"pillLib", class:"pill warn"},["PDF engine: checking…"]),
-          el("span",{id:"pillTpl", class:"pill ok"},["Template: Ready"])
+          el("span",{id:"pillTpl", class:"pill warn"},["Template: checking…"])
         ])
       ]);
 
@@ -618,101 +661,101 @@
       const sDetails = el("div",{class:"section"},[
         el("div",{class:"sectionTitle"},["1. Work Description"]),
         el("div",{class:"grid2"},[
-          field("Permit No.","permitNo","text","e.g. CSP-001"),
-          field("Date","dateISO","date",""),
-          field("Start Time","startTime","time",""),
-          field("Finish Time","finishTime","time",""),
-          field("Location","location","text","e.g. Shaft 4"),
+          field("Permit No.","permitNo","text","e.g. CSP-001", state.permitNo),
+          field("Date","dateISO","date","", state.dateISO),
+          field("Start Time","startTime","time","", state.startTime),
+          field("Finish Time","finishTime","time","", state.finishTime),
+          field("Location","location","text","e.g. Shaft 4", state.location),
         ]),
         el("div",{style:"margin-top:12px"},[
-          textareaField("Work Description","workDescription","What work is being carried out?"),
-          textareaField("Personnel entering","personnel","Names of operatives entering the confined space"),
+          textareaField("Work Description","workDescription","What work is being carried out?", state.workDescription),
+          textareaField("Personnel entering","personnel","Names of operatives entering the confined space", state.personnel),
         ])
       ]);
 
       const sEquipment = el("div",{class:"section"},[
         el("div",{class:"sectionTitle"},["2. Equipment / Tools to be used"]),
-        textareaField("Tools & Equipment","equipment","List all tools, plant and equipment to be used...")
+        textareaField("Tools & Equipment","equipment","List all tools, plant and equipment to be used...", state.equipment)
       ]);
 
       const sRisk = el("div",{class:"section"},[
         el("div",{class:"sectionTitle"},["3. Risk Assessment"]),
         el("div",{class:"grid3auto"},[
-          chk("ra_o2","Oxygen enrichment/deficiency"),
-          chk("ra_toxic","Toxic gases/vapours/fumes"),
-          chk("ra_flammable","Flammable gases/vapours/fumes"),
-          chk("ra_ingress","Ingress of liquids/gas/solids"),
-          chk("ra_sludge","Sludge/deposits/waste"),
-          chk("ra_animals","Animals/biological hazards"),
-          chk("ra_mechanical","Mechanical/electrical hazards"),
-          chk("ra_hotwork","Hot work within space"),
-          chk("ra_chemicals","Use of chemicals"),
-          chk("ra_physical","Physical/structural hazards"),
-          chk("ra_temperature","Temperature extremes"),
-          chk("ra_radiation","Ionising radiation"),
+          chk("ra_o2","Oxygen enrichment/deficiency", state.riskAssessment.o2),
+          chk("ra_toxic","Toxic gases/vapours/fumes", state.riskAssessment.toxic),
+          chk("ra_flammable","Flammable gases/vapours/fumes", state.riskAssessment.flammable),
+          chk("ra_ingress","Ingress of liquids/gas/solids", state.riskAssessment.ingress),
+          chk("ra_sludge","Sludge/deposits/waste", state.riskAssessment.sludge),
+          chk("ra_animals","Animals/biological hazards", state.riskAssessment.animals),
+          chk("ra_mechanical","Mechanical/electrical hazards", state.riskAssessment.mechanical),
+          chk("ra_hotwork","Hot work within space", state.riskAssessment.hotwork),
+          chk("ra_chemicals","Use of chemicals", state.riskAssessment.chemicals),
+          chk("ra_physical","Physical/structural hazards", state.riskAssessment.physical),
+          chk("ra_temperature","Temperature extremes", state.riskAssessment.temperature),
+          chk("ra_radiation","Ionising radiation", state.riskAssessment.radiation),
         ]),
         el("div",{style:"margin-top:12px"},[
-          field("Others (specify)","riskOthers","text","Any other risks...")
+          field("Others (specify)","riskOthers","text","Any other risks...", state.riskOthers)
         ])
       ]);
 
       const sControls = el("div",{class:"section"},[
         el("div",{class:"sectionTitle"},["4. Controls"]),
         el("div",{class:"grid3auto"},[
-          chk("co_isoPhys","Isolation - Physical"),
-          chk("co_isoElec","Isolation - Electrical"),
-          chk("co_isoMech","Isolation - Mechanical"),
-          chk("co_cleaning","Cleaning/Purging of space"),
-          chk("co_ventNat","Ventilation - Natural"),
-          chk("co_ventForced","Ventilation - Forced"),
-          chk("co_light110","Lighting - 110V"),
-          chk("co_lightLow","Lighting - Low Voltage"),
-          chk("co_signage","Safety signage/Barricades"),
-          chk("co_comms","Communication equipment"),
-          chk("co_testing","Atmospheric testing (initial)"),
-          chk("co_monitoring","Constant monitoring"),
-          chk("co_extinguishers","Fire extinguishers"),
-          chk("co_rpe","RPE (BA / Escape set)"),
-          chk("co_ppe","Specific PPE"),
-          chk("co_training","Training/Competence"),
+          chk("co_isoPhys","Isolation - Physical", state.controls.isoPhys),
+          chk("co_isoElec","Isolation - Electrical", state.controls.isoElec),
+          chk("co_isoMech","Isolation - Mechanical", state.controls.isoMech),
+          chk("co_cleaning","Cleaning/Purging of space", state.controls.cleaning),
+          chk("co_ventNat","Ventilation - Natural", state.controls.ventNat),
+          chk("co_ventForced","Ventilation - Forced", state.controls.ventForced),
+          chk("co_light110","Lighting - 110V", state.controls.light110),
+          chk("co_lightLow","Lighting - Low Voltage", state.controls.lightLow),
+          chk("co_signage","Safety signage/Barricades", state.controls.signage),
+          chk("co_comms","Communication equipment", state.controls.comms),
+          chk("co_testing","Atmospheric testing (initial)", state.controls.testing),
+          chk("co_monitoring","Constant monitoring", state.controls.monitoring),
+          chk("co_extinguishers","Fire extinguishers", state.controls.extinguishers),
+          chk("co_rpe","RPE (BA / Escape set)", state.controls.rpe),
+          chk("co_ppe","Specific PPE", state.controls.ppe),
+          chk("co_training","Training/Competence", state.controls.training),
         ]),
         el("div",{style:"margin-top:12px"},[
-          field("Others (specify)","controlsOthers","text","Any other controls...")
+          field("Others (specify)","controlsOthers","text","Any other controls...", state.controlsOthers)
         ])
       ]);
 
       const sEmergency = el("div",{class:"section"},[
         el("div",{class:"sectionTitle"},["5. Emergency Arrangements"]),
         el("div",{class:"grid3auto"},[
-          chk("em_plan","Rescue plan in place"),
-          chk("em_tripod","Tripod / Winch / Davit"),
-          chk("em_harness","Harness / Rescue line"),
-          chk("em_fallArrest","Fall arrest equipment"),
-          chk("em_stretcher","Recovery stretcher"),
-          chk("em_resuscitation","Resuscitation equipment"),
-          chk("em_ba","Breathing apparatus (Rescue)"),
-          chk("em_light","Emergency lighting"),
-          chk("em_alarm","Method of raising alarm"),
-          chk("em_comms","Method of communication"),
-          chk("em_standby","Standby person (Top-man)"),
+          chk("em_plan","Rescue plan in place", state.emergency.plan),
+          chk("em_tripod","Tripod / Winch / Davit", state.emergency.tripod),
+          chk("em_harness","Harness / Rescue line", state.emergency.harness),
+          chk("em_fallArrest","Fall arrest equipment", state.emergency.fallArrest),
+          chk("em_stretcher","Recovery stretcher", state.emergency.stretcher),
+          chk("em_resuscitation","Resuscitation equipment", state.emergency.resuscitation),
+          chk("em_ba","Breathing apparatus (Rescue)", state.emergency.ba),
+          chk("em_light","Emergency lighting", state.emergency.light),
+          chk("em_alarm","Method of raising alarm", state.emergency.alarm),
+          chk("em_comms","Method of communication", state.emergency.comms),
+          chk("em_standby","Standby person (Top-man)", state.emergency.standby),
         ]),
         el("div",{class:"grid2", style:"margin-top:12px"},[
-          field("Emergency First Aid provision","firstAid","text","e.g. First aider on site"),
-          field("Method of Communication","commMethod","text","e.g. Two-way radio"),
+          field("Emergency First Aid provision","firstAid","text","e.g. First aider on site", state.firstAid),
+          field("Method of Communication","commMethod","text","e.g. Two-way radio", state.commMethod),
         ])
       ]);
 
       const sMonitoring = el("div",{class:"section"},[
         el("div",{class:"sectionTitle"},["6. Air Monitoring & Certification"]),
         el("div",{class:"grid2"},[
-          field("Monitoring Device 1","monitorDevice1","text","e.g. GMI PS200"),
-          field("Serial Number 1","monitorSerial1","text",""),
-          field("Monitoring Device 2","monitorDevice2","text",""),
-          field("Serial Number 2","monitorSerial2","text",""),
+          field("Monitoring Device 1","monitorDevice1","text","e.g. GMI PS200", state.monitorDevice1),
+          field("Serial Number 1","monitorSerial1","text","", state.monitorSerial1),
+          field("Monitoring Device 2","monitorDevice2","text","", state.monitorDevice2),
+          field("Serial Number 2","monitorSerial2","text","", state.monitorSerial2),
         ]),
         el("div",{class:"grid2", style:"margin-top:12px"},[
-          field("Authorising Person (Section 6)","authorisingPerson","text","Name of person authorising entry"),
-          field("Closure Name (Section 7)","closureName","text","Name for permit closure"),
+          field("Authorising Person (Section 6)","authorisingPerson","text","Name of person authorising entry", state.authorisingPerson),
+          field("Closure Name (Section 7)","closureName","text","Name for permit closure", state.closureName),
         ])
       ]);
 
@@ -740,23 +783,27 @@
       app.appendChild(sMonitoring);
       app.appendChild(sticky);
 
-      checkTemplateAndLib();
+      checkTemplateAndLib("csp");
 
-      function field(labelText, id, type, placeholder){
+      function field(labelText, id, type, placeholder, val = ""){
         return el("div",{},[
           el("label",{for:id},[labelText]),
-          el("input",{id, type, placeholder})
+          el("input",{id, type, placeholder, value: val})
         ]);
       }
-      function textareaField(labelText, id, placeholder){
+      function textareaField(labelText, id, placeholder, val = ""){
+        const txt = el("textarea",{id, placeholder});
+        txt.value = val;
         return el("div",{},[
           el("label",{for:id},[labelText]),
-          el("textarea",{id, placeholder})
+          txt
         ]);
       }
-      function chk(id, labelText){
+      function chk(id, labelText, checked = false){
+        const input = el("input",{type:"checkbox", id});
+        if(checked) input.checked = true;
         return el("label",{class:"check", for:id},[
-          el("input",{type:"checkbox", id}),
+          input,
           el("span",{},[labelText])
         ]);
       }
@@ -813,41 +860,6 @@
           btn.disabled = false;
           btn.textContent = "Download PDF";
         }
-      }
-    }
-
-    async function checkTemplateAndLib(){
-      const libPill = $("#pillLib");
-      const tplPill = $("#pillTpl");
-
-      await new Promise(r => setTimeout(r, 400));
-
-      if(window.PDFLib){
-        libPill.className = "pill ok";
-        libPill.textContent = "PDF engine: OK";
-      }else{
-        libPill.className = "pill bad";
-        libPill.textContent = "PDF engine: BLOCKED";
-      }
-
-      const tryFetch = async (url) => {
-        try{
-          const res = await fetch(url, { method:"GET", cache:"no-store" });
-          return res.ok ? { ok:true, url } : { ok:false, status:res.status, url };
-        }catch(e){
-          return { ok:false, status:"ERR", url };
-        }
-      };
-
-      let r = await tryFetch("/templates/daily-briefing.pdf");
-      if(!r.ok) r = await tryFetch("templates/daily-briefing.pdf");
-
-      if(r.ok){
-        tplPill.className = "pill ok";
-        tplPill.textContent = "Template: OK";
-      }else{
-        tplPill.className = "pill bad";
-        tplPill.textContent = `Template: MISSING (${r.status})`;
       }
     }
 
@@ -987,7 +999,7 @@
 
       rebuildAttendees();
       updateAttCount();
-      checkTemplateAndLib();
+      checkTemplateAndLib("daily");
 
       function field(labelText, id, type, placeholder){
         return el("div",{},[
