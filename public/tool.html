@@ -938,7 +938,6 @@
       const A4 = [595.28, 841.89];
       const page1 = pdfDoc.addPage(A4);
       const page2 = pdfDoc.addPage(A4);
-      const page3 = pdfDoc.addPage(A4);
 
       const detectImageType = (bytes) => {
         if(!bytes || bytes.length < 4) return null;
@@ -997,14 +996,13 @@
       };
 
       const drawCheckmark = (page, boxX, boxY, boxW, boxH) => {
-        const left = boxX + (boxW * 0.2);
-        const midX = boxX + (boxW * 0.42);
-        const right = boxX + (boxW * 0.75);
-        const lower = boxY + (boxH * 0.3);
-        const midY = boxY + (boxH * 0.15);
-        const upper = boxY + (boxH * 0.65);
-        page.drawLine({ start:{ x:left, y:lower }, end:{ x:midX, y:midY }, thickness:1.2, color: BLACK });
-        page.drawLine({ start:{ x:midX, y:midY }, end:{ x:right, y:upper }, thickness:1.2, color: BLACK });
+        const pad = Math.min(boxW, boxH) * 0.25;
+        const x1 = boxX + pad;
+        const x2 = boxX + boxW - pad;
+        const y1 = boxY + pad;
+        const y2 = boxY + boxH - pad;
+        page.drawLine({ start:{ x:x1, y:y1 }, end:{ x:x2, y:y2 }, thickness:1.2, color: BLACK });
+        page.drawLine({ start:{ x:x1, y:y2 }, end:{ x:x2, y:y1 }, thickness:1.2, color: BLACK });
       };
 
       const wrapLines = (font, text, size, maxWidth) => {
@@ -1054,9 +1052,9 @@
         const tableTop = 680;
         const rowH = 26;
         const labelW = 140;
-        const valueW = 220;
+        const valueW = 190;
         const label2W = 110;
-        const value2W = 65;
+        const value2W = 75;
 
         const rows = [
           ["PROJECT TITLE", data.projectTitle, "SITE LOCATION", data.siteLocation],
@@ -1071,9 +1069,9 @@
           drawCell(page, marginX + labelW, y, valueW, rowH, { fill: LIGHT_BLUE });
           drawCell(page, marginX + labelW + valueW, y, label2W, rowH, { fill: undefined });
           drawCell(page, marginX + labelW + valueW + label2W, y, value2W, rowH, { fill: LIGHT_BLUE });
-          drawWrappedFromTop(page, row[0], marginX + 6, y + rowH - 10, labelW - 10, 10, 8, 2, BLACK);
+          drawWrappedFromTop(page, row[0], marginX + 6, y + rowH - 10, labelW - 10, 10, 8, 2, RED);
           drawText(page, row[1], marginX + labelW + 6, y + 10, 10, helv);
-          drawWrappedFromTop(page, row[2], marginX + labelW + valueW + 6, y + rowH - 10, label2W - 10, 10, 8, 2, BLACK);
+          drawWrappedFromTop(page, row[2], marginX + labelW + valueW + 6, y + rowH - 10, label2W - 10, 10, 8, 2, RED);
           drawText(page, row[3], marginX + labelW + valueW + label2W + 6, y + 10, 10, helv);
         });
 
@@ -1121,8 +1119,8 @@
         drawText(page, "Points discussed for today's operation:", marginX + 6, startY - 12, 8, helvBold, RED);
 
         const rowH = 18;
-        const colLabelW = 160;
-        const colCheckW = 18;
+        const colLabelW = 150;
+        const colCheckW = 20;
         const gap = 0;
         const rows = [
           ["confined", "barriers", "coshh"],
@@ -1285,7 +1283,6 @@
       drawConfirmations(page1, cursorY);
 
       drawSignUpPage(page2);
-      drawSignUpPage(page3);
 
       const attendeesAll = (data.attendees || []).slice(0, 36).map(a=>({
         name: (a.name||"").trim(),
@@ -1293,7 +1290,11 @@
         signature: (a.signature||"")
       }));
       let next = await drawAttendeeTable(page2, 596, attendeesAll, 0);
-      await drawAttendeeTable(page3, 596, attendeesAll, next);
+      if(next < attendeesAll.length){
+        const page3 = pdfDoc.addPage(A4);
+        drawSignUpPage(page3);
+        await drawAttendeeTable(page3, 596, attendeesAll, next);
+      }
 
       // Save + download (with fallback)
       const outBytes = await pdfDoc.save();
