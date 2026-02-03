@@ -593,7 +593,13 @@
           alarm: false, comms: false, standby: false
         },
         firstAid: "",
-        commMethod: ""
+        commMethod: "",
+        monitorDevice1: "",
+        monitorSerial1: "",
+        monitorDevice2: "",
+        monitorSerial2: "",
+        authorisingPerson: "",
+        closureName: ""
       };
 
       const head = el("div",{class:"head"},[
@@ -651,7 +657,7 @@
       ]);
 
       const sControls = el("div",{class:"section"},[
-        el("div",{class:"sectionTitle"},["3. Controls"]),
+        el("div",{class:"sectionTitle"},["4. Controls"]),
         el("div",{class:"grid3auto"},[
           chk("co_isoPhys","Isolation - Physical"),
           chk("co_isoElec","Isolation - Electrical"),
@@ -676,7 +682,7 @@
       ]);
 
       const sEmergency = el("div",{class:"section"},[
-        el("div",{class:"sectionTitle"},["4. Emergency Arrangements"]),
+        el("div",{class:"sectionTitle"},["5. Emergency Arrangements"]),
         el("div",{class:"grid3auto"},[
           chk("em_plan","Rescue plan in place"),
           chk("em_tripod","Tripod / Winch / Davit"),
@@ -693,6 +699,20 @@
         el("div",{class:"grid2", style:"margin-top:12px"},[
           field("Emergency First Aid provision","firstAid","text","e.g. First aider on site"),
           field("Method of Communication","commMethod","text","e.g. Two-way radio"),
+        ])
+      ]);
+
+      const sMonitoring = el("div",{class:"section"},[
+        el("div",{class:"sectionTitle"},["6. Air Monitoring & Certification"]),
+        el("div",{class:"grid2"},[
+          field("Monitoring Device 1","monitorDevice1","text","e.g. GMI PS200"),
+          field("Serial Number 1","monitorSerial1","text",""),
+          field("Monitoring Device 2","monitorDevice2","text",""),
+          field("Serial Number 2","monitorSerial2","text",""),
+        ]),
+        el("div",{class:"grid2", style:"margin-top:12px"},[
+          field("Authorising Person (Section 6)","authorisingPerson","text","Name of person authorising entry"),
+          field("Closure Name (Section 7)","closureName","text","Name for permit closure"),
         ])
       ]);
 
@@ -717,6 +737,7 @@
       app.appendChild(sRisk);
       app.appendChild(sControls);
       app.appendChild(sEmergency);
+      app.appendChild(sMonitoring);
       app.appendChild(sticky);
 
       checkTemplateAndLib();
@@ -777,7 +798,13 @@
               comms: $("#em_comms").checked, standby: $("#em_standby").checked
             },
             firstAid: $("#firstAid").value.trim(),
-            commMethod: $("#commMethod").value.trim()
+            commMethod: $("#commMethod").value.trim(),
+            monitorDevice1: $("#monitorDevice1").value.trim(),
+            monitorSerial1: $("#monitorSerial1").value.trim(),
+            monitorDevice2: $("#monitorDevice2").value.trim(),
+            monitorSerial2: $("#monitorSerial2").value.trim(),
+            authorisingPerson: $("#authorisingPerson").value.trim(),
+            closureName: $("#closureName").value.trim()
           };
           await generateConfinedSpacePDF(data);
         }catch(err){
@@ -1275,6 +1302,17 @@
       // Page 4
       const p4 = pdfDoc.addPage(A4);
       p4.drawImage(img4, { x:0, y:0, width: A4[0], height: A4[1] });
+
+      drawText(p4, data.monitorDevice1, 105, 715, 9);
+      drawText(p4, data.monitorSerial1, 405, 715, 9);
+      drawText(p4, data.monitorDevice2, 105, 700, 9);
+      drawText(p4, data.monitorSerial2, 405, 700, 9);
+
+      drawText(p4, data.authorisingPerson, 335, 310, 10);
+      drawText(p4, toDDMMYYYY(data.dateISO), 490, 288, 10);
+
+      drawText(p4, data.closureName, 80, 152, 10);
+      drawText(p4, toDDMMYYYY(data.dateISO), 490, 130, 10);
 
       const outBytes = await pdfDoc.save();
       const blob = new Blob([outBytes], { type:"application/pdf" });
