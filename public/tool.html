@@ -701,136 +701,7 @@
 
       const sConfirm = el("div",{class:"section"},[
         el("div",{class:"sectionTitle"},["Confirmations"]),
-        el("div",{class:"grid2"},[
-          selectField("Are all today’s activities covered by the procedure / MS / RA / WI?","covered",["Yes","No"]),
-          selectField("Are all control measures in place?","controls",["Yes","No"]),
-          selectField("Are all operatives compliant with PPE requirements?","ppe",["Yes","No"]),
-        ])
-      ]);
-
-      const sAtt = el("div",{class:"section"},[
-        el("div",{class:"attTop"},[
-          el("div",{class:"sectionTitle", style:"margin:0;"},["Attendees (sign-up sheet)"]),
-          el("button",{class:"btn btnGhost", type:"button", onclick:()=>addAttendee()},["+ Add attendee"])
-        ]),
-        el("div",{id:"attWrap"},[]),
-        el("div",{class:"note"},["Pages 2–3 support up to 36 attendees total. Each attendee can sign on their own row."])
-      ]);
-
-      // Sticky action bar
-      const sticky = el("div",{class:"stickyBar"},[
-        el("div",{class:"actionBar"},[
-          el("div",{class:"btnRow"},[
-            el("a",{class:"btn btnYellow", href:"daily.html"},["Back"]),
-            el("span",{id:"attCount", class:"pill"},["Attendees: 0"])
-          ]),
-          el("div",{class:"btnRow"},[
-            el("button",{id:"btnDownload", class:"btn", type:"button", onclick: async()=> {
-              hideBanner();
-              await onDownload();
-            }},["Download PDF"])
-          ])
-        ])
-      ]);
-
-      app.appendChild(head);
-      app.appendChild(banner);
-      app.appendChild(sDetails);
-      app.appendChild(sBrief);
-      app.appendChild(sPoints);
-      app.appendChild(sConfirm);
-      app.appendChild(sAtt);
-      app.appendChild(sticky);
-
-      // defaults
-      $("#prevPlanned").value = state.prevPlanned;
-      $("#covered").value = state.covered;
-      $("#controls").value = state.controls;
-      $("#ppe").value = state.ppe;
-
-      rebuildAttendees();
-      updateAttCount();
-      checkTemplateAndLib();
-
-      function field(labelText, id, type, placeholder){
-        return el("div",{},[
-          el("label",{for:id},[labelText]),
-          el("input",{id, type, placeholder})
-        ]);
-      }
-      function textareaField(labelText, id, placeholder){
-        return el("div",{},[
-          el("label",{for:id},[labelText]),
-          el("textarea",{id, placeholder})
-        ]);
-      }
-      function selectField(labelText, id, options){
-        return el("div",{},[
-          el("label",{for:id},[labelText]),
-          el("select",{id}, options.map(o=> el("option",{value:o},[o])) )
-        ]);
-      }
-      function chk(key, labelText){
-        const id = "pt_" + key;
-        return el("label",{class:"check", for:id},[
-          el("input",{type:"checkbox", id}),
-          el("span",{},[labelText])
-        ]);
-      }
-
-      function addAttendee(){
-        const list = collectAttendees();
-        if(list.length >= 36){
-          showBanner("Max 36 attendees (PDF pages 2–3).", "warn");
-          return;
-        }
-        list.push({ id: makeId(), name:"", dateISO: todayISO() });
-        state.attendees = list;
-        rebuildAttendees();
-        updateAttCount();
-      }
-
-      function rebuildAttendees(){
-        const wrap = $("#attWrap");
-        wrap.innerHTML = "";
-        const list = state.attendees;
-
-        list.forEach((a, idx)=>{
-          const sigUrl = sigStore.get(a.id) || "";
-
-          const sigPreview = el("div",{class:"sigPreview", "data-prev":a.id},[
-            sigUrl ? el("img",{src:sigUrl, alt:"Signature"}) : el("span",{},["No signature"])
-          ]);
-
-          const nameInput = el("input",{type:"text", value:a.name || "", placeholder:"Name", "data-name":a.id});
-          const dateInput = el("input",{type:"date", value:a.dateISO || todayISO(), "data-date":a.id});
-
-          nameInput.addEventListener("input", updateAttCount);
-
-          const btnSign = el("button",{class:"btn btnGhost", type:"button", onclick:()=>{
-            const nm = (nameInput.value || "").trim();
-            SigModal.open(a.id, nm || `Attendee ${idx+1}`, (id, url)=>{
-              const box = wrap.querySelector(`[data-prev="${id}"]`);
-              if(box){
-                box.innerHTML = "";
-                box.appendChild(el("img",{src:url, alt:"Signature"}));
-              }
-            });
-          }},["Sign"]);
-
-          const btnClearSig = el("button",{class:"btn btnDanger", type:"button", onclick:()=>{
-            sigStore.delete(a.id);
-            const box = wrap.querySelector(`[data-prev="${a.id}"]`);
-            if(box){
-              box.innerHTML = "";
-              box.appendChild(el("span",{},["No signature"]));
-            }
-          }},["Clear sig"]);
-
-          const btnDelete = el("button",{class:"btn btnDanger", type:"button", onclick:()=>{
-            const now = collectAttendees().filter(x=>x.id !== a.id);
-            sigStore.delete(a.id);
-            state.attendees = now.length ? now : [{ id: makeId(), name:"", dateISO: todayISO() }];
+        el("div",{class:"grid2"}…1218 tokens truncated…name:"", dateISO: todayISO() }];
             rebuildAttendees();
             updateAttCount();
           }},["Delete"]);
@@ -1219,8 +1090,6 @@
         drawCell(page, 40, 632, 515, 20, { fill: RED });
         drawCenteredText(page, "ATTENDEES", 297.5, 637, 8, helvBold, HEADER_TEXT);
       }
-      return await doc.embedPng(decoded.bytes);
-    };
 
       async function drawAttendeeTable(page, startY, attendees, startIndex){
         const marginX = 40;
@@ -1280,36 +1149,10 @@
               }
             }
             idx++;
-    let y = startY - rowH;
-    let idx = startIndex;
-
-    for(let i=0;i<18;i++){
-      drawCell(page, marginX, y, nameW, rowH, { fill: LIGHT_BLUE });
-      drawCell(page, marginX + nameW, y, dateW, rowH, { fill: LIGHT_BLUE });
-      drawCell(page, marginX + nameW + dateW, y, sigW, rowH, { fill: LIGHT_BLUE });
-
-      const a = attendees[idx];
-      if(a){
-        drawText(page, a.name, marginX + 6, y + 7, 10, helv);
-        drawText(page, toDDMMYYYY(a.dateISO), marginX + nameW + 6, y + 7, 10, helv);
-
-        // Clear signature area (in case template has printed "SIGN")
-        cover(page, marginX + nameW + dateW + 2, y + 2, sigW - 4, rowH - 4);
-
-        if(a.signature){
-          const embed = await embedImageFromDataUrl(a.signature);
-          if(embed){
-            const maxW = sigW - 12;
-            const maxH = rowH - 6;
-            const s = fitInto(embed.width, embed.height, maxW, maxH);
-            const x = marginX + nameW + dateW + 6 + ((maxW - s.w) / 2);
-            const yImg = y + 3 + ((maxH - s.h) / 2);
-            page.drawImage(embed, { x, y: yImg, width:s.w, height:s.h });
           }
           y -= rowH;
         }
-
-        idx++;
+        return idx;
       }
 
       drawHeader(page1);
@@ -1356,48 +1199,9 @@
       a.remove();
 
       setTimeout(()=> URL.revokeObjectURL(url), 2500);
-      y -= rowH;
     }
 
-    return idx;
-  }
-
-  // ---------- 8) Compose pages ----------
-  drawHeader(page1);
-  let cursorY = drawIntroTable(page1);
-  cursorY = drawPreviousDay(page1, cursorY);
-  cursorY = drawTodayPlanned(page1, cursorY);
-  cursorY = drawPointsGrid(page1, cursorY);
-  drawConfirmations(page1, cursorY);
-
-  drawSignUpPage(page2);
-  drawSignUpPage(page3);
-
-  let next = await drawAttendeeTable(page2, 596, attendeesAll, 0);
-  await drawAttendeeTable(page3, 596, attendeesAll, next);
-
-  // ---------- 9) Save + download (with fallback) ----------
-  const outBytes = await doc.save();
-  const blob = new Blob([outBytes], { type:"application/pdf" });
-  const url = URL.createObjectURL(blob);
-  const filename = `Daily-Briefing_${data.dateISO || todayISO()}.pdf`;
-
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  a.rel = "noopener";
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-
-  // Fallback: open in a new tab if the browser blocks downloads
-  setTimeout(()=> {
-    try{ window.open(url, "_blank"); }catch(e){}
-  }, 150);
-
-  setTimeout(()=> URL.revokeObjectURL(url), 2500);
-}
-// Router
+    // Router
     if(t.toLowerCase() === "daily brief" || t.toLowerCase() === "daily briefing"){
       renderDailyBrief();
     }else{
