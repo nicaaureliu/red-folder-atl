@@ -997,10 +997,14 @@
       };
 
       const drawCheckmark = (page, boxX, boxY, boxW, boxH) => {
-        const centerX = boxX + (boxW / 2);
-        const centerY = boxY + (boxH / 2);
-        const radius = Math.min(boxW, boxH) * 0.3;
-        page.drawCircle({ x: centerX, y: centerY, size: radius, color: BLACK });
+        const left = boxX + (boxW * 0.18);
+        const midX = boxX + (boxW * 0.42);
+        const right = boxX + (boxW * 0.82);
+        const lower = boxY + (boxH * 0.35);
+        const midY = boxY + (boxH * 0.15);
+        const upper = boxY + (boxH * 0.75);
+        page.drawLine({ start:{ x:left, y:lower }, end:{ x:midX, y:midY }, thickness:1.4, color: BLACK });
+        page.drawLine({ start:{ x:midX, y:midY }, end:{ x:right, y:upper }, thickness:1.4, color: BLACK });
       };
 
       const wrapLines = (font, text, size, maxWidth) => {
@@ -1032,9 +1036,7 @@
         const centerY = y + (size / 2);
         const radius = (size / 2) - 2;
         if(isYes){
-          page.drawCircle({ x: centerX, y: centerY, size: radius, color: RED });
-        }else{
-          page.drawCircle({ x: centerX, y: centerY, size: radius, borderColor: BLACK, borderWidth: 1 });
+          drawCheckmark(page, x + 1.5, y + 1.5, size - 3, size - 3);
         }
       };
 
@@ -1195,7 +1197,7 @@
           y -= rowH;
           drawCell(page, marginX, y, textW, rowH, { fill: undefined });
           drawCell(page, marginX + textW, y, boxW, rowH, { fill: undefined });
-          drawWrappedFromTop(page, item.text, marginX + 6, y + rowH - 10, textW - 10, 10, 8, 3, BLACK);
+        drawWrappedFromTop(page, item.text, marginX + 6, y + rowH - 10, textW - 10, 10, 8, 3, BLACK);
           drawYesNoBox(page, marginX + textW + 18, y + 9, 12, item.value === "Yes");
         });
       }
