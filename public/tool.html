@@ -635,7 +635,7 @@
         ])
       ]);
 
-      const banner = el("div",{id:"banner", class:"banner"},[""]);
+      const banner = el("div",{id hookup:"banner", id:"banner", class:"banner"},[""]);
 
       const sDetails = el("div",{class:"section"},[
         el("div",{class:"sectionTitle"},["Project & briefing details"]),
@@ -954,17 +954,6 @@
       const LIGHT_FILL = rgb(0.985, 0.985, 0.99);
       const YELLOW = rgb(1, 0.84, 0);
 
-      const pad2 = (n) => String(n).padStart(2,"0");
-      const todayISO = () => {
-        const d = new Date();
-        return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`;
-      };
-      const toDDMMYYYY = (iso) => {
-        if(!iso || !iso.includes("-")) return iso || "";
-        const [y,m,d] = iso.split("-");
-        return `${pad2(d)}/${pad2(m)}/${y}`;
-      };
-
       const drawText = (page, text, x, y, size=10, font=helvBold, color=BLACK) => {
         if(!text) return;
         page.drawText(String(text), { x, y, size, font, color });
@@ -982,7 +971,7 @@
         page.drawRectangle(opts);
       };
 
-      // ✅ Better vertical centring baseline (fixes "sits too high")
+      // Better vertical-centre baseline so text doesn't sit high
       const vCenterBaseline = (y, h, size) => {
         return y + (h - size) / 2 + (size * 0.26);
       };
@@ -1006,17 +995,27 @@
         page.drawText(s, { x: tx, y: ty, size, font, color });
       };
 
+      // ✅ Updated: preserves manual line breaks (\n) AND wraps within each line
       const wrapLines = (font, text, size, maxWidth) => {
-        const words = String(text || "").replace(/\r/g,"").split(/\s+/).filter(Boolean);
+        const raw = String(text || "").replace(/\r/g, "");
+        const parts = raw.split("\n");
+
         const lines = [];
-        let line = "";
-        for(const w of words){
-          const test = line ? (line + " " + w) : w;
-          const width = font.widthOfTextAtSize(test, size);
-          if(width <= maxWidth) line = test;
-          else { if(line) lines.push(line); line = w; }
+        for(const part of parts){
+          const words = part.split(/\s+/).filter(Boolean);
+          if(words.length === 0){
+            lines.push("");
+            continue;
+          }
+          let line = "";
+          for(const w of words){
+            const test = line ? (line + " " + w) : w;
+            const width = font.widthOfTextAtSize(test, size);
+            if(width <= maxWidth) line = test;
+            else { if(line) lines.push(line); line = w; }
+          }
+          if(line) lines.push(line);
         }
-        if(line) lines.push(line);
         return lines;
       };
 
@@ -1029,14 +1028,14 @@
         }
       };
 
-      // ✅ NEW: wrapped text that is vertically centred in the cell AND left aligned
+      // Vertically centred + left aligned wrapped text block inside a cell
       const drawWrappedVCenterLeft = (page, text, x, y, w, h, {
-        size=7.4,
+        size=8.2,
         font=helvBold,
         color=BLACK,
-        padding=6,
-        lineHeight=9.4,
-        maxLines=3
+        padding=8,
+        lineHeight=10,
+        maxLines=2
       } = {}) => {
         const maxWidth = w - padding*2;
         const lines = wrapLines(font, text, size, maxWidth).slice(0, maxLines);
@@ -1045,7 +1044,6 @@
         const blockH = n * lineHeight;
         const topPad = Math.max(0, (h - blockH) / 2);
 
-        // first line box top (from cell top)
         const firstBoxTop = y + h - topPad - lineHeight;
         const base0 = firstBoxTop + (lineHeight - size) / 2 + (size * 0.18);
 
@@ -1060,7 +1058,7 @@
         }
       };
 
-      // ✅ ONLY ONE BOX: YES or NO (yellow) with proper centring
+      // Only one yellow label: YES or NO (centred)
       const drawYesNoSingle = (page, x, y, w, h, value) => {
         const v = String(value || "").trim().toUpperCase() === "NO" ? "NO" : "YES";
         const boxH = Math.min(14, h - 4);
@@ -1127,10 +1125,17 @@
           drawCell(page, marginX + labelW + valueW, y, label2W, rowH);
           drawCell(page, marginX + labelW + valueW + label2W, y, value2W, rowH, { fill: LIGHT_FILL });
 
-          drawWrappedFromTop(page, row[0], marginX + 6, y + rowH - 9, labelW - 10, 10, 8, 2, BLACK, helvBold);
+          // ✅ FIX: labels are vertically centered in their cells (left-aligned)
+          drawWrappedVCenterLeft(page, row[0], marginX, y, labelW, rowH, {
+            size: 8.6, font: helvBold, padding: 8, lineHeight: 10, maxLines: 2
+          });
+
           drawTextInCell(page, row[1], marginX + labelW, y, valueW, rowH, { size:10, font:helv, align:"left" });
 
-          drawWrappedFromTop(page, row[2], marginX + labelW + valueW + 6, y + rowH - 9, label2W - 10, 10, 8, 2, BLACK, helvBold);
+          drawWrappedVCenterLeft(page, row[2], marginX + labelW + valueW, y, label2W, rowH, {
+            size: 8.2, font: helvBold, padding: 8, lineHeight: 10, maxLines: 2
+          });
+
           drawTextInCell(page, row[3], marginX + labelW + valueW + label2W, y, value2W, rowH, { size:10, font:helv, align:"left" });
         });
 
@@ -1274,12 +1279,10 @@
           drawCell(page, marginX, y, textW, rowH);
           drawCell(page, marginX + textW, y, boxW, rowH);
 
-          // ✅ Fix: vertically centred + left aligned inside the row
           drawWrappedVCenterLeft(page, item.text, marginX, y, textW, rowH, {
             size:7.4, font:helvBold, padding:8, lineHeight:9.4, maxLines:3
           });
 
-          // ✅ Fix: YES in yellow box centred properly
           drawYesNoSingle(page, marginX + textW, y, boxW, rowH, item.value);
         });
       }
