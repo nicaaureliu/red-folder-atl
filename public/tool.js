@@ -1292,7 +1292,7 @@ window.__pdfLibLoadFailed = false;
       app.appendChild(sClear);
       app.appendChild(sticky);
 
-      checkTemplateAndLib("ground");
+      checkTemplateAndLib("csp");
 
       function field(labelText, id, type, placeholder){
         return el("div",{},[
@@ -2358,36 +2358,19 @@ window.__pdfLibLoadFailed = false;
       }
 
       const { PDFDocument, StandardFonts, rgb } = PDFLib;
-      const templateUrls = ["./templates/1.pdf", "/templates/1.pdf"]; 
-      let bytes = null;
-      let lastErr = null;
-      for (const url of templateUrls) {
-        try {
-          const res = await fetch(url, { cache:"no-store" });
-          if (!res.ok) throw new Error(`Template fetch failed (${res.status})`);
-          const contentType = res.headers.get("content-type") || "";
-          if (contentType.includes("text/html")) {
-            throw new Error("Template fetch returned HTML, not PDF.");
-          }
-          bytes = await res.arrayBuffer();
-          if (bytes && bytes.byteLength) break;
-        } catch (err) {
-          lastErr = err;
-        }
-      }
-      if (!bytes) {
-        throw new Error(`Permit template failed to load. ${lastErr ? lastErr.message : ""}`);
-      }
-      const pdfDoc = await PDFDocument.load(bytes);
+      const pdfDoc = await PDFDocument.create();
       const helv = await pdfDoc.embedFont(StandardFonts.Helvetica);
       const helvBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
 
-      const pages = pdfDoc.getPages();
-      const page1 = pages[0];
-      const page2 = pages[1];
-      const page3 = pages[2];
+      const A4 = [595.28, 841.89];
+      const page1 = pdfDoc.addPage(A4);
+      const page2 = pdfDoc.addPage(A4);
+      const page3 = pdfDoc.addPage(A4);
 
+      const RED = rgb(0.78, 0.1, 0.1);
       const BLACK = rgb(0,0,0);
+      const LIGHT = rgb(0.97,0.97,0.97);
+      const WHITE = rgb(1,1,1);
 
       const sanitize = (text) => {
         let s = String(text ?? "");
@@ -2403,13 +2386,13 @@ window.__pdfLibLoadFailed = false;
         return s;
       };
 
-      const drawText = (page, text, x, y, size=8, font=helv) => {
+      const drawText = (page, text, x, y, size=9, font=helv, color=BLACK) => {
         const t = sanitize(text);
         if(!t) return;
-        page.drawText(t, { x, y, size, font, color: BLACK });
+        page.drawText(t, { x, y, size, font, color });
       };
 
-      const drawWrapped = (page, text, x, topY, maxW, lineH=10, size=8, maxLines=6, font=helv) => {
+      const drawWrap = (page, text, x, topY, maxW, lineH=11, size=9, maxLines=10, font=helv, color=BLACK) => {
         const t = sanitize(text);
         if(!t) return;
         const parts = t.replace(/\r/g, "").split("\n");
@@ -2427,90 +2410,111 @@ window.__pdfLibLoadFailed = false;
         });
         let y = topY;
         lines.slice(0, maxLines).forEach(ln => {
-          page.drawText(ln, { x, y, size, font, color: BLACK });
+          page.drawText(ln, { x, y, size, font, color });
           y -= lineH;
         });
       };
 
-      const drawCheck = (page, checked, x, y) => {
-        if(checked){
-          page.drawText("X", { x, y, size: 8, font: helvBold, color: BLACK });
-        }
+      const drawSectionHeader = (page, title, yTop) => {
+        page.drawRectangle({ x:40, y:yTop-16, width:515, height:16, color: RED });
+        drawText(page, title, 46, yTop-12, 9, helvBold, WHITE);
       };
 
-      const pageH = page1.getHeight();
-      const yTop = (fromTop) => pageH - fromTop;
+      const drawField = (page, label, value, x, y, w, h=20) => {
+        drawText(page, label, x, y + h + 2, 8, helvBold);
+        page.drawRectangle({ x, y, width:w, height:h, borderColor: BLACK, borderWidth: 1, color: LIGHT });
+        drawText(page, value, x + 4, y + 6, 9);
+      };
 
-      // Page 1 header fields (approximate positions)
-      drawText(page1, data.projectName, 70, yTop(92));
-      drawText(page1, data.projectNo, 310, yTop(92));
-      drawText(page1, data.permitNo, 465, yTop(92));
+      const utils = [
+        `Underground: ${data.utilities.underground ? "Yes" : "No"}`,
+        `Electrical: ${data.utilities.electrical ? "Yes" : "No"}`,
+        `Gas: ${data.utilities.gas ? "Yes" : "No"}`,
+        `Water: ${data.utilities.water ? "Yes" : "No"}`,
+        `Telecom: ${data.utilities.telecom ? "Yes" : "No"}`,
+        `Surface/Sewer: ${data.utilities.surfaceSewer ? "Yes" : "No"}`,
+        `Other: ${data.utilities.other ? "Yes" : "No"}`
+      ].join(" | ");
 
-      drawText(page1, data.preparedBy, 90, yTop(112));
-      drawText(page1, data.issuedTo, 330, yTop(112));
+      // Page 1
+      page1.drawRectangle({ x:40, y:800, width:515, height:24, color: RED });
+      drawText(page1, "PERMIT TO BREAK GROUND (EXCLUSION ZONE)", 50, 806, 11, helvBold, WHITE);
 
-      drawText(page1, data.validFrom, 120, yTop(132));
-      drawText(page1, data.validTo, 270, yTop(132));
+      drawField(page1, "Project Name", data.projectName, 40, 755, 250);
+      drawField(page1, "Project No", data.projectNo, 305, 755, 250);
+      drawField(page1, "Permit No", data.permitNo, 40, 715, 180);
+      drawField(page1, "Permit compiled by", data.preparedBy, 230, 715, 325);
+      drawField(page1, "Permit issued to", data.issuedTo, 40, 675, 250);
+      drawField(page1, "Permit validity from", data.validFrom, 305, 675, 120);
+      drawField(page1, "Permit validity to", data.validTo, 435, 675, 120);
+      drawField(page1, "Work Package Plan Name & No", data.workPackage, 40, 635, 515);
 
-      drawText(page1, data.workPackage, 140, yTop(152));
+      drawSectionHeader(page1, "1. Extent of permit, location & brief description of work", 610);
+      page1.drawRectangle({ x:40, y:520, width:515, height:80, borderColor: BLACK, borderWidth: 1, color: LIGHT });
+      drawWrap(page1, data.locationDescription, 46, 590, 505, 11, 9, 6);
 
-      // Section 1
-      drawWrapped(page1, data.locationDescription, 50, yTop(190), 520, 10, 8, 6);
+      drawSectionHeader(page1, "2. Survey conclusions", 500);
+      page1.drawRectangle({ x:40, y:420, width:515, height:70, borderColor: BLACK, borderWidth: 1, color: LIGHT });
+      drawWrap(page1, data.surveyConclusions, 46, 485, 505, 11, 9, 5);
+      drawText(page1, `Utilities: ${utils}`, 46, 408, 8);
+      drawText(page1, `Other: ${data.utilitiesOther}`, 46, 396, 8);
+      drawText(page1, `Signed (Utility Co-ordinator): ${data.coordinatorName}  Date: ${data.coordinatorDate}  Time: ${data.coordinatorTime}`, 46, 384, 8);
 
-      // Section 2
-      drawWrapped(page1, data.surveyConclusions, 50, yTop(290), 520, 10, 8, 6);
+      drawSectionHeader(page1, "3. Controls (Utility Co-ordinator)", 370);
+      drawText(page1, "Isolations requested granted/denied (details)", 46, 350, 8, helvBold);
+      page1.drawRectangle({ x:40, y:320, width:515, height:28, borderColor: BLACK, borderWidth: 1, color: LIGHT });
+      drawWrap(page1, data.isolationsDetails, 46, 342, 505, 11, 8, 2);
 
-      // Utilities checkboxes row
-      drawCheck(page1, data.utilities.underground, 75, yTop(356));
-      drawCheck(page1, data.utilities.electrical, 150, yTop(356));
-      drawCheck(page1, data.utilities.gas, 220, yTop(356));
-      drawCheck(page1, data.utilities.water, 275, yTop(356));
-      drawCheck(page1, data.utilities.telecom, 335, yTop(356));
-      drawCheck(page1, data.utilities.surfaceSewer, 410, yTop(356));
-      drawCheck(page1, data.utilities.other, 485, yTop(356));
-      drawText(page1, data.utilitiesOther, 515, yTop(356));
+      drawText(page1, "Design changes requested granted/denied (details)", 46, 305, 8, helvBold);
+      page1.drawRectangle({ x:40, y:275, width:515, height:28, borderColor: BLACK, borderWidth: 1, color: LIGHT });
+      drawWrap(page1, data.designChangesDetails, 46, 297, 505, 11, 8, 2);
 
-      drawText(page1, data.coordinatorName, 120, yTop(382));
-      drawText(page1, data.coordinatorDate, 320, yTop(382));
-      drawText(page1, data.coordinatorTime, 430, yTop(382));
+      drawText(page1, `PPE required: ${sanitize(data.ppeRequired)}`, 46, 260, 8);
+      drawText(page1, `Excavation tools required: ${sanitize(data.excavationTools)}`, 46, 246, 8);
+      drawText(page1, "Excavation support/protection equipment required:", 46, 232, 8, helvBold);
+      page1.drawRectangle({ x:40, y:202, width:515, height:28, borderColor: BLACK, borderWidth: 1, color: LIGHT });
+      drawWrap(page1, data.excavationSupport, 46, 224, 505, 11, 8, 2);
 
-      // Controls section (approximate)
-      drawWrapped(page1, data.isolationsDetails, 250, yTop(420), 300, 10, 8, 3);
-      drawWrapped(page1, data.designChangesDetails, 250, yTop(462), 300, 10, 8, 3);
-      drawText(page1, data.ppeRequired, 190, yTop(502));
-      drawText(page1, data.excavationTools, 210, yTop(524));
-      drawWrapped(page1, data.excavationSupport, 260, yTop(560), 290, 10, 8, 3);
-      drawWrapped(page1, data.backfillRequirements, 260, yTop(600), 290, 10, 8, 3);
-      drawWrapped(page1, data.compositeDrawing, 50, yTop(640), 520, 10, 8, 2);
-      drawWrapped(page1, data.utilityMarkers, 50, yTop(680), 520, 10, 8, 2);
-      drawCheck(page1, data.networkRailConfirmed, 50, yTop(708));
+      drawText(page1, "Backfill/marker placement requirements:", 46, 190, 8, helvBold);
+      page1.drawRectangle({ x:40, y:160, width:515, height:28, borderColor: BLACK, borderWidth: 1, color: LIGHT });
+      drawWrap(page1, data.backfillRequirements, 46, 182, 505, 11, 8, 2);
 
-      // Page 2 sketch
-      if(page2){
-        const p2h = page2.getHeight();
-        const y2 = (fromTop) => p2h - fromTop;
-        drawWrapped(page2, data.sketch, 50, y2(160), 520, 10, 8, 18);
+      drawText(page1, "Composite colour drawing / reference:", 46, 148, 8, helvBold);
+      page1.drawRectangle({ x:40, y:118, width:515, height:28, borderColor: BLACK, borderWidth: 1, color: LIGHT });
+      drawWrap(page1, data.compositeDrawing, 46, 140, 505, 11, 8, 2);
 
-        // Excavation supervisor acceptance
-        drawText(page2, data.acceptanceName, 70, y2(570));
-        drawText(page2, data.acceptanceSigned, 260, y2(570));
-        drawText(page2, data.acceptanceDate, 420, y2(570));
-        drawText(page2, data.acceptanceTime, 500, y2(570));
-      }
+      drawText(page1, "Utility markers details:", 46, 106, 8, helvBold);
+      page1.drawRectangle({ x:40, y:76, width:515, height:28, borderColor: BLACK, borderWidth: 1, color: LIGHT });
+      drawWrap(page1, data.utilityMarkers, 46, 98, 505, 11, 8, 2);
 
-      // Page 3 additional findings + confirmations
-      if(page3){
-        const p3h = page3.getHeight();
-        const y3 = (fromTop) => p3h - fromTop;
-        drawWrapped(page3, data.findings, 50, y3(560), 520, 10, 8, 6);
+      drawText(page1, `Network Rail Buried Services forms completed: ${data.networkRailConfirmed ? "Yes" : "No"}`, 46, 64, 8);
 
-        drawText(page3, data.coordinatorConfirmName, 70, y3(660));
-        drawText(page3, data.coordinatorConfirmSigned, 270, y3(660));
-        drawText(page3, data.coordinatorConfirmDate, 470, y3(660));
+      // Page 2
+      page2.drawRectangle({ x:40, y:800, width:515, height:24, color: RED });
+      drawText(page2, "4. Simplified sketch of all known utilities", 50, 806, 11, helvBold, WHITE);
+      page2.drawRectangle({ x:40, y:140, width:515, height:650, borderColor: BLACK, borderWidth: 1, color: LIGHT });
+      drawWrap(page2, data.sketch, 46, 780, 505, 11, 9, 40);
 
-        drawText(page3, data.cancelSigned, 70, y3(710));
-        drawText(page3, data.cancelDateTime, 300, y3(710));
-      }
+      drawSectionHeader(page2, "5. Excavation Supervisor's acceptance", 120);
+      drawText(page2, `Name: ${data.acceptanceName}`, 46, 96, 9);
+      drawText(page2, `Signed: ${data.acceptanceSigned}`, 230, 96, 9);
+      drawText(page2, `Date: ${data.acceptanceDate}`, 390, 96, 9);
+      drawText(page2, `Time: ${data.acceptanceTime}`, 470, 96, 9);
+
+      // Page 3
+      page3.drawRectangle({ x:40, y:800, width:515, height:24, color: RED });
+      drawText(page3, "Additional findings / variations", 50, 806, 11, helvBold, WHITE);
+      page3.drawRectangle({ x:40, y:540, width:515, height:240, borderColor: BLACK, borderWidth: 1, color: LIGHT });
+      drawWrap(page3, data.findings, 46, 770, 505, 11, 9, 18);
+
+      drawSectionHeader(page3, "Utility Coordinator confirmation", 520);
+      drawText(page3, `Name: ${data.coordinatorConfirmName}`, 46, 496, 9);
+      drawText(page3, `Signed: ${data.coordinatorConfirmSigned}`, 230, 496, 9);
+      drawText(page3, `Dated: ${data.coordinatorConfirmDate}`, 400, 496, 9);
+
+      drawSectionHeader(page3, "Cancellation", 470);
+      drawText(page3, `Signed (Utility Co-ordinator): ${data.cancelSigned}`, 46, 446, 9);
+      drawText(page3, `Date/Time: ${data.cancelDateTime}`, 300, 446, 9);
 
       const outBytes = await pdfDoc.save();
       const blob = new Blob([outBytes], { type:"application/pdf" });
