@@ -2277,11 +2277,29 @@ window.__pdfLibLoadFailed = false;
         page.drawLine({ start:{ x:marginX, y:775 }, end:{ x:marginX + contentW, y:775 }, thickness:1, color: BLACK });
       };
 
-      // Page 1 (Permit Conditions)
+      const drawRedBar = (page, y, leftText, rightText) => {
+        page.drawRectangle({ x:marginX, y, width:contentW, height:16, color: RED });
+        drawText(page, leftText, marginX + 6, y + 4, 8, helvBold, WHITE);
+        if(rightText){
+          drawText(page, rightText, marginX + 320, y + 4, 8, helvBold, WHITE);
+        }
+      };
+
+      const drawTable = (page, x, y, w, h, cols, rows) => {
+        page.drawRectangle({ x, y, width:w, height:h, borderColor: BLACK, borderWidth: 1, color: WHITE });
+        for(let i=1;i<cols;i++){
+          const cx = x + (w/cols)*i;
+          page.drawLine({ start:{ x:cx, y }, end:{ x:cx, y:y+h }, thickness:1, color: BLACK });
+        }
+        for(let r=1;r<rows;r++){
+          const cy = y + (h/rows)*r;
+          page.drawLine({ start:{ x, y:cy }, end:{ x:x+w, y:cy }, thickness:1, color: BLACK });
+        }
+      };
+
+      // Page 1
       drawHeaderLine(page1);
-      page1.drawRectangle({ x:marginX, y:735, width:contentW, height:16, color: RED });
-      drawText(page1, "Project: [INSERT]", marginX + 6, 739, 8, helvBold, WHITE);
-      drawText(page1, "Permit No: [INSERT]", marginX + 320, 739, 8, helvBold, WHITE);
+      drawRedBar(page1, 735, `Project: ${data.projectTitle || ""}`, `Permit No: ${data.permitNo || ""}`);
 
       drawLabeledBox(page1, "Project", data.projectTitle, marginX, 710, colW, rowH);
       drawLabeledBox(page1, "Permit No", data.permitNo, marginX + colW + colGap, 710, colW, rowH);
@@ -2296,21 +2314,21 @@ window.__pdfLibLoadFailed = false;
       drawText(page1, "Instructions: This form must be signed by the authorising person before entry...", marginX, 520, 7);
       drawText(page1, "Note - Working in a confined space is strictly prohibited unless all other practicable measures...", marginX, 505, 7);
 
-      drawSectionHeader(page1, "1. Permit Conditions", 490);
-      page1.drawRectangle({ x:marginX, y:380, width:contentW, height:100, borderColor: BLACK, borderWidth: 1, color: LIGHT });
-      drawText(page1, "Reason for entry:", marginX + 6, 468, 7, helvBold);
-      drawText(page1, "Entry date:", marginX + 260, 468, 7, helvBold);
-      drawText(page1, "Permit expiry (date and time):", marginX + 260, 454, 7, helvBold);
-      drawText(page1, "Acceptable entry conditions:", marginX + 260, 440, 7, helvBold);
-      drawText(page1, "Gas monitor checks made prior to entry:", marginX + 260, 426, 7, helvBold);
-      drawText(page1, "Entrants:", marginX + 6, 440, 7, helvBold);
-      drawWrap(page1, data.personnel, marginX + 6, 430, 240, 10, 8, 6);
+      drawRedBar(page1, 480, "1   Permit Conditions", "");
+      drawTable(page1, marginX, 380, contentW, 95, 2, 1);
+      drawText(page1, "Reason for entry:", marginX + 6, 462, 7, helvBold);
+      drawText(page1, "Entry date:", marginX + 265, 462, 7, helvBold);
+      drawText(page1, "Permit expiry (date and time):", marginX + 265, 448, 7, helvBold);
+      drawText(page1, "Acceptable entry conditions:", marginX + 265, 434, 7, helvBold);
+      drawText(page1, "Gas monitor checks made prior to entry:", marginX + 265, 420, 7, helvBold);
+      drawText(page1, "Entrants:", marginX + 6, 434, 7, helvBold);
+      drawWrap(page1, data.personnel, marginX + 6, 424, 240, 10, 8, 6);
 
-      page1.drawRectangle({ x:marginX, y:320, width:contentW, height:50, borderColor: BLACK, borderWidth: 1, color: LIGHT });
-      drawText(page1, "Known and potential hazards:", marginX + 6, 352, 7, helvBold);
-      drawText(page1, "Additional required permits (for example hot work):", marginX + 6, 338, 7, helvBold);
+      drawTable(page1, marginX, 320, contentW, 50, 1, 2);
+      drawText(page1, "Known and potential hazards:", marginX + 6, 348, 7, helvBold);
+      drawText(page1, "Additional required permits (for example hot work):", marginX + 6, 334, 7, helvBold);
 
-      // Page 2 (Requirements / Pre-entry Checklist)
+      // Page 2
       drawHeaderLine(page2);
       drawText(page2, "2   Requirements Checklist", marginX, 744, 9, helvBold);
       page2.drawRectangle({ x:marginX, y:700, width:255, height:16, color: RED });
@@ -2318,9 +2336,29 @@ window.__pdfLibLoadFailed = false;
       drawText(page2, "Equipment", marginX + 6, 704, 8, helvBold, WHITE);
       drawText(page2, "Personal protective equipment and personal monitors", marginX + 266, 704, 7, helvBold, WHITE);
 
-      // Simple checkbox grids (empty) to match layout
-      drawCheckboxGrid(page2, controls, marginX + 6, 680, 2, 14, 240);
-      drawCheckboxGrid(page2, safety, marginX + 266, 680, 2, 14, 240);
+      const equipmentItems = [
+        { label: "Full Body Harness", checked: data.safetyEquipment.fallArrest },
+        { label: "Lifeline", checked: false },
+        { label: "Warning Signs", checked: data.controls.signage },
+        { label: "Ladder", checked: false },
+        { label: "Ventilation Fan / blower", checked: data.controls.ventForced || data.controls.ventNat },
+        { label: "Fire Extinguisher (Type):", checked: data.controls.extinguishers },
+        { label: "Self-Contained breathing apparatus (SCBA)", checked: data.controls.rpe },
+        { label: "Air purifying respirator (cartridge type)", checked: data.controls.rpe },
+        { label: "Other", checked: false }
+      ];
+      const ppeItems = [
+        { label: "Gloves", checked: data.safetyEquipment.hand },
+        { label: "Safety glasses", checked: data.safetyEquipment.eye },
+        { label: "Face / Eye Protection", checked: data.safetyEquipment.eye },
+        { label: "Hearing", checked: data.safetyEquipment.hearing },
+        { label: "Hard hat", checked: data.safetyEquipment.head },
+        { label: "Hi-vis", checked: data.safetyEquipment.hiVis },
+        { label: "Respirator", checked: data.safetyEquipment.rpe },
+        { label: "Other", checked: !!data.safetyOthers }
+      ];
+      drawCheckboxGrid(page2, equipmentItems, marginX + 6, 680, 1, 14, 240);
+      drawCheckboxGrid(page2, ppeItems, marginX + 266, 680, 1, 14, 240);
 
       drawText(page2, "3   Pre-entry Checklist", marginX, 520, 9, helvBold);
       page2.drawRectangle({ x:marginX, y:490, width:255, height:16, color: RED });
@@ -2328,26 +2366,40 @@ window.__pdfLibLoadFailed = false;
       drawText(page2, "Pre-entry Checklist", marginX + 6, 494, 8, helvBold, WHITE);
       drawText(page2, "Control of hazardous energy / Communication / Lighting", marginX + 266, 494, 7, helvBold, WHITE);
       drawCheckboxGrid(page2, points, marginX + 6, 470, 1, 14, 240);
+      const energyItems = [
+        { label: "Lockout / tag out", checked: data.controls.isoElec || data.controls.isoPhys },
+        { label: "Zero voltage verification", checked: false },
+        { label: "Communication", checked: data.controls.comms },
+        { label: "Lighting", checked: data.controls.light110 || data.controls.lightLow },
+        { label: "Purging", checked: data.controls.cleaning },
+        { label: "Other", checked: false }
+      ];
+      drawCheckboxGrid(page2, energyItems, marginX + 266, 470, 1, 14, 240);
 
-      drawText(page2, "Atmospheric Test Record", marginX, 330, 8, helvBold, WHITE);
       page2.drawRectangle({ x:marginX, y:320, width:contentW, height:16, color: RED });
-      page2.drawRectangle({ x:marginX, y:250, width:contentW, height:70, borderColor: BLACK, borderWidth: 1, color: LIGHT });
-      drawText(page2, "Device / Substance / Acceptance / Result / Time / Duration", marginX + 6, 300, 7);
+      drawText(page2, "Atmospheric Test Record", marginX + 6, 324, 8, helvBold, WHITE);
+      drawTable(page2, marginX, 250, contentW, 70, 6, 4);
+      drawText(page2, "Device", marginX + 6, 300, 7);
+      drawText(page2, "Substance", marginX + 90, 300, 7);
+      drawText(page2, "Acceptance", marginX + 180, 300, 7);
+      drawText(page2, "Result", marginX + 280, 300, 7);
+      drawText(page2, "Time", marginX + 350, 300, 7);
+      drawText(page2, "Duration", marginX + 410, 300, 7);
 
-      // Page 3 (Entry/Exit Record)
+      // Page 3
       drawHeaderLine(page3);
       page3.drawRectangle({ x:marginX, y:700, width:contentW, height:16, color: RED });
       drawText(page3, "4   Personnel Entry & Exit record", marginX + 6, 704, 8, helvBold, WHITE);
-      page3.drawRectangle({ x:marginX, y:260, width:contentW, height:430, borderColor: BLACK, borderWidth: 1, color: LIGHT });
+      drawTable(page3, marginX, 260, contentW, 430, 6, 18);
       drawText(page3, "Entrant / Attendant names and Time in/out", marginX + 6, 670, 7);
       drawTextArea(page3, "Notes", data.preEntryBriefing, marginX, 210, contentW, 40);
 
-      // Page 4 (Air Monitoring / Certification / Closure)
+      // Page 4
       const page4 = pdfDoc.addPage(A4);
       drawHeaderLine(page4);
       page4.drawRectangle({ x:marginX, y:700, width:contentW, height:16, color: RED });
       drawText(page4, "5   Air Monitoring Results", marginX + 6, 704, 8, helvBold, WHITE);
-      page4.drawRectangle({ x:marginX, y:440, width:contentW, height:250, borderColor: BLACK, borderWidth: 1, color: LIGHT });
+      drawTable(page4, marginX, 440, contentW, 250, 6, 12);
 
       drawText(page4, "6   Pre-entry Certification", marginX, 390, 9, helvBold);
       page4.drawRectangle({ x:marginX, y:350, width:contentW, height:30, borderColor: BLACK, borderWidth: 1, color: LIGHT });
