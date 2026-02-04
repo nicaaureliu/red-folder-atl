@@ -3203,10 +3203,10 @@ window.__pdfLibLoadFailed = false;
       const fromTop = (top, size=9) => pageH - top - size;
 
       // Header (colored)
-      drawBox(40, fromTop(70, 0), 712, 22, RED);
-      drawText("ATL Excavation Inspection", 50, fromTop(66, 10), 10, helvBold, HEADER_TEXT);
-      drawText("REPORT OF INSPECTION – Excavation Inspection and Register.", 60, fromTop(95.0, 9), 9, helvBold);
-      drawWrap("This inspection report is carried out on behalf of ATL Ltd in accordance with the Construction (Health, Safety and Welfare) Regulations 1996", 60, fromTop(110.0, 8) + 8, 680, 10, 8, 2, helv);
+      drawBox(40, fromTop(40, 0), 712, 24, RED);
+      drawText("ATL Excavation Inspection", 50, fromTop(36, 10), 10, helvBold, HEADER_TEXT);
+      drawText("REPORT OF INSPECTION – Excavation Inspection and Register.", 60, fromTop(80.0, 9), 9, helvBold);
+      drawWrap("This inspection report is carried out on behalf of ATL Ltd in accordance with the Construction (Health, Safety and Welfare) Regulations 1996", 60, fromTop(95.0, 8) + 8, 680, 10, 8, 2, helv);
 
       // Site details
       drawText("Site Address", 60, fromTop(155, 8), 8, helvBold);
