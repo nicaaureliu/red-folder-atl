@@ -1910,18 +1910,6 @@ window.__toolReady = false;
           page2.drawImage(logo, { x:40, y:780, width: logo.width*scale, height: logo.height*scale });
         }
       }
-      const detectImageType = (bytes) => {
-        if(!bytes || bytes.length < 4) return null;
-        if(bytes[0] === 0xff && bytes[1] === 0xd8) return "jpeg";
-        if(bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47) return "png";
-        return null;
-      };
-      const embedImageBytes = async (bytes) => {
-        const type = detectImageType(bytes);
-        if(type === "jpeg") return await pdfDoc.embedJpg(bytes);
-        if(type === "png") return await pdfDoc.embedPng(bytes);
-        return null;
-      };
 
       drawText(page1, "Hot Works Permit", 430, 800, 12, helvBold);
       page1.drawLine({ start:{ x:40, y:760 }, end:{ x:555, y:760 }, thickness:1, color: BLACK });
