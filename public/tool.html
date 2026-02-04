@@ -183,12 +183,10 @@
       background:#fff;
       margin-top: 10px;
       display:grid;
-      grid-template-columns: 2fr 1fr 1fr;
-      grid-template-areas:
-        "name date remove"
-        "sig  sig  remove";
+      grid-template-columns: 2fr 1fr 1.4fr 0.8fr;
+      grid-template-areas: "name date sig remove";
       gap: 10px;
-      align-items:start;
+      align-items:end;
     }
 
     .attName{ grid-area: name; }
@@ -196,12 +194,6 @@
     .attSig{ grid-area: sig; }
     .attRemove{ grid-area: remove; }
 
-    .sigActions{
-      display:flex;
-      gap:8px;
-      flex-wrap:wrap;
-      margin-top:8px;
-    }
 
     .sigPreview{
       height: 56px;

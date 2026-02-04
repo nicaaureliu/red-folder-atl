@@ -943,17 +943,6 @@ window.__pdfLibLoadFailed = false;
             }
           });
 
-          const btnSign = el("button",{class:"btn", type:"button", onclick: openSig},[sigUrl ? "Update signature" : "Add signature"]);
-
-          const btnClearSig = el("button",{class:"btn btnGhost", type:"button", onclick:()=>{
-            sigStore.delete(a.id);
-            const box = wrap.querySelector(`[data-prev="${a.id}"]`);
-            if(box){
-              box.innerHTML = "";
-              box.appendChild(el("span",{},["Tap to sign"]));
-            }
-          }},["Clear signature"]);
-
           const btnDelete = el("button",{class:"btn btnDanger", type:"button", onclick:()=>{
             const now = collectAttendees().filter(x=>x.id !== a.id);
             sigStore.delete(a.id);
@@ -973,8 +962,7 @@ window.__pdfLibLoadFailed = false;
             ]),
             el("div",{class:"attSig"},[
               el("label",{},["Signature"]),
-              sigPreview,
-              el("div",{class:"sigActions"},[btnSign, btnClearSig])
+              sigPreview
             ]),
             el("div",{class:"attRemove"},[
               el("label",{},["Remove"]),
