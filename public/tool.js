@@ -3133,32 +3133,13 @@ window.__pdfLibLoadFailed = false;
       }
 
       const { PDFDocument, StandardFonts, rgb } = PDFLib;
-      const fetchTemplate = async () => {
-        const urls = [
-          "templates/excavation%20checks.pdf",
-          "/templates/excavation%20checks.pdf"
-        ];
-        let lastErr;
-        for(const url of urls){
-          try{
-            const res = await fetch(url, { cache:"no-store" });
-            if(res.ok) return new Uint8Array(await res.arrayBuffer());
-          }catch(err){
-            lastErr = err;
-          }
-        }
-        throw new Error("Excavation checks template not found.");
-      };
-
-      const tplBytes = await fetchTemplate();
-      const tplDoc = await PDFDocument.load(tplBytes);
       const pdfDoc = await PDFDocument.create();
-      const [tplPage] = await pdfDoc.copyPages(tplDoc, [0]);
-      const page = pdfDoc.addPage(tplPage);
-
       const helv = await pdfDoc.embedFont(StandardFonts.Helvetica);
       const helvBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
       const BLACK = rgb(0,0,0);
+      const LIGHT = rgb(0.98, 0.98, 0.98);
+
+      const page = pdfDoc.addPage([792, 612]);
 
       const sanitize = (text) => {
         let s = String(text ?? "");
@@ -3211,30 +3192,88 @@ window.__pdfLibLoadFailed = false;
         }
       };
 
+      const drawBox = (x, y, w, h, fill=undefined) => {
+        page.drawRectangle({ x, y, width:w, height:h, borderColor: BLACK, borderWidth: 1, color: fill });
+      };
+
       const pageH = page.getHeight();
       const fromTop = (top, size=9) => pageH - top - size;
 
-      drawText(data.siteAddress, 150, fromTop(175.8, 9), 9, helv);
-      drawText(data.siteNumber, 640, fromTop(175.8, 9), 9, helv);
-      drawText(data.location, 250, fromTop(198.9, 9), 9, helv);
-      drawText(data.reporterName, 300, fromTop(223.4, 9), 9, helv);
-      drawText(data.receiverName, 640, fromTop(223.4, 9), 9, helv);
+      const pageH = page.getHeight();
+      const fromTop = (top, size=9) => pageH - top - size;
 
+      // Header
+      drawText("ATL", 60, fromTop(95, 18), 18, helvBold);
+      drawText("Excavation Inspection", 110, fromTop(95, 18), 18, helvBold);
+      drawText("REPORT OF INSPECTION – Excavation Inspection and Register.", 60, fromTop(119, 11), 11, helvBold);
+      drawWrap("This inspection report is carried out on behalf of ATL Ltd in accordance with the Construction (Health, Safety and Welfare) Regulations 1996", 60, fromTop(142, 9) + 8, 680, 10, 9, 2, helv);
+
+      // Site details
+      drawText("Site Address", 60, fromTop(175.8, 9), 9, helvBold);
+      drawText("Site Number", 560, fromTop(175.8, 9), 9, helvBold);
+      drawBox(150, fromTop(185, 12), 380, 18, LIGHT);
+      drawBox(640, fromTop(185, 12), 120, 18, LIGHT);
+      drawText(data.siteAddress, 156, fromTop(181, 9), 9, helv);
+      drawText(data.siteNumber, 646, fromTop(181, 9), 9, helv);
+
+      drawText("Location of Excavation onsite", 60, fromTop(198.9, 9), 9, helvBold);
+      drawBox(250, fromTop(208, 12), 510, 18, LIGHT);
+      drawText(data.location, 256, fromTop(204, 9), 9, helv);
+
+      drawText("Name and position of person making report", 60, fromTop(223.4, 9), 9, helvBold);
+      drawText("Name of person receiving report", 440, fromTop(223.4, 9), 9, helvBold);
+      drawBox(300, fromTop(233, 12), 210, 18, LIGHT);
+      drawBox(610, fromTop(233, 12), 150, 18, LIGHT);
+      drawText(data.reporterName, 306, fromTop(229, 9), 9, helv);
+      drawText(data.receiverName, 616, fromTop(229, 9), 9, helv);
+
+      drawText("Can work be carried out safely", 410, fromTop(264.4, 9), 9, helvBold);
+      drawText("Y", 424, fromTop(302.6, 9), 9, helvBold);
+      drawText("N", 458, fromTop(302.6, 9), 9, helvBold);
       const ynY = fromTop(302.6, 9);
       drawCheck(418, ynY - 2, 10, data.canWork === "Yes");
       drawCheck(452, ynY - 2, 10, data.canWork === "No");
 
+      // Register header
+      drawText("Date", 90, fromTop(275.4, 9), 9, helvBold);
+      drawText("Time", 150, fromTop(275.4, 9), 9, helvBold);
+      drawText("Condition of Excavation (type of Excavation)", 190, fromTop(275.4, 9), 9, helvBold);
+      drawWrap("Details of any action taken as a result of any matter identified", 520, fromTop(275.4, 9) + 8, 240, 10, 9, 2, helvBold);
+
+      // Register table
+      const tableX = 60;
+      const tableTop = 320;
       const rows = (data.entries || []).slice(0, 8);
       const rowH = 24;
-      const startTop = 320;
-      rows.forEach((row, idx) => {
-        const top = startTop + (idx * rowH);
-        const y = fromTop(top, 9);
-        drawText(row.date, 90, y, 9, helv);
-        drawText(row.time, 150, y, 9, helv);
-        drawWrap(row.condition, 190, y + 6, 310, 10, 9, 2, helv);
-        drawWrap(row.action, 520, y + 6, 240, 10, 9, 2, helv);
+      const tableW = 692;
+      const dateW = 80;
+      const timeW = 70;
+      const condW = 300;
+      const actionW = tableW - dateW - timeW - condW;
+      const tableH = rowH * 8;
+
+      drawBox(tableX, fromTop(tableTop + tableH, 0), tableW, tableH, undefined);
+      // vertical lines
+      const colXs = [tableX + dateW, tableX + dateW + timeW, tableX + dateW + timeW + condW];
+      colXs.forEach(x => {
+        page.drawLine({ start:{ x, y: fromTop(tableTop + tableH, 0) }, end:{ x, y: fromTop(tableTop, 0) }, thickness:1, color: BLACK });
       });
+      // horizontal lines
+      for(let r=1;r<8;r++){
+        const y = fromTop(tableTop + (r * rowH), 0);
+        page.drawLine({ start:{ x: tableX, y }, end:{ x: tableX + tableW, y }, thickness:1, color: BLACK });
+      }
+
+      rows.forEach((row, idx) => {
+        const top = tableTop + (idx * rowH) + 6;
+        const y = fromTop(top, 9);
+        drawText(row.date, tableX + 6, y, 9, helv);
+        drawText(row.time, tableX + dateW + 6, y, 9, helv);
+        drawWrap(row.condition, tableX + dateW + timeW + 6, y + 6, condW - 12, 10, 9, 2, helv);
+        drawWrap(row.action, tableX + dateW + timeW + condW + 6, y + 6, actionW - 12, 10, 9, 2, helv);
+      });
+
+      drawText("Document Ref: QPFS22.0    August 2024    01", 60, fromTop(532.3, 8), 8, helv);
 
       const outBytes = await pdfDoc.save();
       const blob = new Blob([outBytes], { type:"application/pdf" });
