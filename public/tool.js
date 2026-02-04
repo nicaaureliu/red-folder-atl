@@ -2027,20 +2027,13 @@ window.__pdfLibLoadFailed = false;
       function drawPreviousDay(page, startY){
         const marginX = 40;
         const headerH = 20;
-        drawCell(page, marginX, startY - headerH, 395, headerH, { fill: RED });
-        drawCell(page, marginX + 395, startY - headerH, 120, headerH, { fill: RED });
+        drawCell(page, marginX, startY - headerH, 515, headerH, { fill: RED });
         drawText(page, "PREVIOUS DAY'S ACTIVITIES", marginX + 6, startY - 14, 9, helvBold, HEADER_TEXT);
-        drawWrapInCellLeft(page, "DID THEY GO AS PLANNED? [Yes / No]", marginX + 395, startY - headerH, 120, headerH, 7, 8, 2, helvBold, HEADER_TEXT);
-
-        const boxSize = 14;
-        const yesX = marginX + 495;
-        const yesY = startY - headerH + 3;
-        drawYesNoBox(page, yesX, yesY, boxSize, data.prevPlanned === "Yes");
 
         const qH = 36;
         const qY = startY - headerH - qH;
         drawCell(page, marginX, qY, 515, qH, { fill: LIGHT_GRAY });
-        drawTextInCellLeft(page, "Any concerns from the previous day?", marginX, qY, 515, qH, 9, helvBold, BLACK);
+        drawTextInCellLeft(page, `Did previous day go as planned? ${data.prevPlanned}`, marginX, qY, 515, qH, 9, helvBold, BLACK);
         drawCell(page, marginX, qY - 36, 515, 36, { fill: LIGHT_BLUE });
         drawWrappedFromTop(page, data.prevConcerns, marginX + 6, qY - 8, 500, 11, 9, 3, BLACK, helvBold);
 
