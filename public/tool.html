@@ -1306,7 +1306,9 @@
         contractor:"",
         fireSafety:"",
         precautions:{},
+        precautionsNa:{},
         checks:{},
+        checksNa:{},
         extinguishers:{ co2:false, foam:false, water:false, dryPowder:false },
         sketch:"",
         permitValidFrom:"",
@@ -2120,7 +2122,9 @@
           contractor: $("#contractor").value.trim(),
           fireSafety: $("#fireSafety").value.trim(),
           precautions: {},
+          precautionsNa: {},
           checks: {},
+          checksNa: {},
           extinguishers: {},
           sketch: $("#sketch").value.trim(),
           permitValidFrom: $("#permitValidFrom").value.trim(),
@@ -2154,11 +2158,15 @@
 
         precautionsList.forEach((_, idx)=>{
           const box = document.getElementById("pt_prec_"+idx);
+          const boxNa = document.getElementById("pt_prec_na_"+idx);
           data.precautions[idx] = !!(box && box.checked);
+          data.precautionsNa[idx] = !!(boxNa && boxNa.checked);
         });
         checksList.forEach((_, idx)=>{
           const box = document.getElementById("pt_chk_"+idx);
+          const boxNa = document.getElementById("pt_chk_na_"+idx);
           data.checks[idx] = !!(box && box.checked);
+          data.checksNa[idx] = !!(boxNa && boxNa.checked);
         });
 
         ["co2","foam","water","dryPowder"].forEach(k=>{
@@ -2191,17 +2199,54 @@
         throw new Error("PDF engine is blocked.");
       }
 
-      const { PDFDocument, StandardFonts, rgb } = PDFLib;
-      const pdfDoc = await PDFDocument.create();
-      const helv = await pdfDoc.embedFont(StandardFonts.Helvetica);
-      const helvBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+      const state = {
+        permitNo:"",
+        dateRequired: todayISO(),
+        requestedBy:"",
+        address:"",
+        description:"",
+        activities:{
+          welding:false, burning:false, soldering:false, gasCutting:false, brazing:false,
+          discCutting:false, heathland:false, other:false
+        },
+        hwrp:"",
+        contractor:"",
+        fireSafety:"",
+        precautions:{},
+        checks:{},
+        extinguishers:{ co2:false, foam:false, water:false, dryPowder:false },
+        sketch:"",
+        permitValidFrom:"",
+        permitValidTo:"",
+        permitTimeFrom:"",
+        permitTimeTo:"",
+        authorisedBy:"",
+        authorisedSig:"",
+        authorisedDate:"",
+        fireWatcher:"",
+        fireWatcherSig:"",
+        fireWatcherDate:"",
+        hwrpName:"",
+        hwrpSig:"",
+        hwrpDate:"",
+        clearanceYes:false,
+        clearanceNa:false,
+        completionHours:"",
+        fireWatchHours:"",
+        completionTimeFrom:"",
+        completionTimeTo:"",
+        fireWatchTimeFrom:"",
+        fireWatchTimeTo:"",
+        clearanceBy:"",
+        clearanceSig:"",
+        clearanceDate:""
+      };
 
       const A4 = [595.28, 841.89];
       const BLACK = rgb(0, 0, 0);
       const RED = rgb(0.753, 0, 0); // rgb(192, 0, 0)
       const HEADER_TEXT = rgb(1, 1, 1);
       const LIGHT_FILL = rgb(0.985, 0.985, 0.99);
-      const YELLOW = rgb(1, 1, 0); // Full yellow
 
       const pdfDoc = await PDFDocument.create();
       const helv = await pdfDoc.embedFont(StandardFonts.Helvetica);
@@ -2278,23 +2323,17 @@
         page.drawLine({ start:{ x:midX, y:midY }, end:{ x:right, y:upper }, thickness:1.4, color: BLACK });
       };
 
-      // ✅ Updated: preserves manual line breaks (\n) AND wraps within each line
       const wrapLines = (font, text, size, maxWidth) => {
         const raw = String(text || "").replace(/\r/g, "");
         const parts = raw.split("\n");
-
         const lines = [];
         for(const part of parts){
           const words = part.split(/\s+/).filter(Boolean);
-          if(words.length === 0){
-            lines.push("");
-            continue;
-          }
+          if(words.length === 0){ lines.push(""); continue; }
           let line = "";
           for(const w of words){
             const test = line ? (line + " " + w) : w;
-            const width = font.widthOfTextAtSize(test, size);
-            if(width <= maxWidth) line = test;
+            if(font.widthOfTextAtSize(test, size) <= maxWidth) line = test;
             else { if(line) lines.push(line); line = w; }
           }
           if(line) lines.push(line);
@@ -2321,8 +2360,11 @@
         }
       };
 
-      const ddmmyyyy = toDDMMYYYY(data.dateISO);
-      const attendeesCount = (data.attendees || []).length;
+      const drawMultiLine = (p, label, value, x, y, w, h) => {
+        drawCell(p, x, y - h, w, h);
+        drawTextInCell(p, label, x, y - 15, w, 15, { font: helvBold, size: 8.5 });
+        drawWrappedText(p, value, x, y - h, w, h - 15, { size: 9 });
+      };
 
       function drawHeader(page){
         if(atlLogo){
@@ -2611,6 +2653,121 @@
       a.remove();
 
       setTimeout(()=> URL.revokeObjectURL(url), 2500);
+    }
+
+    function renderHotWorksPermit(){
+      const app = $("#app");
+      app.innerHTML = "";
+
+      const state = {
+        projectTitle: "",
+        projectNo: "",
+        siteLocation: "",
+        permitNo: "",
+        dateISO: todayISO(),
+        workDescription: "",
+        authorisingPerson: "",
+        fireWatcher: "",
+        contractorName: "Active Tunnelling"
+      };
+
+      const head = el("div",{class:"head"},[
+        el("div",{},[
+          el("h1",{},["Hot Work Permit"]),
+          el("div",{class:"sub"},["Pre-fill the permit details, then download the PDF to be completed by hand on site."])
+        ]),
+        el("div",{class:"pillRow"},[
+          el("span",{id:"pillLib", class:"pill warn"},["PDF engine: checking…"]),
+          el("span",{id:"pillTpl", class:"pill warn"},["Assets: checking…"])
+        ])
+      ]);
+
+      const banner = el("div",{id:"banner", class:"banner"},[""]);
+
+      const sDetails = el("div",{class:"section"},[
+        el("div",{class:"sectionTitle"},["1. Work Details"]),
+        el("div",{class:"grid2"},[
+          field("Project Title","projectTitle","text","e.g. Sizewell C", state.projectTitle),
+          field("Project No","projectNo","text","e.g. 836", state.projectNo),
+          field("Site Location","siteLocation","text","e.g. Sizewell", state.siteLocation),
+          field("Permit No.","permitNo","text","e.g. HWP-001", state.permitNo),
+          field("Date","dateISO","date","", state.dateISO),
+          field("Contractor Name","contractorName","text","", state.contractorName),
+        ]),
+        el("div",{style:"margin-top:12px"},[
+          textareaField("Description of work to be carried out","workDescription","What hot work is being carried out?", state.workDescription),
+        ])
+      ]);
+
+      const sPersonnel = el("div",{class:"section"},[
+        el("div",{class:"sectionTitle"},["2. Personnel"]),
+        el("div",{class:"grid2"},[
+          field("Authorising Person","authorisingPerson","text","Name of person authorising", state.authorisingPerson),
+          field("Fire Watcher","fireWatcher","text","Name of fire watcher", state.fireWatcher),
+        ])
+      ]);
+
+      const sticky = el("div",{class:"stickyBar"},[
+        el("div",{class:"actionBar"},[
+          el("div",{class:"btnRow"},[
+            el("a",{class:"btn btnYellow", href:"daily.html"},["Back"]),
+          ]),
+          el("div",{class:"btnRow"},[
+            el("button",{id:"btnDownload", class:"btn", type:"button", onclick: async()=> {
+              hideBanner();
+              await onDownload();
+            }},["Download PDF"])
+          ])
+        ])
+      ]);
+
+      app.appendChild(head);
+      app.appendChild(banner);
+      app.appendChild(sDetails);
+      app.appendChild(sPersonnel);
+      app.appendChild(sticky);
+
+      checkTemplateAndLib("csp");
+
+      function field(labelText, id, type, placeholder, val = ""){
+        return el("div",{},[
+          el("label",{for:id},[labelText]),
+          el("input",{id, type, placeholder, value: val})
+        ]);
+      }
+      function textareaField(labelText, id, placeholder, val = ""){
+        const txt = el("textarea",{id, placeholder});
+        txt.value = val;
+        return el("div",{},[
+          el("label",{for:id},[labelText]),
+          txt
+        ]);
+      }
+
+      async function onDownload(){
+        const btn = $("#btnDownload");
+        btn.disabled = true;
+        btn.textContent = "Generating…";
+        try{
+          const data = {
+            projectTitle: $("#projectTitle").value.trim(),
+            projectNo: $("#projectNo").value.trim(),
+            siteLocation: $("#siteLocation").value.trim(),
+            permitNo: $("#permitNo").value.trim(),
+            dateISO: $("#dateISO").value,
+            workDescription: $("#workDescription").value.trim(),
+            authorisingPerson: $("#authorisingPerson").value.trim(),
+            fireWatcher: $("#fireWatcher").value.trim(),
+            contractorName: $("#contractorName").value.trim(),
+          };
+          await generateHotWorksPDF(data);
+        }catch(err){
+          showBanner(String(err && err.message ? err.message : err), "bad");
+        }finally{
+          btn.disabled = false;
+          btn.textContent = "Download PDF";
+        }
+      }
     }
 
     function renderHotWorksPermit(){
