@@ -1,6 +1,6 @@
 {
-  "name": "ATL Checks",
-  "short_name": "ATL Checks",
+  "name": "Red Folder ATL",
+  "short_name": "Red Folder ATL",
   "start_url": "/index.html",
   "scope": "/",
   "display": "standalone",
