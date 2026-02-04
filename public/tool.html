@@ -150,11 +150,6 @@
       grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
       gap: 10px;
     }
-    .grid1{
-      display:grid;
-      grid-template-columns: 1fr;
-      gap: 12px;
-    }
 
     .check{
       display:flex;
@@ -242,8 +237,8 @@
     }
     .btnDanger{
       background:#fff;
-      color: var(--badTx);
-      border:1px solid var(--badBd);
+      color: #7f1d1d;
+      border:1px solid #fecaca;
       box-shadow:none;
       font-weight: 900;
     }
@@ -347,7 +342,6 @@
     }
   </style>
 
-  <!-- Try CDN 1 -->
   <script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
 </head>
 
@@ -387,15 +381,12 @@
   </div>
 
   <script>
-    // Fallback load (CDN 2) if pdf-lib blocked/failed
     (function ensurePdfLib(){
       const check = () => !!window.PDFLib;
       if (check()) return;
 
       const s = document.createElement("script");
       s.src = "https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js";
-      s.onload = () => {};
-      s.onerror = () => {};
       document.head.appendChild(s);
     })();
   </script>
@@ -418,11 +409,9 @@
     const t = (params.get("t") || "Form").trim();
     document.title = t;
 
-    // Signature store: attendeeId -> dataURL
     const sigStore = new Map();
     const makeId = () => "id_" + Math.random().toString(16).slice(2) + "_" + Date.now().toString(16);
 
-    // Helpers
     const pad2 = (n) => String(n).padStart(2,"0");
     const todayISO = () => {
       const d = new Date();
@@ -449,7 +438,6 @@
       b.textContent = "";
     }
 
-    // Placeholder for other tools
     function renderPlaceholder(title){
       const app = $("#app");
       app.innerHTML = "";
@@ -464,7 +452,6 @@
       ]));
     }
 
-    // Signature modal
     const SigModal = (() => {
       const overlay = $("#sigOverlay");
       const canvas = $("#sigCanvas");
@@ -574,12 +561,11 @@
       return { open };
     })();
 
-    async function checkTemplateAndLib(){
-      // PDFLib status
+    async function checkTemplateAndLib(mode){
       const libPill = $("#pillLib");
       const tplPill = $("#pillTpl");
+      if(!libPill || !tplPill) return;
 
-      // Wait a bit for fallback loader
       await new Promise(r => setTimeout(r, 400));
 
       if(window.PDFLib){
@@ -590,32 +576,413 @@
         libPill.textContent = "PDF engine: BLOCKED";
       }
 
-      // Template status (try absolute then relative)
       const tryFetch = async (url) => {
         try{
-          const res = await fetch(url, { method:"GET", cache:"no-store" });
-          return res.ok ? { ok:true, url } : { ok:false, status:res.status, url };
+          const res = await fetch(url, { method:"HEAD", cache:"no-store" });
+          return res.ok;
         }catch(e){
-          return { ok:false, status:"ERR", url };
+          return false;
         }
       };
 
-      let r = await tryFetch("/templates/daily-briefing.pdf");
-      if(!r.ok) r = await tryFetch("templates/daily-briefing.pdf");
+      let ok = false;
+      if(mode === "csp"){
+        // For CSP, we now generate programmatically, so we just check the logo
+        ok = await tryFetch("atl-logo.png") || await tryFetch("/atl-logo.png");
+      }else{
+        ok = await tryFetch("templates/daily-briefing.pdf");
+      }
 
-      if(r.ok){
+      if(ok){
         tplPill.className = "pill ok";
-        tplPill.textContent = "Template: OK";
+        tplPill.textContent = "Assets: OK";
       }else{
         tplPill.className = "pill bad";
-        tplPill.textContent = `Template: MISSING (${r.status})`;
+        tplPill.textContent = "Assets: MISSING";
       }
     }
 
-    // Daily Brief form
+    function renderConfinedSpacePermit(){
+      const app = $("#app");
+      app.innerHTML = "";
+
+      const state = {
+        projectTitle: "",
+        projectNo: "",
+        siteLocation: "",
+        workLocation: "",
+        contractorName: "Active Tunnelling",
+        supervisorName: "",
+        brieferName: "",
+        jobTitle: "",
+        permitNo: "",
+        dateISO: todayISO(),
+        startTime: "",
+        finishTime: "",
+        workDescription: "",
+        personnel: "",
+        preEntryBriefing: "",
+        points: {
+          confined:false, emergency:false, lifting:false, permits:false, plant:false, safetyPlanning:false,
+          barriers:false, clearAccess:false, methodStatements:false, suitablePPE:false, trenchCollapse:false, welfare:false,
+          coshh:false, fire:false, materials:false, competence:false, cables:false, trips:false
+        },
+        equipment: "",
+        riskAssessment: {
+          o2: false, toxic: false, flammable: false, ingress: false, sludge: false,
+          animals: false, mechanical: false, hotwork: false, chemicals: false,
+          physical: false, temperature: false, radiation: false
+        },
+        riskOthers: "",
+        controls: {
+          isoPhys: false, isoElec: false, isoMech: false, cleaning: false,
+          ventNat: false, ventForced: false, light110: false, lightLow: false,
+          signage: false, comms: false, testing: false, monitoring: false,
+          extinguishers: false, rpe: false, training: false
+        },
+        controlsOthers: "",
+        emergency: {
+          plan: false, tripod: false, harness: false, fallArrest: false,
+          stretcher: false, resuscitation: false, ba: false, light: false,
+          alarm: false, comms: false, standby: false
+        },
+        safetyEquipment: {
+          head: false, eye: false, hearing: false, foot: false, hand: false,
+          hiVis: false, fallArrest: false, rpe: false
+        },
+        safetyOthers: "",
+        standbyPerson: "",
+        rescueArrangements: "",
+        emergencyContact: "",
+        hospitalDetails: "",
+        firstAid: "",
+        commMethod: "",
+        bumpTestDone: false,
+        monitorDevice1: "",
+        monitorSerial1: "",
+        monitorDevice2: "",
+        monitorSerial2: "",
+        authorisingPerson: "",
+        authorisingTime: "",
+        closureName: "",
+        closureTime: ""
+      };
+
+      const head = el("div",{class:"head"},[
+        el("div",{},[
+          el("h1",{},["Confined Space Permit"]),
+          el("div",{class:"sub"},["Pre-fill the permit details, then download the PDF to be completed by hand on site."])
+        ]),
+        el("div",{class:"pillRow"},[
+          el("span",{id:"pillLib", class:"pill warn"},["PDF engine: checking…"]),
+          el("span",{id:"pillTpl", class:"pill warn"},["Template: checking…"])
+        ])
+      ]);
+
+      const banner = el("div",{id:"banner", class:"banner"},[""]);
+
+      const sDetails = el("div",{class:"section"},[
+        el("div",{class:"sectionTitle"},["1. Work Description"]),
+        el("div",{class:"grid2"},[
+          field("Project Title","projectTitle","text","e.g. Sizewell C", state.projectTitle),
+          field("Project No","projectNo","text","e.g. 836", state.projectNo),
+          field("Site Location","siteLocation","text","e.g. Sizewell", state.siteLocation),
+          field("Work Location","workLocation","text","e.g. Shaft 4", state.workLocation),
+          field("Contractor Name","contractorName","text","", state.contractorName),
+          field("Supervisor Name","supervisorName","text","", state.supervisorName),
+          field("Name of Person giving briefing","brieferName","text","", state.brieferName),
+          field("Job Title of briefer","jobTitle","text","", state.jobTitle),
+          field("Permit No.","permitNo","text","e.g. CSP-001", state.permitNo),
+          field("Date","dateISO","date","", state.dateISO),
+          field("Valid From (Time)","startTime","time","", state.startTime),
+          field("Valid To (Time)","finishTime","time","", state.finishTime),
+        ]),
+        el("div",{style:"margin-top:12px"},[
+          textareaField("Description of work to be carried out","workDescription","What work is being carried out?", state.workDescription),
+          textareaField("Personnel entering the confined space","personnel","Names of operatives entering the confined space", state.personnel),
+        ])
+      ]);
+
+      const sBriefing = el("div",{class:"section"},[
+        el("div",{class:"sectionTitle"},["Pre-entry Briefing"]),
+        el("div",{class:"grid3auto"},[
+          chk("pt_confined","Confined Spaces / Areas", state.points.confined),
+          chk("pt_emergency","Emergency Procedures", state.points.emergency),
+          chk("pt_lifting","Lifting Equipment – Chains / Slings", state.points.lifting),
+          chk("pt_permits","Permits to Work", state.points.permits),
+          chk("pt_plant","Plant & Equipment", state.points.plant),
+          chk("pt_safetyPlanning","Safety Planning", state.points.safetyPlanning),
+          chk("pt_barriers","Barriers / Edge Protection", state.points.barriers),
+          chk("pt_clearAccess","Clear Access Ways", state.points.clearAccess),
+          chk("pt_methodStatements","Method Statements / Risk Assessments", state.points.methodStatements),
+          chk("pt_suitablePPE","Suitable PPE", state.points.suitablePPE),
+          chk("pt_trenchCollapse","Trench Collapse", state.points.trenchCollapse),
+          chk("pt_welfare","Welfare Facilities", state.points.welfare),
+          chk("pt_coshh","COSHH Assessments", state.points.coshh),
+          chk("pt_fire","Fire Precautions", state.points.fire),
+          chk("pt_materials","Materials", state.points.materials),
+          chk("pt_competence","Operative Experience / Competence", state.points.competence),
+          chk("pt_cables","Overhead / Underground Cable Strike", state.points.cables),
+          chk("pt_trips","Trips / Falls", state.points.trips),
+        ]),
+        el("div",{style:"margin-top:12px"},[
+          textareaField("Additional Briefing Information","preEntryBriefing","Details of briefing given to personnel...", state.preEntryBriefing),
+        ])
+      ]);
+
+      const sEquipment = el("div",{class:"section"},[
+        el("div",{class:"sectionTitle"},["2. Equipment / Tools to be used"]),
+        textareaField("Tools & Equipment","equipment","List all tools, plant and equipment to be used...", state.equipment)
+      ]);
+
+      const sRisk = el("div",{class:"section"},[
+        el("div",{class:"sectionTitle"},["3. Risk Assessment"]),
+        el("div",{class:"grid3auto"},[
+          chk("ra_o2","Oxygen enrichment/deficiency", state.riskAssessment.o2),
+          chk("ra_toxic","Toxic gases/vapours/fumes", state.riskAssessment.toxic),
+          chk("ra_flammable","Flammable gases/vapours/fumes", state.riskAssessment.flammable),
+          chk("ra_ingress","Ingress of liquids/gas/solids", state.riskAssessment.ingress),
+          chk("ra_sludge","Sludge/deposits/waste", state.riskAssessment.sludge),
+          chk("ra_animals","Animals/biological hazards", state.riskAssessment.animals),
+          chk("ra_mechanical","Mechanical/electrical hazards", state.riskAssessment.mechanical),
+          chk("ra_hotwork","Hot work within space", state.riskAssessment.hotwork),
+          chk("ra_chemicals","Use of chemicals", state.riskAssessment.chemicals),
+          chk("ra_physical","Physical/structural hazards", state.riskAssessment.physical),
+          chk("ra_temperature","Temperature extremes", state.riskAssessment.temperature),
+          chk("ra_radiation","Ionising radiation", state.riskAssessment.radiation),
+        ]),
+        el("div",{style:"margin-top:12px"},[
+          field("Others (specify)","riskOthers","text","Any other risks...", state.riskOthers)
+        ])
+      ]);
+
+      const sControls = el("div",{class:"section"},[
+        el("div",{class:"sectionTitle"},["4. Controls"]),
+        el("div",{class:"grid3auto"},[
+          chk("co_isoPhys","Isolation - Physical", state.controls.isoPhys),
+          chk("co_isoElec","Isolation - Electrical", state.controls.isoElec),
+          chk("co_isoMech","Isolation - Mechanical", state.controls.isoMech),
+          chk("co_cleaning","Cleaning/Purging of space", state.controls.cleaning),
+          chk("co_ventNat","Ventilation - Natural", state.controls.ventNat),
+          chk("co_ventForced","Ventilation - Forced", state.controls.ventForced),
+          chk("co_light110","Lighting - 110V", state.controls.light110),
+          chk("co_lightLow","Lighting - Low Voltage", state.controls.lightLow),
+          chk("co_signage","Safety signage/Barricades", state.controls.signage),
+          chk("co_comms","Communication equipment", state.controls.comms),
+          chk("co_testing","Atmospheric testing (initial)", state.controls.testing),
+          chk("co_monitoring","Constant monitoring", state.controls.monitoring),
+          chk("co_extinguishers","Fire extinguishers", state.controls.extinguishers),
+          chk("co_rpe","RPE (BA / Escape set)", state.controls.rpe),
+          chk("co_training","Training/Competence", state.controls.training),
+        ]),
+        el("div",{style:"margin-top:12px"},[
+          field("Others (specify)","controlsOthers","text","Any other controls...", state.controlsOthers)
+        ])
+      ]);
+
+      const sSafety = el("div",{class:"section"},[
+        el("div",{class:"sectionTitle"},["6. Safety Equipment"]),
+        el("div",{class:"grid3auto"},[
+          chk("se_head","Head protection (Hard hat)", state.safetyEquipment.head),
+          chk("se_eye","Eye protection", state.safetyEquipment.eye),
+          chk("se_hearing","Hearing protection", state.safetyEquipment.hearing),
+          chk("se_foot","Foot protection", state.safetyEquipment.foot),
+          chk("se_hand","Hand protection", state.safetyEquipment.hand),
+          chk("se_hiVis","High visibility clothing", state.safetyEquipment.hiVis),
+          chk("se_fallArrest","Fall arrest / restraint", state.safetyEquipment.fallArrest),
+          chk("se_rpe","Respiratory protection (RPE)", state.safetyEquipment.rpe),
+        ]),
+        el("div",{style:"margin-top:12px"},[
+          field("Others (specify)","safetyOthers","text","Any other safety equipment...", state.safetyOthers)
+        ])
+      ]);
+
+      const sEmergency = el("div",{class:"section"},[
+        el("div",{class:"sectionTitle"},["5. Emergency Arrangements"]),
+        el("div",{class:"grid3auto"},[
+          chk("em_plan","Rescue plan in place", state.emergency.plan),
+          chk("em_tripod","Tripod / Winch / Davit", state.emergency.tripod),
+          chk("em_harness","Harness / Rescue line", state.emergency.harness),
+          chk("em_fallArrest","Fall arrest equipment", state.emergency.fallArrest),
+          chk("em_stretcher","Recovery stretcher", state.emergency.stretcher),
+          chk("em_resuscitation","Resuscitation equipment", state.emergency.resuscitation),
+          chk("em_ba","Breathing apparatus (Rescue)", state.emergency.ba),
+          chk("em_light","Emergency lighting", state.emergency.light),
+          chk("em_alarm","Method of raising alarm", state.emergency.alarm),
+          chk("em_comms","Method of communication", state.emergency.comms),
+          chk("em_standby","Standby person (Top-man)", state.emergency.standby),
+        ]),
+        el("div",{class:"grid2", style:"margin-top:12px"},[
+          field("Standby Person(s) Name","standbyPerson","text","", state.standbyPerson),
+          field("Emergency Contact Number","emergencyContact","text","", state.emergencyContact),
+          field("Nearest Hospital Details","hospitalDetails","text","", state.hospitalDetails),
+          field("Emergency First Aid provision","firstAid","text","e.g. First aider on site", state.firstAid),
+          field("Method of Communication","commMethod","text","e.g. Two-way radio", state.commMethod),
+        ]),
+        el("div",{style:"margin-top:12px"},[
+          textareaField("Specific Rescue Arrangements / Plan","rescueArrangements","Details of the rescue plan...", state.rescueArrangements),
+        ])
+      ]);
+
+      const sMonitoring = el("div",{class:"section"},[
+        el("div",{class:"sectionTitle"},["Monitoring, Certification & Closure"]),
+        el("div",{class:"grid2"},[
+          chk("bumpTestDone", "Gas Monitor Bump Test confirmed?", state.bumpTestDone),
+        ]),
+        el("div",{class:"grid2", style:"margin-top:10px"},[
+          field("Monitoring Device 1","monitorDevice1","text","e.g. GMI PS200", state.monitorDevice1),
+          field("Serial Number 1","monitorSerial1","text","", state.monitorSerial1),
+          field("Monitoring Device 2","monitorDevice2","text","", state.monitorDevice2),
+          field("Serial Number 2","monitorSerial2","text","", state.monitorSerial2),
+        ]),
+        el("div",{class:"grid2", style:"margin-top:12px"},[
+          field("Authorising Person (Section 6)","authorisingPerson","text","Name of person authorising entry", state.authorisingPerson),
+          field("Authorising Time","authorisingTime","time","", state.authorisingTime),
+          field("Closure Name (Section 7)","closureName","text","Name for permit closure", state.closureName),
+          field("Closure Time","closureTime","time","", state.closureTime),
+        ])
+      ]);
+
+      const sticky = el("div",{class:"stickyBar"},[
+        el("div",{class:"actionBar"},[
+          el("div",{class:"btnRow"},[
+            el("a",{class:"btn btnYellow", href:"daily.html"},["Back"]),
+          ]),
+          el("div",{class:"btnRow"},[
+            el("button",{id:"btnDownload", class:"btn", type:"button", onclick: async()=> {
+              hideBanner();
+              await onDownload();
+            }},["Download PDF"])
+          ])
+        ])
+      ]);
+
+      app.appendChild(head);
+      app.appendChild(banner);
+      app.appendChild(sDetails);
+      app.appendChild(sBriefing);
+      app.appendChild(sEquipment);
+      app.appendChild(sRisk);
+      app.appendChild(sControls);
+      app.appendChild(sEmergency);
+      app.appendChild(sSafety);
+      app.appendChild(sMonitoring);
+      app.appendChild(sticky);
+
+      checkTemplateAndLib("csp");
+
+      function field(labelText, id, type, placeholder, val = ""){
+        return el("div",{},[
+          el("label",{for:id},[labelText]),
+          el("input",{id, type, placeholder, value: val})
+        ]);
+      }
+      function textareaField(labelText, id, placeholder, val = ""){
+        const txt = el("textarea",{id, placeholder});
+        txt.value = val;
+        return el("div",{},[
+          el("label",{for:id},[labelText]),
+          txt
+        ]);
+      }
+      function chk(id, labelText, checked = false){
+        const input = el("input",{type:"checkbox", id});
+        if(checked) input.checked = true;
+        return el("label",{class:"check", for:id},[
+          input,
+          el("span",{},[labelText])
+        ]);
+      }
+
+      async function onDownload(){
+        const btn = $("#btnDownload");
+        btn.disabled = true;
+        btn.textContent = "Generating…";
+        try{
+          const data = {
+            projectTitle: $("#projectTitle").value.trim(),
+            projectNo: $("#projectNo").value.trim(),
+            siteLocation: $("#siteLocation").value.trim(),
+            workLocation: $("#workLocation").value.trim(),
+            contractorName: $("#contractorName").value.trim(),
+            supervisorName: $("#supervisorName").value.trim(),
+            brieferName: $("#brieferName").value.trim(),
+            jobTitle: $("#jobTitle").value.trim(),
+            permitNo: $("#permitNo").value.trim(),
+            dateISO: $("#dateISO").value,
+            startTime: $("#startTime").value,
+            finishTime: $("#finishTime").value,
+            workDescription: $("#workDescription").value.trim(),
+            personnel: $("#personnel").value.trim(),
+            preEntryBriefing: $("#preEntryBriefing").value.trim(),
+            points: {
+              confined: $("#pt_confined").checked, emergency: $("#pt_emergency").checked, lifting: $("#pt_lifting").checked,
+              permits: $("#pt_permits").checked, plant: $("#pt_plant").checked, safetyPlanning: $("#pt_safetyPlanning").checked,
+              barriers: $("#pt_barriers").checked, clearAccess: $("#pt_clearAccess").checked, methodStatements: $("#pt_methodStatements").checked,
+              suitablePPE: $("#pt_suitablePPE").checked, trenchCollapse: $("#pt_trenchCollapse").checked, welfare: $("#pt_welfare").checked,
+              coshh: $("#pt_coshh").checked, fire: $("#pt_fire").checked, materials: $("#pt_materials").checked,
+              competence: $("#pt_competence").checked, cables: $("#pt_cables").checked, trips: $("#pt_trips").checked
+            },
+            equipment: $("#equipment").value.trim(),
+            riskAssessment: {
+              o2: $("#ra_o2").checked, toxic: $("#ra_toxic").checked, flammable: $("#ra_flammable").checked,
+              ingress: $("#ra_ingress").checked, sludge: $("#ra_sludge").checked, animals: $("#ra_animals").checked,
+              mechanical: $("#ra_mechanical").checked, hotwork: $("#ra_hotwork").checked, chemicals: $("#ra_chemicals").checked,
+              physical: $("#ra_physical").checked, temperature: $("#ra_temperature").checked, radiation: $("#ra_radiation").checked
+            },
+            riskOthers: $("#riskOthers").value.trim(),
+            controls: {
+              isoPhys: $("#co_isoPhys").checked, isoElec: $("#co_isoElec").checked, isoMech: $("#co_isoMech").checked,
+              cleaning: $("#co_cleaning").checked, ventNat: $("#co_ventNat").checked, ventForced: $("#co_ventForced").checked,
+              light110: $("#co_light110").checked, lightLow: $("#co_lightLow").checked, signage: $("#co_signage").checked,
+              comms: $("#co_comms").checked, testing: $("#co_testing").checked, monitoring: $("#co_monitoring").checked,
+              extinguishers: $("#co_extinguishers").checked, rpe: $("#co_rpe").checked,
+              training: $("#co_training").checked
+            },
+            controlsOthers: $("#controlsOthers").value.trim(),
+            emergency: {
+              plan: $("#em_plan").checked, tripod: $("#em_tripod").checked, harness: $("#em_harness").checked,
+              fallArrest: $("#em_fallArrest").checked, stretcher: $("#em_stretcher").checked, resuscitation: $("#em_resuscitation").checked,
+              ba: $("#em_ba").checked, light: $("#em_light").checked, alarm: $("#em_alarm").checked,
+              comms: $("#em_comms").checked, standby: $("#em_standby").checked
+            },
+            safetyEquipment: {
+              head: $("#se_head").checked, eye: $("#se_eye").checked, hearing: $("#se_hearing").checked,
+              foot: $("#se_foot").checked, hand: $("#se_hand").checked, hiVis: $("#se_hiVis").checked,
+              fallArrest: $("#se_fallArrest").checked, rpe: $("#se_rpe").checked
+            },
+            safetyOthers: $("#safetyOthers").value.trim(),
+            standbyPerson: $("#standbyPerson").value.trim(),
+            emergencyContact: $("#emergencyContact").value.trim(),
+            hospitalDetails: $("#hospitalDetails").value.trim(),
+            rescueArrangements: $("#rescueArrangements").value.trim(),
+            firstAid: $("#firstAid").value.trim(),
+            commMethod: $("#commMethod").value.trim(),
+            bumpTestDone: $("#bumpTestDone").checked,
+            monitorDevice1: $("#monitorDevice1").value.trim(),
+            monitorSerial1: $("#monitorSerial1").value.trim(),
+            monitorDevice2: $("#monitorDevice2").value.trim(),
+            monitorSerial2: $("#monitorSerial2").value.trim(),
+            authorisingPerson: $("#authorisingPerson").value.trim(),
+            authorisingTime: $("#authorisingTime").value,
+            closureName: $("#closureName").value.trim(),
+            closureTime: $("#closureTime").value
+          };
+          await generateConfinedSpacePDF(data);
+        }catch(err){
+          showBanner(String(err && err.message ? err.message : err), "bad");
+        }finally{
+          btn.disabled = false;
+          btn.textContent = "Download PDF";
+        }
+      }
+    }
+
     function renderDailyBrief(){
       const app = $("#app");
       app.innerHTML = "";
+
+      const MAX_ATTENDEES = 96;
 
       const state = {
         projectTitle:"",
@@ -652,7 +1019,6 @@
 
       const banner = el("div",{id:"banner", class:"banner"},[""]);
 
-      // Sections
       const sDetails = el("div",{class:"section"},[
         el("div",{class:"sectionTitle"},["Project & briefing details"]),
         el("div",{class:"grid2"},[
@@ -714,10 +1080,9 @@
           el("button",{class:"btn btnGhost", type:"button", onclick:()=>addAttendee()},["+ Add attendee"])
         ]),
         el("div",{id:"attWrap"},[]),
-        el("div",{class:"note"},["Pages 2–3 support up to 36 attendees total. Each attendee can sign on their own row."])
+        el("div",{class:"note"},[`PDF supports up to ${MAX_ATTENDEES} attendees (adds pages automatically).`])
       ]);
 
-      // Sticky action bar
       const sticky = el("div",{class:"stickyBar"},[
         el("div",{class:"actionBar"},[
           el("div",{class:"btnRow"},[
@@ -742,7 +1107,6 @@
       app.appendChild(sAtt);
       app.appendChild(sticky);
 
-      // defaults
       $("#prevPlanned").value = state.prevPlanned;
       $("#covered").value = state.covered;
       $("#controls").value = state.controls;
@@ -750,7 +1114,7 @@
 
       rebuildAttendees();
       updateAttCount();
-      checkTemplateAndLib();
+      checkTemplateAndLib("daily");
 
       function field(labelText, id, type, placeholder){
         return el("div",{},[
@@ -780,8 +1144,8 @@
 
       function addAttendee(){
         const list = collectAttendees();
-        if(list.length >= 36){
-          showBanner("Max 36 attendees (PDF pages 2–3).", "warn");
+        if(list.length >= MAX_ATTENDEES){
+          showBanner(`Max ${MAX_ATTENDEES} attendees.`, "warn");
           return;
         }
         list.push({ id: makeId(), name:"", dateISO: todayISO() });
@@ -911,7 +1275,6 @@
         const btn = $("#btnDownload");
         btn.disabled = true;
         btn.textContent = "Generating…";
-
         try{
           const data = readForm();
           await generateDailyBriefPDF(data);
@@ -1238,10 +1601,20 @@
     async function generateDailyBriefPDF(data){
       // 1) pdf-lib availability
       if(!window.PDFLib){
-        throw new Error("PDF engine is blocked (pdf-lib did not load). If you use a strict Content-Security-Policy, you must allow the CDN or host pdf-lib locally.");
+        throw new Error("PDF engine is blocked.");
       }
 
       const { PDFDocument, StandardFonts, rgb } = PDFLib;
+      const pdfDoc = await PDFDocument.create();
+      const helv = await pdfDoc.embedFont(StandardFonts.Helvetica);
+      const helvBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+
+      const A4 = [595.28, 841.89];
+      const BLACK = rgb(0, 0, 0);
+      const RED = rgb(0.753, 0, 0); // rgb(192, 0, 0)
+      const HEADER_TEXT = rgb(1, 1, 1);
+      const LIGHT_FILL = rgb(0.985, 0.985, 0.99);
+      const YELLOW = rgb(1, 1, 0); // Full yellow
 
       const pdfDoc = await PDFDocument.create();
       const helv = await pdfDoc.embedFont(StandardFonts.Helvetica);
@@ -1318,17 +1691,27 @@
         page.drawLine({ start:{ x:midX, y:midY }, end:{ x:right, y:upper }, thickness:1.4, color: BLACK });
       };
 
+      // ✅ Updated: preserves manual line breaks (\n) AND wraps within each line
       const wrapLines = (font, text, size, maxWidth) => {
-        const words = String(text || "").replace(/\r/g,"").split(/\s+/).filter(Boolean);
+        const raw = String(text || "").replace(/\r/g, "");
+        const parts = raw.split("\n");
+
         const lines = [];
-        let line = "";
-        for(const w of words){
-          const test = line ? (line + " " + w) : w;
-          const width = font.widthOfTextAtSize(test, size);
-          if(width <= maxWidth) line = test;
-          else { if(line) lines.push(line); line = w; }
+        for(const part of parts){
+          const words = part.split(/\s+/).filter(Boolean);
+          if(words.length === 0){
+            lines.push("");
+            continue;
+          }
+          let line = "";
+          for(const w of words){
+            const test = line ? (line + " " + w) : w;
+            const width = font.widthOfTextAtSize(test, size);
+            if(width <= maxWidth) line = test;
+            else { if(line) lines.push(line); line = w; }
+          }
+          if(line) lines.push(line);
         }
-        if(line) lines.push(line);
         return lines;
       };
 
@@ -1891,7 +2274,6 @@
       setTimeout(()=> URL.revokeObjectURL(url), 2500);
     }
 
-    // Router
     if(t.toLowerCase() === "daily brief" || t.toLowerCase() === "daily briefing"){
       renderDailyBrief();
     }else if(t.toLowerCase() === "hot work permit" || t.toLowerCase() === "hot works permit"){
