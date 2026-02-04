@@ -1393,7 +1393,7 @@
         "If work is to take place outside/in rural areas, specify any additional controls required",
         "Is area clear of removable combustible material/flamable liquids within 6m of the hot work?",
         "Any non-moveable combustible material within 6m protected from heat/sparks?",
-        "Access/egress arrangements defined for non‑authorised personnel?",
+        "Access/egress arrangements defined for non-authorised personnel?",
         "Duties and nominated persons for fire watch and inspection defined and briefed?",
         "Other working in proximity of hot works informed and briefed?",
         "Suitable screens/barriers to contain sparks/shield arc from eyes?",
@@ -1649,53 +1649,49 @@
     async function generateDailyBriefPDF(data){
       // 1) pdf-lib availability
       if(!window.PDFLib){
-        throw new Error("PDF engine is blocked.");
+        throw new Error("PDF engine is blocked (pdf-lib did not load). If you use a strict Content-Security-Policy, you must allow the CDN or host pdf-lib locally.");
       }
 
-      const state = {
-        permitNo:"",
-        dateRequired: todayISO(),
-        requestedBy:"",
-        address:"",
-        description:"",
-        activities:{
-          welding:false, burning:false, soldering:false, gasCutting:false, brazing:false,
-          discCutting:false, heathland:false, other:false
-        },
-        hwrp:"",
-        contractor:"",
-        fireSafety:"",
-        precautions:{},
-        precautionsNa:{},
-        checks:{},
-        checksNa:{},
-        extinguishers:{ co2:false, foam:false, water:false, dryPowder:false },
-        sketch:"",
-        permitValidFrom:"",
-        permitValidTo:"",
-        permitTimeFrom:"",
-        permitTimeTo:"",
-        authorisedBy:"",
-        authorisedSig:"",
-        authorisedDate:"",
-        fireWatcher:"",
-        fireWatcherSig:"",
-        fireWatcherDate:"",
-        hwrpName:"",
-        hwrpSig:"",
-        hwrpDate:"",
-        clearanceYes:false,
-        clearanceNa:false,
-        completionHours:"",
-        fireWatchHours:"",
-        completionTimeFrom:"",
-        completionTimeTo:"",
-        fireWatchTimeFrom:"",
-        fireWatchTimeTo:"",
-        clearanceBy:"",
-        clearanceSig:"",
-        clearanceDate:""
-      };
+      function readForm(){
+        const data = {
+          permitNo: $("#permitNo").value.trim(),
+          dateRequired: $("#dateRequired").value || todayISO(),
+          requestedBy: $("#requestedBy").value.trim(),
+          address: $("#address").value.trim(),
+          description: $("#description").value.trim(),
+          activities: {},
+          hwrp: $("#hwrp").value.trim(),
+          contractor: $("#contractor").value.trim(),
+          fireSafety: $("#fireSafety").value.trim(),
+          precautions: {},
+          precautionsNa: {},
+          checks: {},
+          checksNa: {},
+          extinguishers: {},
+          sketch: $("#sketch").value.trim(),
+          permitValidFrom: $("#permitValidFrom").value.trim(),
+          permitValidTo: $("#permitValidTo").value.trim(),
+          permitTimeFrom: $("#permitTimeFrom").value.trim(),
+          permitTimeTo: $("#permitTimeTo").value.trim(),
+          authorisedBy: $("#authorisedBy").value.trim(),
+          authorisedSig: $("#authorisedSig").value.trim(),
+          authorisedDate: $("#authorisedDate").value.trim(),
+          fireWatcher: $("#fireWatcher").value.trim(),
+          fireWatcherSig: $("#fireWatcherSig").value.trim(),
+          fireWatcherDate: $("#fireWatcherDate").value.trim(),
+          hwrpName: $("#hwrpName").value.trim(),
+          hwrpSig: $("#hwrpSig").value.trim(),
+          hwrpDate: $("#hwrpDate").value.trim(),
+          completionHours: $("#completionHours").value.trim(),
+          fireWatchHours: $("#fireWatchHours").value.trim(),
+          completionTimeFrom: $("#completionTimeFrom").value.trim(),
+          completionTimeTo: $("#completionTimeTo").value.trim(),
+          fireWatchTimeFrom: $("#fireWatchTimeFrom").value.trim(),
+          fireWatchTimeTo: $("#fireWatchTimeTo").value.trim(),
+          clearanceBy: $("#clearanceBy").value.trim(),
+          clearanceSig: $("#clearanceSig").value.trim(),
+          clearanceDate: $("#clearanceDate").value.trim()
+        };
 
       const pdfDoc = await PDFDocument.create();
       const helv = await pdfDoc.embedFont(StandardFonts.Helvetica);
@@ -1727,6 +1723,7 @@
           return null;
         }
       }
+    }
 
       let atlLogo;
       const atlBytes = await fetchImage("/atl-logo.png") || await fetchImage("atl-logo.png");
@@ -1738,15 +1735,19 @@
       const LIGHT_BLUE = rgb(1, 1, 1);
       const LIGHT_GRAY = rgb(1, 1, 1);
 
+      const sanitizePdfText = (text) => String(text ?? "").replace(/[\u2010-\u2015\u2212\u00ad]/g, "-");
+
       const drawText = (page, text, x, y, size=10, font=helvBold, color=BLACK) => {
-        if(!text) return;
-        page.drawText(String(text), { x, y, size, font, color });
+        const safeText = sanitizePdfText(text);
+        if(!safeText) return;
+        page.drawText(safeText, { x, y, size, font, color });
       };
 
       const drawCenteredText = (page, text, centerX, y, size=12, font=helvBold, color=BLACK) => {
-        if(!text) return;
-        const width = font.widthOfTextAtSize(text, size);
-        page.drawText(String(text), { x: centerX - (width / 2), y, size, font, color });
+        const safeText = sanitizePdfText(text);
+        if(!safeText) return;
+        const width = font.widthOfTextAtSize(safeText, size);
+        page.drawText(safeText, { x: centerX - (width / 2), y, size, font, color });
       };
 
       const drawCell = (page, x, y, w, h, { fill, border=1 } = {}) => {
@@ -1773,8 +1774,7 @@
       };
 
       const wrapLines = (font, text, size, maxWidth) => {
-        const raw = String(text || "").replace(/\r/g, "");
-        const parts = raw.split("\n");
+        const words = sanitizePdfText(text).replace(/\r/g,"").split(/\s+/).filter(Boolean);
         const lines = [];
         for(const part of parts){
           const words = part.split(/\s+/).filter(Boolean);
@@ -1809,11 +1809,16 @@
         }
       };
 
-      const drawMultiLine = (p, label, value, x, y, w, h) => {
-        drawCell(p, x, y - h, w, h);
-        drawTextInCell(p, label, x, y - 15, w, 15, { font: helvBold, size: 8.5 });
-        drawWrappedText(p, value, x, y - h, w, h - 15, { size: 9 });
-      };
+      function drawHeader(page){
+        if(atlLogo){
+          const scale = 140 / atlLogo.width;
+          page.drawImage(atlLogo, { x:40, y:760, width: atlLogo.width * scale, height: atlLogo.height * scale });
+        }
+        drawText(page, "ATL Daily Task Briefing", 430, 795, 9, helvBold, RED);
+        drawText(page, "QPFS12.4", 430, 783, 9, helvBold, RED);
+        drawCell(page, 40, 705, 515, 22, { fill: RED, border: 1 });
+        drawCenteredText(page, "HEALTH & SAFETY - MORNING BRIEFING", 297.5, 712, 12, helvBold, HEADER_TEXT);
+      }
 
       function drawHeader(page){
         if(atlLogo){
@@ -2121,13 +2126,16 @@
       const BLACK = rgb(0,0,0);
       const RED = rgb(0.78, 0.1, 0.1);
 
+      const sanitizePdfText = (text) => String(text ?? "").replace(/[\u2010-\u2015\u2212\u00ad]/g, "-");
       const drawText = (page, text, x, y, size=9, font=helv) => {
-        if(!text) return;
-        page.drawText(String(text), { x, y, size, font, color: BLACK });
+        const safeText = sanitizePdfText(text);
+        if(!safeText) return;
+        page.drawText(safeText, { x, y, size, font, color: BLACK });
       };
       const drawBold = (page, text, x, y, size=9) => {
-        if(!text) return;
-        page.drawText(String(text), { x, y, size, font: helvBold, color: BLACK });
+        const safeText = sanitizePdfText(text);
+        if(!safeText) return;
+        page.drawText(safeText, { x, y, size, font: helvBold, color: BLACK });
       };
       const drawCell = (page, x, y, w, h, fill=null) => {
         page.drawRectangle({ x, y, width:w, height:h, borderColor: BLACK, borderWidth: 1, color: fill || undefined });
@@ -2171,6 +2179,18 @@
           page2.drawImage(logo, { x:40, y:780, width: logo.width*scale, height: logo.height*scale });
         }
       }
+      const detectImageType = (bytes) => {
+        if(!bytes || bytes.length < 4) return null;
+        if(bytes[0] === 0xff && bytes[1] === 0xd8) return "jpeg";
+        if(bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47) return "png";
+        return null;
+      };
+      const embedImageBytes = async (bytes) => {
+        const type = detectImageType(bytes);
+        if(type === "jpeg") return await pdfDoc.embedJpg(bytes);
+        if(type === "png") return await pdfDoc.embedPng(bytes);
+        return null;
+      };
 
       drawText(page1, "Hot Works Permit", 430, 800, 12, helvBold);
       page1.drawLine({ start:{ x:40, y:760 }, end:{ x:555, y:760 }, thickness:1, color: BLACK });
