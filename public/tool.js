@@ -338,6 +338,8 @@ window.__pdfLibLoadFailed = false;
       if(mode === "csp"){
         // For CSP, we now generate programmatically, so we just check the logo
         ok = await tryFetch("atl-logo.png") || await tryFetch("/atl-logo.png");
+      }else if(mode === "ground"){
+        ok = await tryFetch("templates/1.pdf") || await tryFetch("/templates/1.pdf");
       }else{
         ok = await tryFetch("templates/daily-briefing.pdf");
       }
@@ -1290,7 +1292,7 @@ window.__pdfLibLoadFailed = false;
       app.appendChild(sClear);
       app.appendChild(sticky);
 
-      checkTemplateAndLib();
+      checkTemplateAndLib("ground");
 
       function field(labelText, id, type, placeholder){
         return el("div",{},[
@@ -2356,7 +2358,26 @@ window.__pdfLibLoadFailed = false;
       }
 
       const { PDFDocument, StandardFonts, rgb } = PDFLib;
-      const bytes = await fetch("templates/1.pdf", { cache:"no-store" }).then(r => r.arrayBuffer());
+      const templateUrls = ["./templates/1.pdf", "/templates/1.pdf"]; 
+      let bytes = null;
+      let lastErr = null;
+      for (const url of templateUrls) {
+        try {
+          const res = await fetch(url, { cache:"no-store" });
+          if (!res.ok) throw new Error(`Template fetch failed (${res.status})`);
+          const contentType = res.headers.get("content-type") || "";
+          if (contentType.includes("text/html")) {
+            throw new Error("Template fetch returned HTML, not PDF.");
+          }
+          bytes = await res.arrayBuffer();
+          if (bytes && bytes.byteLength) break;
+        } catch (err) {
+          lastErr = err;
+        }
+      }
+      if (!bytes) {
+        throw new Error(`Permit template failed to load. ${lastErr ? lastErr.message : ""}`);
+      }
       const pdfDoc = await PDFDocument.load(bytes);
       const helv = await pdfDoc.embedFont(StandardFonts.Helvetica);
       const helvBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
