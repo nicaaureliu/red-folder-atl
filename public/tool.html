@@ -342,7 +342,7 @@
     }
   </style>
 
-  <script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+  <script src="tool.js"></script>
 </head>
 
 <body>
@@ -353,254 +353,31 @@
   </div>
 
   <!-- Signature Modal -->
-  <div id="sigOverlay" class="modalOverlay" aria-hidden="true">
-    <div class="modal" role="dialog" aria-modal="true" aria-label="Signature">
+  <div id="sigOverlay" class="modalOverlay" aria-hidden="true" tabindex="-1">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="sigTitle">
       <div class="modalHead">
         <strong id="sigTitle">Signature</strong>
-        <button id="sigCloseTop" class="btn btnGhost" type="button">Close</button>
+        <button id="sigCloseTop" class="btn btnGhost" type="button" aria-label="Close signature modal">Close</button>
       </div>
 
       <div class="modalBody">
         <div class="sigCanvasWrap">
-          <canvas id="sigCanvas"></canvas>
+          <canvas id="sigCanvas" aria-label="Signature drawing area" tabindex="0" role="region"></canvas>
         </div>
       </div>
 
       <div class="modalFoot">
         <div class="btnRow">
-          <button id="sigClear" class="btn btnGhost" type="button">Clear</button>
-          <button id="sigCancel" class="btn btnGhost" type="button">Cancel</button>
+          <button id="sigClear" class="btn btnGhost" type="button" aria-label="Clear signature">Clear</button>
+          <button id="sigCancel" class="btn btnGhost" type="button" aria-label="Cancel signature">Cancel</button>
         </div>
 
         <div class="btnRow" style="align-items:center;">
-          <span class="modalHelp">Draw with finger/mouse, then Save.</span>
-          <button id="sigSave" class="btn btnYellow" type="button">Save signature</button>
+          <span class="modalHelp" id="sigHelp">Draw with finger or mouse, then Save.</span>
+          <button id="sigSave" class="btn btnYellow" type="button" aria-label="Save signature">Save signature</button>
         </div>
       </div>
     </div>
-  </div>
-
-  <script>
-    (function ensurePdfLib(){
-      const check = () => !!window.PDFLib;
-      if (check()) return;
-
-      const s = document.createElement("script");
-      s.src = "https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js";
-      document.head.appendChild(s);
-    })();
-  </script>
-
-  <script>
-    const $ = (q) => document.querySelector(q);
-    const el = (tag, attrs={}, children=[]) => {
-      const n = document.createElement(tag);
-      Object.entries(attrs).forEach(([k,v])=>{
-        if(k === "class") n.className = v;
-        else if(k === "html") n.innerHTML = v;
-        else if(k.startsWith("on") && typeof v === "function") n.addEventListener(k.substring(2), v);
-        else n.setAttribute(k, v);
-      });
-      children.forEach(c => n.appendChild(typeof c === "string" ? document.createTextNode(c) : c));
-      return n;
-    };
-
-    const params = new URLSearchParams(location.search);
-    const t = (params.get("t") || "Form").trim();
-    document.title = t;
-
-    const sigStore = new Map();
-    const makeId = () => "id_" + Math.random().toString(16).slice(2) + "_" + Date.now().toString(16);
-
-    const pad2 = (n) => String(n).padStart(2,"0");
-    const todayISO = () => {
-      const d = new Date();
-      return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`;
-    };
-    const toDDMMYYYY = (iso) => {
-      if(!iso || !iso.includes("-")) return iso || "";
-      const [y,m,d] = iso.split("-");
-      return `${pad2(d)}/${pad2(m)}/${y}`;
-    };
-
-    function showBanner(msg, type="warn"){
-      const b = $("#banner");
-      b.style.display = "block";
-      b.style.borderColor = (type==="bad") ? "var(--badBd)" : "var(--warnBd)";
-      b.style.background = (type==="bad") ? "var(--badBg)" : "var(--warnBg)";
-      b.style.color = (type==="bad") ? "var(--badTx)" : "var(--warnTx)";
-      b.textContent = msg;
-    }
-    function hideBanner(){
-      const b = $("#banner");
-      if(!b) return;
-      b.style.display = "none";
-      b.textContent = "";
-    }
-
-    function renderPlaceholder(title){
-      const app = $("#app");
-      app.innerHTML = "";
-      app.appendChild(el("div",{class:"head"},[
-        el("div",{},[
-          el("h1",{},[title]),
-          el("div",{class:"sub"},["This is a placeholder page."])
-        ]),
-        el("div",{class:"pillRow"},[
-          el("a",{class:"btn btnYellow", href:"daily.html"},["Back"])
-        ])
-      ]));
-    }
-
-    const SigModal = (() => {
-      const overlay = $("#sigOverlay");
-      const canvas = $("#sigCanvas");
-      const titleEl = $("#sigTitle");
-      const btnClear = $("#sigClear");
-      const btnCancel = $("#sigCancel");
-      const btnSave = $("#sigSave");
-      const btnCloseTop = $("#sigCloseTop");
-
-      let ctx, drawing=false, hasInk=false;
-      let currentAttId=null;
-      let onSavedCb=null;
-
-      const resizeCanvas = () => {
-        const rect = canvas.getBoundingClientRect();
-        const dpr = window.devicePixelRatio || 1;
-        canvas.width = Math.floor(rect.width * dpr);
-        canvas.height = Math.floor(rect.height * dpr);
-        ctx = canvas.getContext("2d");
-        ctx.setTransform(dpr,0,0,dpr,0,0);
-        clearCanvas();
-      };
-
-      const clearCanvas = () => {
-        if(!ctx) return;
-        const rect = canvas.getBoundingClientRect();
-        ctx.clearRect(0,0,rect.width,rect.height);
-        ctx.fillStyle = "#fff";
-        ctx.fillRect(0,0,rect.width,rect.height);
-        ctx.strokeStyle = "#000";
-        ctx.lineWidth = 2.4;
-        ctx.lineCap = "round";
-        ctx.lineJoin = "round";
-        hasInk = false;
-      };
-
-      const getPos = (evt) => {
-        const rect = canvas.getBoundingClientRect();
-        return { x: (evt.clientX - rect.left), y: (evt.clientY - rect.top) };
-      };
-
-      const start = (evt) => {
-        evt.preventDefault();
-        drawing = true;
-        const p = getPos(evt);
-        ctx.beginPath();
-        ctx.moveTo(p.x, p.y);
-      };
-
-      const move = (evt) => {
-        if(!drawing) return;
-        evt.preventDefault();
-        const p = getPos(evt);
-        ctx.lineTo(p.x, p.y);
-        ctx.stroke();
-        hasInk = true;
-      };
-
-      const end = (evt) => {
-        if(!drawing) return;
-        evt.preventDefault();
-        drawing = false;
-      };
-
-      canvas.addEventListener("pointerdown", start);
-      canvas.addEventListener("pointermove", move);
-      window.addEventListener("pointerup", end);
-      window.addEventListener("pointercancel", end);
-
-      btnClear.addEventListener("click", clearCanvas);
-
-      const close = () => {
-        overlay.style.display = "none";
-        overlay.setAttribute("aria-hidden","true");
-        currentAttId = null;
-        onSavedCb = null;
-      };
-
-      btnCancel.addEventListener("click", close);
-      btnCloseTop.addEventListener("click", close);
-
-      btnSave.addEventListener("click", () => {
-        if(!currentAttId) return;
-        if(!hasInk){
-          alert("Please sign first, then Save.");
-          return;
-        }
-        const dataUrl = canvas.toDataURL("image/png");
-        sigStore.set(currentAttId, dataUrl);
-        if(typeof onSavedCb === "function") onSavedCb(currentAttId, dataUrl);
-        close();
-      });
-
-      window.addEventListener("resize", () => {
-        if(overlay.style.display === "flex") resizeCanvas();
-      });
-
-      const open = (attId, label, cb) => {
-        currentAttId = attId;
-        onSavedCb = cb;
-        titleEl.textContent = label ? `Signature: ${label}` : "Signature";
-        overlay.style.display = "flex";
-        overlay.setAttribute("aria-hidden","false");
-        setTimeout(resizeCanvas, 50);
-      };
-
-      return { open };
-    })();
-
-    async function checkTemplateAndLib(mode){
-      const libPill = $("#pillLib");
-      const tplPill = $("#pillTpl");
-      if(!libPill || !tplPill) return;
-
-      await new Promise(r => setTimeout(r, 400));
-
-      if(window.PDFLib){
-        libPill.className = "pill ok";
-        libPill.textContent = "PDF engine: OK";
-      }else{
-        libPill.className = "pill bad";
-        libPill.textContent = "PDF engine: BLOCKED";
-      }
-
-      const tryFetch = async (url) => {
-        try{
-          const res = await fetch(url, { method:"HEAD", cache:"no-store" });
-          return res.ok;
-        }catch(e){
-          return false;
-        }
-      };
-
-      let ok = false;
-      if(mode === "csp"){
-        // For CSP, we now generate programmatically, so we just check the logo
-        ok = await tryFetch("atl-logo.png") || await tryFetch("/atl-logo.png");
-      }else{
-        ok = await tryFetch("templates/daily-briefing.pdf");
-      }
-
-      if(ok){
-        tplPill.className = "pill ok";
-        tplPill.textContent = "Assets: OK";
-      }else{
-        tplPill.className = "pill bad";
-        tplPill.textContent = "Assets: MISSING";
-      }
-    }
 
     function renderConfinedSpacePermit(){
       const app = $("#app");
