@@ -2297,6 +2297,50 @@ window.__pdfLibLoadFailed = false;
         }
       };
 
+      const normalizeCols = (cols, w) => {
+        const sum = cols.reduce((a,b)=>a+b, 0) || 1;
+        const scale = w / sum;
+        return cols.map(c => c * scale);
+      };
+
+      const drawTableCols = (page, x, y, w, h, cols, rows) => {
+        const colWidths = normalizeCols(cols, w);
+        page.drawRectangle({ x, y, width:w, height:h, borderColor: BLACK, borderWidth: 1, color: WHITE });
+        let cx = x;
+        for(let i=0;i<colWidths.length-1;i++){
+          cx += colWidths[i];
+          page.drawLine({ start:{ x:cx, y }, end:{ x:cx, y:y+h }, thickness:1, color: BLACK });
+        }
+        for(let r=1;r<rows;r++){
+          const cy = y + (h/rows)*r;
+          page.drawLine({ start:{ x, y:cy }, end:{ x:x+w, y:cy }, thickness:1, color: BLACK });
+        }
+        return colWidths;
+      };
+
+      const drawHeaderRow = (page, x, y, w, labels, fontSize=7) => {
+        const colW = w / labels.length;
+        labels.forEach((label, idx) => {
+          drawText(page, label, x + (colW * idx) + 4, y + 4, fontSize, helvBold, BLACK);
+        });
+      };
+
+      const drawHeaderRowCols = (page, x, y, colWidths, labels, fontSize=7) => {
+        let cx = x;
+        labels.forEach((label, idx) => {
+          const colW = colWidths[idx] || 0;
+          const maxW = Math.max(0, colW - 6);
+          const textW = helvBold.widthOfTextAtSize(label, fontSize);
+          if(textW <= maxW){
+            const tx = cx + Math.max(0, (colW - textW) / 2);
+            drawText(page, label, tx, y, fontSize, helvBold, BLACK);
+          } else {
+            drawWrap(page, label, cx + 3, y + 6, maxW, 7, fontSize, 2, helvBold, BLACK);
+          }
+          cx += colW;
+        });
+      };
+
       // Page 1
       drawHeaderLine(page1);
       drawRedBar(page1, 735, `Project: ${data.projectTitle || ""}`, `Permit No: ${data.permitNo || ""}`);
@@ -2378,20 +2422,31 @@ window.__pdfLibLoadFailed = false;
 
       page2.drawRectangle({ x:marginX, y:320, width:contentW, height:16, color: RED });
       drawText(page2, "Atmospheric Test Record", marginX + 6, 324, 8, helvBold, WHITE);
-      drawTable(page2, marginX, 250, contentW, 70, 6, 4);
-      drawText(page2, "Device", marginX + 6, 300, 7);
-      drawText(page2, "Substance", marginX + 90, 300, 7);
-      drawText(page2, "Acceptance", marginX + 180, 300, 7);
-      drawText(page2, "Result", marginX + 280, 300, 7);
-      drawText(page2, "Time", marginX + 350, 300, 7);
-      drawText(page2, "Duration", marginX + 410, 300, 7);
+      const atmosCols = drawTableCols(page2, marginX, 250, contentW, 70, [55, 60, 130, 75, 55, 45, 95], 4);
+      drawHeaderRowCols(page2, marginX, 314, atmosCols, [
+        "Device",
+        "Substance",
+        "Substance Monitoring",
+        "Acceptance",
+        "Result",
+        "Time",
+        "Duration"
+      ], 6.5);
 
       // Page 3
       drawHeaderLine(page3);
       page3.drawRectangle({ x:marginX, y:700, width:contentW, height:16, color: RED });
       drawText(page3, "4   Personnel Entry & Exit record", marginX + 6, 704, 8, helvBold, WHITE);
-      drawTable(page3, marginX, 260, contentW, 430, 6, 18);
-      drawText(page3, "Entrant / Attendant names and Time in/out", marginX + 6, 670, 7);
+      const entryCols = drawTableCols(page3, marginX, 260, contentW, 430, [90, 80, 90, 80, 90, 85], 18);
+      drawHeaderRowCols(page3, marginX, 684, entryCols, [
+        "Entrant name",
+        "Attendant name",
+        "Entrant name",
+        "Attendant name",
+        "Entrant name",
+        "Attendant name"
+      ], 6.5);
+      drawText(page3, "Time in/out", marginX + 6, 652, 7);
       drawTextArea(page3, "Notes", data.preEntryBriefing, marginX, 210, contentW, 40);
 
       // Page 4
@@ -2399,7 +2454,16 @@ window.__pdfLibLoadFailed = false;
       drawHeaderLine(page4);
       page4.drawRectangle({ x:marginX, y:700, width:contentW, height:16, color: RED });
       drawText(page4, "5   Air Monitoring Results", marginX + 6, 704, 8, helvBold, WHITE);
-      drawTable(page4, marginX, 440, contentW, 250, 6, 12);
+      const airCols = drawTableCols(page4, marginX, 440, contentW, 250, [90, 85, 50, 90, 70, 60, 70], 12);
+      drawHeaderRowCols(page4, marginX, 684, airCols, [
+        "Device(s)",
+        "Serial number",
+        "Time",
+        "Sampled by",
+        "O2 (19.5–21%)",
+        "CO (<25 ppm)",
+        "Other"
+      ], 6.5);
 
       drawText(page4, "6   Pre-entry Certification", marginX, 390, 9, helvBold);
       page4.drawRectangle({ x:marginX, y:350, width:contentW, height:30, borderColor: BLACK, borderWidth: 1, color: LIGHT });
