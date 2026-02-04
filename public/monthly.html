@@ -6,6 +6,7 @@
   <title>Monthly Checks</title>
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#111111" />
+  <link rel="apple-touch-icon" href="assets/atl-logo.png" />
   <style>
     :root{ --bg:#f6f7f9; --panel:#fff; --text:#111; --muted:#6b7280; --line:#e5e7eb; --yellow:#ffd600; }
     *{ box-sizing:border-box; }
@@ -45,5 +46,51 @@
       navigator.serviceWorker.register("sw.js");
     });
   }
+
+  (function(){
+    let deferredPrompt;
+    let bannerEl;
+    const storageKey = "pwa-install-dismissed";
+
+    const createBanner = () => {
+      if (bannerEl) return;
+      bannerEl = document.createElement("div");
+      bannerEl.style.cssText = "position:fixed;left:16px;right:16px;bottom:16px;z-index:9999;background:#111;color:#fff;padding:12px 14px;border-radius:14px;display:flex;align-items:center;gap:12px;box-shadow:0 8px 20px rgba(0,0,0,.25);font:700 13px system-ui;";
+      bannerEl.innerHTML = "<span style='flex:1'>Install ATL Checks on this device?</span>";
+      const btn = document.createElement("button");
+      btn.textContent = "Install";
+      btn.style.cssText = "background:#ffd600;border:1px solid #caa900;color:#111;border-radius:999px;padding:8px 14px;font-weight:900;cursor:pointer;";
+      const close = document.createElement("button");
+      close.textContent = "Not now";
+      close.style.cssText = "background:transparent;border:0;color:#fff;text-decoration:underline;cursor:pointer;";
+      bannerEl.appendChild(btn);
+      bannerEl.appendChild(close);
+      document.body.appendChild(bannerEl);
+
+      btn.addEventListener("click", async () => {
+        if (!deferredPrompt) return;
+        deferredPrompt.prompt();
+        await deferredPrompt.userChoice;
+        deferredPrompt = null;
+        bannerEl.remove();
+      });
+      close.addEventListener("click", () => {
+        localStorage.setItem(storageKey, "1");
+        bannerEl.remove();
+      });
+    };
+
+    window.addEventListener("beforeinstallprompt", (e) => {
+      e.preventDefault();
+      if (localStorage.getItem(storageKey)) return;
+      deferredPrompt = e;
+      createBanner();
+    });
+
+    window.addEventListener("appinstalled", () => {
+      localStorage.setItem(storageKey, "1");
+      if (bannerEl) bannerEl.remove();
+    });
+  })();
 </script>
 </html>
