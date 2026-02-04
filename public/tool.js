@@ -821,7 +821,7 @@ window.__pdfLibLoadFailed = false;
       const sConfirm = el("div",{class:"section"},[
         el("div",{class:"sectionTitle"},["Confirmations"]),
         el("div",{class:"grid2"},[
-          selectField("Are all today's activities covered by the procedure / MS / RA / WI?","covered",["Yes","No"]),
+          selectField("Are all today's activities covered by the procedure / MS / RA?","covered",["Yes","No"]),
           selectField("Are all control measures in place?","controls",["Yes","No"]),
           selectField("Are all operatives compliant with PPE requirements?","ppe",["Yes","No"]),
         ])
@@ -2127,7 +2127,7 @@ window.__pdfLibLoadFailed = false;
         const textW = 460;
         const boxW = 55;
         const items = [
-          { text: "Are all today's activities covered by the Operation Procedure / Method Statement / Risk Assessment / Work Instruction?", value: data.covered },
+          { text: "Are all today's activities covered by the Operation Procedure / Method Statement / Risk Assessment?", value: data.covered },
           { text: "Are all Control Measures in place?", value: data.controls },
           { text: "Are all operatives compliant with the site requirements for PPE?", value: data.ppe }
         ];
