@@ -836,9 +836,9 @@
           field("Serial Number 2","monitorSerial2","text","", state.monitorSerial2),
         ]),
         el("div",{class:"grid2", style:"margin-top:12px"},[
-          field("Authorising Person (Section 8)","authorisingPerson","text","Name of person authorising entry", state.authorisingPerson),
+          field("Authorising Person (Section 6)","authorisingPerson","text","Name of person authorising entry", state.authorisingPerson),
           field("Authorising Time","authorisingTime","time","", state.authorisingTime),
-          field("Closure Name (Section 9)","closureName","text","Name for permit closure", state.closureName),
+          field("Closure Name (Section 7)","closureName","text","Name for permit closure", state.closureName),
           field("Closure Time","closureTime","time","", state.closureTime),
         ])
       ]);
@@ -864,8 +864,8 @@
       app.appendChild(sEquipment);
       app.appendChild(sRisk);
       app.appendChild(sControls);
-      app.appendChild(sSafety);
       app.appendChild(sEmergency);
+      app.appendChild(sSafety);
       app.appendChild(sMonitoring);
       app.appendChild(sticky);
 
@@ -1709,7 +1709,7 @@
       drawHeader(p3, 3, 4);
       curY = 725;
       drawCell(p3, 40, curY, 515, 20, { fill: RED });
-      drawTextInCell(p3, "6 Personnel Entry & Exit record", 40, curY, 515, 20, { color: HEADER_TEXT, font: helvBold, size: 11 });
+      drawTextInCell(p3, "4 Personnel Entry & Exit record", 40, curY, 515, 20, { color: HEADER_TEXT, font: helvBold, size: 11 });
       curY -= 15;
       drawTextInCell(p3, "(to be completed before and during the work)", 40, curY, 515, 15, { size: 8, font: helv });
 
@@ -1740,41 +1740,72 @@
       drawCell(p3, 40, curY, 515, 100);
       drawTextInCell(p3, "Notes:", 40, curY + 85, 515, 15, { font: helv, size: 9 });
 
-      // Page 4: Completion and Sign-off
+      // Page 4: Air Monitoring, Certification and closure
       const p4 = pdfDoc.addPage(A4);
       drawHeader(p4, 4, 4);
 
       curY = 725;
       drawCell(p4, 40, curY, 515, 20, { fill: RED });
-      drawTextInCell(p4, "8 Completion / Cancellation", 40, curY, 515, 20, { color: HEADER_TEXT, font: helvBold, size: 11 });
+      drawTextInCell(p4, "5 Air Monitoring Results", 40, curY, 515, 20, { color: HEADER_TEXT, font: helvBold, size: 11 });
       curY -= 15;
-      drawTextInCell(p4, "(to be signed after work is completed or permit is cancelled)", 40, curY, 515, 15, { size: 8, font: helv });
-
-      curY -= 40;
-      drawCell(p4, 40, curY, 515, 40);
-      drawWrappedText(p4, "I certify that the work has been completed / cancelled, all personnel have been withdrawn and the space has been left in a safe condition.", 40, curY, 515, 40, { size: 9 });
+      drawTextInCell(p4, "(to be completed during the work)", 40, curY, 515, 15, { size: 8, font: helv });
 
       curY -= 20;
-      drawRow(p4, "Name:", data.authorisingPerson, 40, curY, 515, 100);
+      drawRow(p4, "Device(s):", "", 40, curY, 257.5, 100);
+      drawRow(p4, "Serial number:", "", 297.5, curY, 257.5, 100);
+      curY -= 20;
+      drawRow(p4, "1.", "", 40, curY, 257.5, 100);
+      drawRow(p4, " ", "", 297.5, curY, 257.5, 100);
+      curY -= 20;
+      drawRow(p4, "2.", "", 40, curY, 257.5, 100);
+      drawRow(p4, " ", "", 297.5, curY, 257.5, 100);
+
+      curY -= 20;
+      const monColW = [40, 90, 75, 75, 235];
+      const monLabels = ["Time", "Sampled by", "O2 (19.5-21%)", "CO (<25 ppm)", "Other (from section 3)"];
+      let monX = 40;
+      monLabels.forEach((h, i) => {
+        drawCell(p4, monX, curY, monColW[i], 20, { fill: RED });
+        drawTextInCell(p4, h, monX, curY, monColW[i], 20, { color: HEADER_TEXT, font: helvBold, size: 8, align: "center" });
+        monX += monColW[i];
+      });
+
+      for(let i=0; i<15; i++){
+        curY -= 18;
+        monX = 40;
+        monColW.forEach(w => {
+          drawCell(p4, monX, curY, w, 18);
+          monX += w;
+        });
+      }
+
+      curY -= 25;
+      drawCell(p4, 40, curY, 515, 15, { fill: RED });
+      drawTextInCell(p4, "6 Pre-entry Certification", 40, curY, 515, 15, { color: HEADER_TEXT, font: helvBold, size: 9 });
+      curY -= 12;
+      drawTextInCell(p4, "(must be signed by the confined space authorising person before entry)", 40, curY, 515, 12, { size: 7, font: helv });
+      curY -= 30;
+      drawCell(p4, 40, curY, 515, 30);
+      drawWrappedText(p4, "I hereby certify that all required hazard controls are in place, that air monitoring is being conducted as required and results show that the atmosphere is acceptable for entry, and that all required information is documented on this permit.", 40, curY, 515, 30, { size: 8 });
+      curY -= 20;
+      drawRow(p4, "Confined space entry authorising person for this entry:", "", 40, curY, 515, 250);
       curY -= 20;
       drawRow(p4, "Signature:", "", 40, curY, 350, 100);
-      drawRow(p4, "Date:", toDDMMYYYY(data.dateISO), 390, curY, 165, 50);
-      curY -= 20;
-      drawRow(p4, "Time:", data.authorisingTime, 40, curY, 150, 50);
+      drawRow(p4, "Date:", "", 390, curY, 165, 50);
 
-      curY -= 40;
-      drawCell(p4, 40, curY, 515, 20, { fill: RED });
-      drawTextInCell(p4, "9 Authorized Sign-off", 40, curY, 515, 20, { color: HEADER_TEXT, font: helvBold, size: 11 });
-      curY -= 15;
-      drawTextInCell(p4, "(Project Manager / Supervisor)", 40, curY, 515, 15, { size: 8, font: helv });
-
+      curY -= 30;
+      drawCell(p4, 40, curY, 515, 15, { fill: RED });
+      drawTextInCell(p4, "7 Permit Closure", 40, curY, 515, 15, { color: HEADER_TEXT, font: helvBold, size: 9 });
+      curY -= 12;
+      drawTextInCell(p4, "(must be signed by the confined space authorising person after work is completed)", 40, curY, 515, 12, { size: 7, font: helv });
+      curY -= 25;
+      drawCell(p4, 40, curY, 515, 25);
+      drawWrappedText(p4, "The work was done in accordance with this permit. A copy of this permit will be forwarded to the confined space Supervisor/Project Manager.", 40, curY, 515, 25, { size: 8 });
       curY -= 20;
-      drawRow(p4, "Name:", data.closureName, 40, curY, 515, 100);
+      drawRow(p4, "Name:", "", 40, curY, 515, 100);
       curY -= 20;
       drawRow(p4, "Signature:", "", 40, curY, 350, 100);
-      drawRow(p4, "Date:", toDDMMYYYY(data.dateISO), 390, curY, 165, 50);
-      curY -= 20;
-      drawRow(p4, "Time:", data.closureTime, 40, curY, 150, 50);
+      drawRow(p4, "Date:", "", 390, curY, 165, 50);
 
       // Save and Download
       const outBytes = await pdfDoc.save();
