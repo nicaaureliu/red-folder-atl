@@ -427,8 +427,8 @@ window.__pdfLibLoadFailed = false;
           el("div",{class:"sub"},["Pre-fill the permit details, then download the PDF to be completed by hand on site."])
         ]),
         el("div",{class:"pillRow"},[
-          el("span",{id:"pillLib", class:"pill warn"},["PDF engine: checkingΓÇª"]),
-          el("span",{id:"pillTpl", class:"pill warn"},["Template: checkingΓÇª"])
+          el("span",{id:"pillLib", class:"pill warn"},["PDF engine: checking..."]),
+          el("span",{id:"pillTpl", class:"pill warn"},["Template: checking..."])
         ])
       ]);
 
@@ -461,7 +461,7 @@ window.__pdfLibLoadFailed = false;
         el("div",{class:"grid3auto"},[
           chk("pt_confined","Confined Spaces / Areas", state.points.confined),
           chk("pt_emergency","Emergency Procedures", state.points.emergency),
-          chk("pt_lifting","Lifting Equipment ΓÇô Chains / Slings", state.points.lifting),
+          chk("pt_lifting","Lifting Equipment - Chains / Slings", state.points.lifting),
           chk("pt_permits","Permits to Work", state.points.permits),
           chk("pt_plant","Plant & Equipment", state.points.plant),
           chk("pt_safetyPlanning","Safety Planning", state.points.safetyPlanning),
@@ -650,7 +650,7 @@ window.__pdfLibLoadFailed = false;
       async function onDownload(){
         const btn = $("#btnDownload");
         btn.disabled = true;
-        btn.textContent = "GeneratingΓÇª";
+        btn.textContent = "Generating...";
         try{
           const data = {
             projectTitle: $("#projectTitle").value.trim(),
@@ -765,8 +765,8 @@ window.__pdfLibLoadFailed = false;
           el("div",{class:"sub"},["Fill it in, collect signatures per attendee, then download the PDF."])
         ]),
         el("div",{class:"pillRow"},[
-          el("span",{id:"pillLib", class:"pill warn"},["PDF engine: checkingΓÇª"]),
-          el("span",{id:"pillTpl", class:"pill warn"},["Template: checkingΓÇª"])
+          el("span",{id:"pillLib", class:"pill warn"},["PDF engine: checking..."]),
+          el("span",{id:"pillTpl", class:"pill warn"},["Template: checking..."])
         ])
       ]);
 
@@ -789,17 +789,17 @@ window.__pdfLibLoadFailed = false;
       const sBrief = el("div",{class:"section"},[
         el("div",{class:"sectionTitle"},["Briefing"]),
         el("div",{class:"grid2"},[
-          textareaField("Any concerns from the previous day?","prevConcerns","Write concerns / issues / lessons learnedΓÇª"),
-          textareaField("Today's planned activities briefing","todayPlanned","What are we doing today? Key risks, controls, sequenceΓÇª")
+          textareaField("Any concerns from the previous day?","prevConcerns","Write concerns / issues / lessons learned..."),
+          textareaField("Today's planned activities briefing","todayPlanned","What are we doing today? Key risks, controls, sequence...")
         ])
       ]);
 
       const sPoints = el("div",{class:"section"},[
-        el("div",{class:"sectionTitle"},["Points discussed for todayΓÇÖs operation"]),
+        el("div",{class:"sectionTitle"},["Points discussed for today's operation"]),
         el("div",{class:"grid3auto"},[
           chk("confined","Confined Spaces / Areas"),
           chk("emergency","Emergency Procedures"),
-          chk("lifting","Lifting Equipment ΓÇô Chains / Slings"),
+          chk("lifting","Lifting Equipment - Chains / Slings"),
           chk("permits","Permits to Work"),
           chk("plant","Plant & Equipment"),
           chk("safetyPlanning","Safety Planning"),
@@ -821,7 +821,7 @@ window.__pdfLibLoadFailed = false;
       const sConfirm = el("div",{class:"section"},[
         el("div",{class:"sectionTitle"},["Confirmations"]),
         el("div",{class:"grid2"},[
-          selectField("Are all todayΓÇÖs activities covered by the procedure / MS / RA / WI?","covered",["Yes","No"]),
+          selectField("Are all today's activities covered by the procedure / MS / RA / WI?","covered",["Yes","No"]),
           selectField("Are all control measures in place?","controls",["Yes","No"]),
           selectField("Are all operatives compliant with PPE requirements?","ppe",["Yes","No"]),
         ])
@@ -1027,7 +1027,7 @@ window.__pdfLibLoadFailed = false;
       async function onDownload(){
         const btn = $("#btnDownload");
         btn.disabled = true;
-        btn.textContent = "GeneratingΓÇª";
+        btn.textContent = "Generating...";
         try{
           const data = readForm();
           await generateDailyBriefPDF(data);
@@ -1095,7 +1095,7 @@ window.__pdfLibLoadFailed = false;
           el("div",{class:"sub"},["Fill in the permit details, then download the PDF."])
         ]),
         el("div",{class:"pillRow"},[
-          el("span",{id:"pillLib", class:"pill warn"},["PDF engine: checkingΓÇª"])
+          el("span",{id:"pillLib", class:"pill warn"},["PDF engine: checking..."])
         ])
       ]);
 
@@ -1385,7 +1385,7 @@ window.__pdfLibLoadFailed = false;
       async function onDownload(){
         const btn = $("#btnDownload");
         btn.disabled = true;
-        btn.textContent = "GeneratingΓÇª";
+        btn.textContent = "Generating...";
 
         try{
           const data = readForm();
@@ -2065,7 +2065,7 @@ window.__pdfLibLoadFailed = false;
         const labels = {
           confined: "Confined Spaces / Areas",
           emergency: "Emergency Procedures",
-          lifting: "Lifting Equipment ΓÇô Chains / Slings",
+          lifting: "Lifting Equipment - Chains / Slings",
           permits: "Permits to Work",
           plant: "Plant & Equipment",
           safetyPlanning: "Safety Planning",
@@ -2101,7 +2101,7 @@ window.__pdfLibLoadFailed = false;
 
         const footerY = y - 18;
         drawCell(page, marginX, footerY, 515, 16, { fill: RED });
-        drawCenteredText(page, "This list is not exhaustive  -  REMEMBER ΓÇô MANAGE HEALTH & SAFETY", 297.5, footerY + 4, 8, helvBold, HEADER_TEXT);
+        drawCenteredText(page, "This list is not exhaustive  -  REMEMBER - MANAGE HEALTH & SAFETY", 297.5, footerY + 4, 8, helvBold, HEADER_TEXT);
         return footerY - 16;
       }
 
@@ -2128,7 +2128,7 @@ window.__pdfLibLoadFailed = false;
       function drawSignUpPage(page){
         drawHeader(page);
         drawCell(page, 40, 675, 515, 20, { fill: RED });
-        drawCenteredText(page, "HEALTH & SAFETY ΓÇô MORNING BRIEFING SIGN-UP Sheet", 297.5, 680, 9, helvBold, HEADER_TEXT);
+        drawCenteredText(page, "HEALTH & SAFETY - MORNING BRIEFING SIGN-UP Sheet", 297.5, 680, 9, helvBold, HEADER_TEXT);
         drawCell(page, 40, 645, 515, 30, { fill: undefined });
         drawWrappedFromTop(
           page,
@@ -2837,7 +2837,7 @@ window.__pdfLibLoadFailed = false;
 
       let y2 = 740;
       checksList.forEach(({ code, text }, idx)=>{
-        drawText(page2, "ΓÇó", 44, y2, 10);
+        drawText(page2, "•", 44, y2, 10);
         drawText(page2, code, 54, y2, 7);
         drawText(page2, text, 94, y2, 7);
         drawCheck(page2, 520, y2-6, 10, data.checks[idx]);
@@ -3324,8 +3324,8 @@ window.__pdfLibLoadFailed = false;
           el("div",{class:"sub"},["Pre-fill the permit details, then download the PDF to be completed by hand on site."])
         ]),
         el("div",{class:"pillRow"},[
-          el("span",{id:"pillLib", class:"pill warn"},["PDF engine: checkingΓÇª"]),
-          el("span",{id:"pillTpl", class:"pill warn"},["Assets: checkingΓÇª"])
+          el("span",{id:"pillLib", class:"pill warn"},["PDF engine: checking..."]),
+          el("span",{id:"pillTpl", class:"pill warn"},["Assets: checking..."])
         ])
       ]);
 
@@ -3394,7 +3394,7 @@ window.__pdfLibLoadFailed = false;
       async function onDownload(){
         const btn = $("#btnDownload");
         btn.disabled = true;
-        btn.textContent = "GeneratingΓÇª";
+        btn.textContent = "Generating...";
         try{
           const data = {
             projectTitle: $("#projectTitle").value.trim(),
