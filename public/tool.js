@@ -1873,8 +1873,8 @@ window.__pdfLibLoadFailed = false;
       const RED = rgb(0.78, 0.1, 0.1);
       const HEADER_TEXT = rgb(1, 1, 1);
       const BLACK = rgb(0,0,0);
-      const LIGHT_BLUE = rgb(1, 1, 1);
-      const LIGHT_GRAY = rgb(1, 1, 1);
+      const LIGHT_BLUE = rgb(0.95, 0.98, 1);
+      const LIGHT_GRAY = rgb(0.96, 0.96, 0.96);
 
       const ddmmyyyy = toDDMMYYYY(data.dateISO || todayISO());
       const attendeesCount = (data.attendees || []).length;
@@ -2011,9 +2011,9 @@ window.__pdfLibLoadFailed = false;
 
         rows.forEach((row, i) => {
           const y = tableTop - (rowH * (i + 1));
-          drawCell(page, marginX, y, labelW, rowH, { fill: undefined });
+          drawCell(page, marginX, y, labelW, rowH, { fill: LIGHT_GRAY });
           drawCell(page, marginX + labelW, y, valueW, rowH, { fill: LIGHT_BLUE });
-          drawCell(page, marginX + labelW + valueW, y, label2W, rowH, { fill: undefined });
+          drawCell(page, marginX + labelW + valueW, y, label2W, rowH, { fill: LIGHT_GRAY });
           drawCell(page, marginX + labelW + valueW + label2W, y, value2W, rowH, { fill: LIGHT_BLUE });
           drawWrapInCellLeft(page, row[0], marginX, y, labelW, rowH, 8, 9, 2, helvBold, BLACK);
           drawTextInCellLeft(page, row[1], marginX + labelW, y, valueW, rowH, 10, helvBold, BLACK);
@@ -2039,7 +2039,7 @@ window.__pdfLibLoadFailed = false;
 
         const qH = 36;
         const qY = startY - headerH - qH;
-        drawCell(page, marginX, qY, 515, qH, { fill: undefined });
+        drawCell(page, marginX, qY, 515, qH, { fill: LIGHT_GRAY });
         drawTextInCellLeft(page, "Any concerns from the previous day?", marginX, qY, 515, qH, 9, helvBold, BLACK);
         drawCell(page, marginX, qY - 36, 515, 36, { fill: LIGHT_BLUE });
         drawWrappedFromTop(page, data.prevConcerns, marginX + 6, qY - 8, 500, 11, 9, 3, BLACK, helvBold);
@@ -2105,7 +2105,7 @@ window.__pdfLibLoadFailed = false;
           let x = marginX;
           row.forEach((key, idx) => {
             const group = colGroups[idx];
-            drawCell(page, x, y, group.labelW, rowH, { fill: undefined });
+            drawCell(page, x, y, group.labelW, rowH, { fill: (r % 2 === 0) ? LIGHT_GRAY : undefined });
             drawCell(page, x + group.labelW, y, group.checkW, rowH, { fill: LIGHT_BLUE });
             drawText(page, labels[key], x + 6, y + 6, 7.5);
             if(data.points && data.points[key]){
