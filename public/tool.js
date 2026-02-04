@@ -1399,28 +1399,259 @@ window.__pdfLibLoadFailed = false;
       const app = $("#app");
       app.innerHTML = "";
 
+      const state = {
+        projectName: "",
+        projectNo: "",
+        permitNo: "",
+        preparedBy: "",
+        issuedTo: "",
+        validFrom: "",
+        validTo: "",
+        workPackage: "",
+        locationDescription: "",
+        surveyConclusions: "",
+        utilities: {
+          underground: false,
+          electrical: false,
+          gas: false,
+          water: false,
+          telecom: false,
+          surfaceSewer: false,
+          other: false
+        },
+        utilitiesOther: "",
+        coordinatorName: "",
+        coordinatorDate: "",
+        coordinatorTime: "",
+        isolationsDetails: "",
+        designChangesDetails: "",
+        ppeRequired: "",
+        excavationTools: "",
+        excavationSupport: "",
+        backfillRequirements: "",
+        compositeDrawing: "",
+        utilityMarkers: "",
+        networkRailConfirmed: false,
+        sketch: "",
+        acceptanceName: "",
+        acceptanceSigned: "",
+        acceptanceDate: "",
+        acceptanceTime: "",
+        findings: "",
+        coordinatorConfirmName: "",
+        coordinatorConfirmSigned: "",
+        coordinatorConfirmDate: "",
+        cancelSigned: "",
+        cancelDateTime: ""
+      };
+
       const head = el("div",{class:"head"},[
         el("div",{},[
           el("h1",{},["Ground disturbance permit"]),
-          el("div",{class:"sub"},["View or download the permit template."])
+          el("div",{class:"sub"},["Pre-fill the permit details, then download the PDF."])
         ]),
         el("div",{class:"pillRow"},[
-          el("a",{class:"btn btnYellow", href:"templates/1.pdf", target:"_blank", rel:"noopener"},["Open PDF"]),
-          el("a",{class:"btn btnGhost", href:"templates/1.pdf", download:"Ground-disturbance-permit.pdf"},["Download PDF"])
+          el("span",{id:"pillLib", class:"pill warn"},["PDF engine: checking…"]),
+          el("span",{id:"pillTpl", class:"pill warn"},["Template: checking…"])
         ])
       ]);
 
-      const note = el("div",{class:"note"},[
-        "If you need this as a fillable form, share the editable PDF or field list and I will wire it up."
+      const banner = el("div",{id:"banner", class:"banner"},[""]);
+
+      const sHeader = el("div",{class:"section"},[
+        el("div",{class:"sectionTitle"},["Project & permit details"]),
+        el("div",{class:"grid2"},[
+          field("Project Name","gd_projectName","text","", state.projectName),
+          field("Project No","gd_projectNo","text","", state.projectNo),
+          field("Permit No","gd_permitNo","text","", state.permitNo),
+          field("Permit compiled by (Utility Co-ordinator)","gd_preparedBy","text","", state.preparedBy),
+          field("Permit issued to (Contractor)","gd_issuedTo","text","", state.issuedTo),
+          field("Permit validity from","gd_validFrom","text","", state.validFrom),
+          field("Permit validity to","gd_validTo","text","", state.validTo),
+          field("Work Package Plan Name & No","gd_workPackage","text","", state.workPackage)
+        ])
       ]);
 
-      const frameWrap = el("div",{class:"pdfWrap"},[
-        el("iframe",{class:"pdfFrame", src:"templates/1.pdf", title:"Ground disturbance permit"},[])
+      const sExtent = el("div",{class:"section"},[
+        el("div",{class:"sectionTitle"},["1. Extent of permit, location & brief description of work"]),
+        textareaField("Description","gd_locationDescription","", state.locationDescription)
+      ]);
+
+      const sSurvey = el("div",{class:"section"},[
+        el("div",{class:"sectionTitle"},["2. Survey conclusions"]),
+        textareaField("Survey conclusions","gd_surveyConclusions","", state.surveyConclusions),
+        el("div",{class:"grid3auto", style:"margin-top:10px;"},[
+          chk("gd_util_underground","Underground", state.utilities.underground),
+          chk("gd_util_electrical","Electrical", state.utilities.electrical),
+          chk("gd_util_gas","Gas", state.utilities.gas),
+          chk("gd_util_water","Water", state.utilities.water),
+          chk("gd_util_telecom","Telecom", state.utilities.telecom),
+          chk("gd_util_surface","Surface/Sewer", state.utilities.surfaceSewer),
+          chk("gd_util_other","Other", state.utilities.other)
+        ]),
+        field("Other (state)","gd_utilitiesOther","text","", state.utilitiesOther),
+        el("div",{class:"grid3auto", style:"margin-top:10px;"},[
+          field("Signed (Utility Co-ordinator)","gd_coordName","text","", state.coordinatorName),
+          field("Date","gd_coordDate","text","", state.coordinatorDate),
+          field("Time","gd_coordTime","text","", state.coordinatorTime)
+        ])
+      ]);
+
+      const sControls = el("div",{class:"section"},[
+        el("div",{class:"sectionTitle"},["3. Controls (Utility Co-ordinator)"])
+      ]);
+      sControls.appendChild(textareaField("Isolations requested granted/denied (details)","gd_isolationsDetails","", state.isolationsDetails));
+      sControls.appendChild(textareaField("Design changes requested granted/denied (details)","gd_designChangesDetails","", state.designChangesDetails));
+      sControls.appendChild(field("PPE required (list)","gd_ppeRequired","text","", state.ppeRequired));
+      sControls.appendChild(field("Excavation tools required (list)","gd_excavationTools","text","", state.excavationTools));
+      sControls.appendChild(textareaField("Excavation support/protection equipment required","gd_excavationSupport","", state.excavationSupport));
+      sControls.appendChild(textareaField("Backfill/marker placement requirements","gd_backfillRequirements","", state.backfillRequirements));
+      sControls.appendChild(textareaField("Composite colour drawing / reference","gd_compositeDrawing","", state.compositeDrawing));
+      sControls.appendChild(textareaField("Utility markers details","gd_utilityMarkers","", state.utilityMarkers));
+      sControls.appendChild(chk("gd_networkRailConfirmed","Network Rail Buried Services search & forms completed", state.networkRailConfirmed));
+
+      const sSketch = el("div",{class:"section"},[
+        el("div",{class:"sectionTitle"},["4. Simplified sketch of all known utilities"]),
+        textareaField("Sketch notes","gd_sketch","", state.sketch)
+      ]);
+
+      const sAcceptance = el("div",{class:"section"},[
+        el("div",{class:"sectionTitle"},["5. Excavation Supervisor’s acceptance"]),
+        el("div",{class:"grid2"},[
+          field("Name","gd_acceptanceName","text","", state.acceptanceName),
+          field("Signed","gd_acceptanceSigned","text","", state.acceptanceSigned),
+          field("Date","gd_acceptanceDate","text","", state.acceptanceDate),
+          field("Time","gd_acceptanceTime","text","", state.acceptanceTime)
+        ])
+      ]);
+
+      const sFindings = el("div",{class:"section"},[
+        el("div",{class:"sectionTitle"},["Additional findings / variations"]),
+        textareaField("Findings","gd_findings","", state.findings)
+      ]);
+
+      const sConfirm = el("div",{class:"section"},[
+        el("div",{class:"sectionTitle"},["Utility Coordinator confirmation & cancellation"]),
+        el("div",{class:"grid2"},[
+          field("Coordinator name","gd_coordConfirmName","text","", state.coordinatorConfirmName),
+          field("Signed","gd_coordConfirmSigned","text","", state.coordinatorConfirmSigned),
+          field("Dated","gd_coordConfirmDate","text","", state.coordinatorConfirmDate),
+          field("Cancellation signed","gd_cancelSigned","text","", state.cancelSigned),
+          field("Cancellation date/time","gd_cancelDateTime","text","", state.cancelDateTime)
+        ])
+      ]);
+
+      const sticky = el("div",{class:"stickyBar"},[
+        el("div",{class:"actionBar"},[
+          el("div",{class:"btnRow"},[
+            el("a",{class:"btn btnYellow", href:"daily.html"},["Back"])
+          ]),
+          el("div",{class:"btnRow"},[
+            el("button",{id:"btnDownload", class:"btn", type:"button", onclick: async()=> {
+              hideBanner();
+              await onDownload();
+            }},["Download PDF"])
+          ])
+        ])
       ]);
 
       app.appendChild(head);
-      app.appendChild(note);
-      app.appendChild(frameWrap);
+      app.appendChild(banner);
+      app.appendChild(sHeader);
+      app.appendChild(sExtent);
+      app.appendChild(sSurvey);
+      app.appendChild(sControls);
+      app.appendChild(sSketch);
+      app.appendChild(sAcceptance);
+      app.appendChild(sFindings);
+      app.appendChild(sConfirm);
+      app.appendChild(sticky);
+
+      checkTemplateAndLib();
+
+      function field(labelText, id, type, placeholder, val = ""){
+        return el("div",{},[
+          el("label",{for:id},[labelText]),
+          el("input",{id, type, placeholder, value: val})
+        ]);
+      }
+      function textareaField(labelText, id, placeholder, val = ""){
+        const txt = el("textarea",{id, placeholder});
+        txt.value = val;
+        return el("div",{},[
+          el("label",{for:id},[labelText]),
+          txt
+        ]);
+      }
+      function chk(id, labelText, checked = false){
+        return el("label",{class:"check"},[
+          el("input",{id, type:"checkbox", checked: checked ? "checked" : null}),
+          labelText
+        ]);
+      }
+
+      function readForm(){
+        return {
+          projectName: $("#gd_projectName").value.trim(),
+          projectNo: $("#gd_projectNo").value.trim(),
+          permitNo: $("#gd_permitNo").value.trim(),
+          preparedBy: $("#gd_preparedBy").value.trim(),
+          issuedTo: $("#gd_issuedTo").value.trim(),
+          validFrom: $("#gd_validFrom").value.trim(),
+          validTo: $("#gd_validTo").value.trim(),
+          workPackage: $("#gd_workPackage").value.trim(),
+          locationDescription: $("#gd_locationDescription").value.trim(),
+          surveyConclusions: $("#gd_surveyConclusions").value.trim(),
+          utilities: {
+            underground: $("#gd_util_underground").checked,
+            electrical: $("#gd_util_electrical").checked,
+            gas: $("#gd_util_gas").checked,
+            water: $("#gd_util_water").checked,
+            telecom: $("#gd_util_telecom").checked,
+            surfaceSewer: $("#gd_util_surface").checked,
+            other: $("#gd_util_other").checked
+          },
+          utilitiesOther: $("#gd_utilitiesOther").value.trim(),
+          coordinatorName: $("#gd_coordName").value.trim(),
+          coordinatorDate: $("#gd_coordDate").value.trim(),
+          coordinatorTime: $("#gd_coordTime").value.trim(),
+          isolationsDetails: $("#gd_isolationsDetails").value.trim(),
+          designChangesDetails: $("#gd_designChangesDetails").value.trim(),
+          ppeRequired: $("#gd_ppeRequired").value.trim(),
+          excavationTools: $("#gd_excavationTools").value.trim(),
+          excavationSupport: $("#gd_excavationSupport").value.trim(),
+          backfillRequirements: $("#gd_backfillRequirements").value.trim(),
+          compositeDrawing: $("#gd_compositeDrawing").value.trim(),
+          utilityMarkers: $("#gd_utilityMarkers").value.trim(),
+          networkRailConfirmed: $("#gd_networkRailConfirmed").checked,
+          sketch: $("#gd_sketch").value.trim(),
+          acceptanceName: $("#gd_acceptanceName").value.trim(),
+          acceptanceSigned: $("#gd_acceptanceSigned").value.trim(),
+          acceptanceDate: $("#gd_acceptanceDate").value.trim(),
+          acceptanceTime: $("#gd_acceptanceTime").value.trim(),
+          findings: $("#gd_findings").value.trim(),
+          coordinatorConfirmName: $("#gd_coordConfirmName").value.trim(),
+          coordinatorConfirmSigned: $("#gd_coordConfirmSigned").value.trim(),
+          coordinatorConfirmDate: $("#gd_coordConfirmDate").value.trim(),
+          cancelSigned: $("#gd_cancelSigned").value.trim(),
+          cancelDateTime: $("#gd_cancelDateTime").value.trim()
+        };
+      }
+
+      async function onDownload(){
+        const btn = $("#btnDownload");
+        btn.disabled = true;
+        btn.textContent = "Generating…";
+        try{
+          const data = readForm();
+          await generateGroundDisturbancePDF(data);
+        }catch(err){
+          showBanner(String(err && err.message ? err.message : err), "bad");
+        }finally{
+          btn.disabled = false;
+          btn.textContent = "Download PDF";
+        }
+      }
     }
 
     async function generateDailyBriefPDF(data){
@@ -2119,6 +2350,163 @@ window.__pdfLibLoadFailed = false;
       setTimeout(()=> URL.revokeObjectURL(url), 2500);
     }
 
+    async function generateGroundDisturbancePDF(data){
+      if(!window.PDFLib){
+        throw new Error("PDF engine is blocked (pdf-lib did not load). If you use a strict Content-Security-Policy, you must allow the CDN or host pdf-lib locally.");
+      }
+
+      const { PDFDocument, StandardFonts, rgb } = PDFLib;
+      const bytes = await fetch("templates/1.pdf", { cache:"no-store" }).then(r => r.arrayBuffer());
+      const pdfDoc = await PDFDocument.load(bytes);
+      const helv = await pdfDoc.embedFont(StandardFonts.Helvetica);
+      const helvBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+
+      const pages = pdfDoc.getPages();
+      const page1 = pages[0];
+      const page2 = pages[1];
+      const page3 = pages[2];
+
+      const BLACK = rgb(0,0,0);
+
+      const sanitize = (text) => {
+        let s = String(text ?? "");
+        s = s.replace(/[\u2018\u2019]/g, "'")
+             .replace(/[\u201C\u201D]/g, '"')
+             .replace(/[\u2010-\u2015\u2212\u00ad]/g, "-")
+             .replace(/\u2026/g, "...")
+             .replace(/\u00A0/g, " ");
+        if (s.normalize) {
+          s = s.normalize("NFKD").replace(/[\u0300-\u036f]/g, "");
+        }
+        s = s.replace(/[^\x0A\x0D\x20-\x7E]/g, "");
+        return s;
+      };
+
+      const drawText = (page, text, x, y, size=8, font=helv) => {
+        const t = sanitize(text);
+        if(!t) return;
+        page.drawText(t, { x, y, size, font, color: BLACK });
+      };
+
+      const drawWrapped = (page, text, x, topY, maxW, lineH=10, size=8, maxLines=6, font=helv) => {
+        const t = sanitize(text);
+        if(!t) return;
+        const parts = t.replace(/\r/g, "").split("\n");
+        const lines = [];
+        parts.forEach(part => {
+          const words = part.split(/\s+/).filter(Boolean);
+          if(words.length === 0){ lines.push(""); return; }
+          let line = "";
+          words.forEach(w => {
+            const test = line ? (line + " " + w) : w;
+            if(font.widthOfTextAtSize(test, size) <= maxW) line = test;
+            else { if(line) lines.push(line); line = w; }
+          });
+          if(line) lines.push(line);
+        });
+        let y = topY;
+        lines.slice(0, maxLines).forEach(ln => {
+          page.drawText(ln, { x, y, size, font, color: BLACK });
+          y -= lineH;
+        });
+      };
+
+      const drawCheck = (page, checked, x, y) => {
+        if(checked){
+          page.drawText("X", { x, y, size: 8, font: helvBold, color: BLACK });
+        }
+      };
+
+      const pageH = page1.getHeight();
+      const yTop = (fromTop) => pageH - fromTop;
+
+      // Page 1 header fields (approximate positions)
+      drawText(page1, data.projectName, 70, yTop(92));
+      drawText(page1, data.projectNo, 310, yTop(92));
+      drawText(page1, data.permitNo, 465, yTop(92));
+
+      drawText(page1, data.preparedBy, 90, yTop(112));
+      drawText(page1, data.issuedTo, 330, yTop(112));
+
+      drawText(page1, data.validFrom, 120, yTop(132));
+      drawText(page1, data.validTo, 270, yTop(132));
+
+      drawText(page1, data.workPackage, 140, yTop(152));
+
+      // Section 1
+      drawWrapped(page1, data.locationDescription, 50, yTop(190), 520, 10, 8, 6);
+
+      // Section 2
+      drawWrapped(page1, data.surveyConclusions, 50, yTop(290), 520, 10, 8, 6);
+
+      // Utilities checkboxes row
+      drawCheck(page1, data.utilities.underground, 75, yTop(356));
+      drawCheck(page1, data.utilities.electrical, 150, yTop(356));
+      drawCheck(page1, data.utilities.gas, 220, yTop(356));
+      drawCheck(page1, data.utilities.water, 275, yTop(356));
+      drawCheck(page1, data.utilities.telecom, 335, yTop(356));
+      drawCheck(page1, data.utilities.surfaceSewer, 410, yTop(356));
+      drawCheck(page1, data.utilities.other, 485, yTop(356));
+      drawText(page1, data.utilitiesOther, 515, yTop(356));
+
+      drawText(page1, data.coordinatorName, 120, yTop(382));
+      drawText(page1, data.coordinatorDate, 320, yTop(382));
+      drawText(page1, data.coordinatorTime, 430, yTop(382));
+
+      // Controls section (approximate)
+      drawWrapped(page1, data.isolationsDetails, 250, yTop(420), 300, 10, 8, 3);
+      drawWrapped(page1, data.designChangesDetails, 250, yTop(462), 300, 10, 8, 3);
+      drawText(page1, data.ppeRequired, 190, yTop(502));
+      drawText(page1, data.excavationTools, 210, yTop(524));
+      drawWrapped(page1, data.excavationSupport, 260, yTop(560), 290, 10, 8, 3);
+      drawWrapped(page1, data.backfillRequirements, 260, yTop(600), 290, 10, 8, 3);
+      drawWrapped(page1, data.compositeDrawing, 50, yTop(640), 520, 10, 8, 2);
+      drawWrapped(page1, data.utilityMarkers, 50, yTop(680), 520, 10, 8, 2);
+      drawCheck(page1, data.networkRailConfirmed, 50, yTop(708));
+
+      // Page 2 sketch
+      if(page2){
+        const p2h = page2.getHeight();
+        const y2 = (fromTop) => p2h - fromTop;
+        drawWrapped(page2, data.sketch, 50, y2(160), 520, 10, 8, 18);
+
+        // Excavation supervisor acceptance
+        drawText(page2, data.acceptanceName, 70, y2(570));
+        drawText(page2, data.acceptanceSigned, 260, y2(570));
+        drawText(page2, data.acceptanceDate, 420, y2(570));
+        drawText(page2, data.acceptanceTime, 500, y2(570));
+      }
+
+      // Page 3 additional findings + confirmations
+      if(page3){
+        const p3h = page3.getHeight();
+        const y3 = (fromTop) => p3h - fromTop;
+        drawWrapped(page3, data.findings, 50, y3(560), 520, 10, 8, 6);
+
+        drawText(page3, data.coordinatorConfirmName, 70, y3(660));
+        drawText(page3, data.coordinatorConfirmSigned, 270, y3(660));
+        drawText(page3, data.coordinatorConfirmDate, 470, y3(660));
+
+        drawText(page3, data.cancelSigned, 70, y3(710));
+        drawText(page3, data.cancelDateTime, 300, y3(710));
+      }
+
+      const outBytes = await pdfDoc.save();
+      const blob = new Blob([outBytes], { type:"application/pdf" });
+      const url = URL.createObjectURL(blob);
+      const filename = `Ground-disturbance-permit_${new Date().toISOString().slice(0,10)}.pdf`;
+
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      a.rel = "noopener";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+
+      setTimeout(()=> URL.revokeObjectURL(url), 2500);
+    }
+
     function renderHotWorksPermit(){
       const app = $("#app");
       app.innerHTML = "";
@@ -2385,7 +2773,7 @@ function wrapPdfGen(fnName) {
 }
 
 // Apply lazy-loading wrapper to all PDF generation functions
-['generateDailyBriefPDF','generateHotWorkPermitPDF','generateHotWorksPDF','generateConfinedSpacePDF'].forEach(wrapPdfGen);
+['generateDailyBriefPDF','generateHotWorkPermitPDF','generateHotWorksPDF','generateConfinedSpacePDF','generateGroundDisturbancePDF'].forEach(wrapPdfGen);
 
 // === Placeholder for future config-driven (JSON schema) forms ===
 // To support extensibility, future forms can be defined as JSON schemas and rendered dynamically.
