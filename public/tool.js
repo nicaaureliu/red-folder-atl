@@ -2261,79 +2261,80 @@ window.__pdfLibLoadFailed = false;
         { label: "Respiratory protection (RPE)", checked: data.safetyEquipment.rpe }
       ];
 
+      const marginX = 40;
+      const contentW = 515;
+      const colGap = 15;
+      const colW = (contentW - colGap) / 2;
+      const rowH = 18;
+
+      const drawTwoColRow = (page, y, leftLabel, leftValue, rightLabel, rightValue) => {
+        drawLabeledBox(page, leftLabel, leftValue, marginX, y, colW, rowH);
+        drawLabeledBox(page, rightLabel, rightValue, marginX + colW + colGap, y, colW, rowH);
+      };
+
       // Page 1
-      page1.drawRectangle({ x:40, y:800, width:515, height:24, color: RED });
-      drawText(page1, "CONFINED SPACE PERMIT", 50, 806, 11, helvBold, WHITE);
+      page1.drawRectangle({ x:marginX, y:800, width:contentW, height:24, color: RED });
+      drawText(page1, "CONFINED SPACE PERMIT", marginX + 10, 806, 11, helvBold, WHITE);
 
-      let y = 730;
-      drawSectionHeader(page1, "1. Work Description", 770);
-      drawLabeledBox(page1, "Project Title", data.projectTitle, 40, y, 250);
-      drawLabeledBox(page1, "Project No", data.projectNo, 305, y, 250);
-      y -= 30;
-      drawLabeledBox(page1, "Site Location", data.siteLocation, 40, y, 250);
-      drawLabeledBox(page1, "Work Location", data.workLocation, 305, y, 250);
-      y -= 30;
-      drawLabeledBox(page1, "Contractor Name", data.contractorName, 40, y, 250);
-      drawLabeledBox(page1, "Supervisor Name", data.supervisorName, 305, y, 250);
-      y -= 30;
-      drawLabeledBox(page1, "Briefer Name", data.brieferName, 40, y, 250);
-      drawLabeledBox(page1, "Job Title", data.jobTitle, 305, y, 250);
-      y -= 30;
-      drawLabeledBox(page1, "Permit No", data.permitNo, 40, y, 180);
-      drawLabeledBox(page1, "Date", data.dateISO, 230, y, 140);
-      drawLabeledBox(page1, "Valid From", data.startTime, 380, y, 80);
-      drawLabeledBox(page1, "Valid To", data.finishTime, 470, y, 80);
+      let y = 750;
+      drawSectionHeader(page1, "1. Work Description", 785);
+      drawTwoColRow(page1, y, "Project Title", data.projectTitle, "Project No", data.projectNo);
+      y -= 28;
+      drawTwoColRow(page1, y, "Site Location", data.siteLocation, "Work Location", data.workLocation);
+      y -= 28;
+      drawTwoColRow(page1, y, "Contractor Name", data.contractorName, "Supervisor Name", data.supervisorName);
+      y -= 28;
+      drawTwoColRow(page1, y, "Briefer Name", data.brieferName, "Job Title", data.jobTitle);
+      y -= 28;
+      drawLabeledBox(page1, "Permit No", data.permitNo, marginX, y, 160, rowH);
+      drawLabeledBox(page1, "Date", data.dateISO, marginX + 175, y, 120, rowH);
+      drawLabeledBox(page1, "Valid From", data.startTime, marginX + 310, y, 90, rowH);
+      drawLabeledBox(page1, "Valid To", data.finishTime, marginX + 410, y, 145, rowH);
 
-      drawTextArea(page1, "Description of work to be carried out", data.workDescription, 40, 470, 515, 60);
-      drawTextArea(page1, "Personnel entering the confined space", data.personnel, 40, 400, 515, 50);
+      drawTextArea(page1, "Description of work to be carried out", data.workDescription, marginX, 540, contentW, 60);
+      drawTextArea(page1, "Personnel entering the confined space", data.personnel, marginX, 470, contentW, 50);
 
-      drawSectionHeader(page1, "Pre-entry Briefing", 370);
-      drawCheckboxGrid(page1, points, 46, 340, 3, 14, 170);
-      drawTextArea(page1, "Additional Briefing Information", data.preEntryBriefing, 40, 140, 515, 60);
+      drawSectionHeader(page1, "2. Pre-entry Briefing", 440);
+      drawCheckboxGrid(page1, points, marginX + 6, 410, 3, 14, 170);
+      drawTextArea(page1, "Additional Briefing Information", data.preEntryBriefing, marginX, 200, contentW, 60);
 
       // Page 2
-      page2.drawRectangle({ x:40, y:800, width:515, height:24, color: RED });
-      drawText(page2, "CONFINED SPACE PERMIT (CONT.)", 50, 806, 11, helvBold, WHITE);
+      page2.drawRectangle({ x:marginX, y:800, width:contentW, height:24, color: RED });
+      drawText(page2, "CONFINED SPACE PERMIT (CONT.)", marginX + 10, 806, 11, helvBold, WHITE);
 
-      drawSectionHeader(page2, "2. Equipment / Tools to be used", 770);
-      drawTextArea(page2, "Tools & Equipment", data.equipment, 40, 690, 515, 70);
+      drawSectionHeader(page2, "3. Equipment / Tools to be used", 785);
+      drawTextArea(page2, "Tools & Equipment", data.equipment, marginX, 690, contentW, 70);
 
-      drawSectionHeader(page2, "3. Risk Assessment", 660);
-      drawCheckboxGrid(page2, risks, 46, 630, 3, 14, 170);
-      drawLabeledBox(page2, "Others (specify)", data.riskOthers, 40, 520, 515);
+      drawSectionHeader(page2, "4. Risk Assessment", 660);
+      drawCheckboxGrid(page2, risks, marginX + 6, 630, 3, 14, 170);
+      drawLabeledBox(page2, "Others (specify)", data.riskOthers, marginX, 520, contentW, rowH);
 
-      drawSectionHeader(page2, "4. Controls", 490);
-      drawCheckboxGrid(page2, controls, 46, 460, 3, 14, 170);
-      drawLabeledBox(page2, "Others (specify)", data.controlsOthers, 40, 320, 515);
+      drawSectionHeader(page2, "5. Controls", 490);
+      drawCheckboxGrid(page2, controls, marginX + 6, 460, 3, 14, 170);
+      drawLabeledBox(page2, "Others (specify)", data.controlsOthers, marginX, 320, contentW, rowH);
 
       // Page 3
-      page3.drawRectangle({ x:40, y:800, width:515, height:24, color: RED });
-      drawText(page3, "CONFINED SPACE PERMIT (CONT.)", 50, 806, 11, helvBold, WHITE);
+      page3.drawRectangle({ x:marginX, y:800, width:contentW, height:24, color: RED });
+      drawText(page3, "CONFINED SPACE PERMIT (CONT.)", marginX + 10, 806, 11, helvBold, WHITE);
 
-      drawSectionHeader(page3, "5. Emergency Arrangements", 770);
-      drawCheckboxGrid(page3, emergency, 46, 740, 3, 14, 170);
+      drawSectionHeader(page3, "6. Emergency Arrangements", 785);
+      drawCheckboxGrid(page3, emergency, marginX + 6, 755, 3, 14, 170);
 
-      drawLabeledBox(page3, "Standby Person(s) Name", data.standbyPerson, 40, 600, 250);
-      drawLabeledBox(page3, "Emergency Contact Number", data.emergencyContact, 305, 600, 250);
-      drawLabeledBox(page3, "Nearest Hospital Details", data.hospitalDetails, 40, 570, 250);
-      drawLabeledBox(page3, "Emergency First Aid provision", data.firstAid, 305, 570, 250);
-      drawLabeledBox(page3, "Method of Communication", data.commMethod, 40, 540, 515);
-      drawTextArea(page3, "Specific Rescue Arrangements / Plan", data.rescueArrangements, 40, 470, 515, 50);
+      drawTwoColRow(page3, 610, "Standby Person(s) Name", data.standbyPerson, "Emergency Contact Number", data.emergencyContact);
+      drawTwoColRow(page3, 582, "Nearest Hospital Details", data.hospitalDetails, "Emergency First Aid provision", data.firstAid);
+      drawLabeledBox(page3, "Method of Communication", data.commMethod, marginX, 552, contentW, rowH);
+      drawTextArea(page3, "Specific Rescue Arrangements / Plan", data.rescueArrangements, marginX, 480, contentW, 50);
 
-      drawSectionHeader(page3, "6. Safety Equipment", 440);
-      drawCheckboxGrid(page3, safety, 46, 410, 3, 14, 170);
-      drawLabeledBox(page3, "Others (specify)", data.safetyOthers, 40, 300, 515);
+      drawSectionHeader(page3, "7. Safety Equipment", 450);
+      drawCheckboxGrid(page3, safety, marginX + 6, 420, 3, 14, 170);
+      drawLabeledBox(page3, "Others (specify)", data.safetyOthers, marginX, 300, contentW, rowH);
 
-      drawSectionHeader(page3, "Monitoring, Certification & Closure", 270);
-      drawText(page3, `Gas Monitor Bump Test confirmed? ${data.bumpTestDone ? "Yes" : "No"}`, 46, 250, 8);
-      drawLabeledBox(page3, "Monitoring Device 1", data.monitorDevice1, 40, 220, 250);
-      drawLabeledBox(page3, "Serial Number 1", data.monitorSerial1, 305, 220, 250);
-      drawLabeledBox(page3, "Monitoring Device 2", data.monitorDevice2, 40, 190, 250);
-      drawLabeledBox(page3, "Serial Number 2", data.monitorSerial2, 305, 190, 250);
-      drawLabeledBox(page3, "Authorising Person", data.authorisingPerson, 40, 160, 250);
-      drawLabeledBox(page3, "Authorising Time", data.authorisingTime, 305, 160, 250);
-      drawLabeledBox(page3, "Closure Name", data.closureName, 40, 130, 250);
-      drawLabeledBox(page3, "Closure Time", data.closureTime, 305, 130, 250);
+      drawSectionHeader(page3, "8. Monitoring, Certification & Closure", 270);
+      drawText(page3, `Gas Monitor Bump Test confirmed? ${data.bumpTestDone ? "Yes" : "No"}`, marginX + 6, 252, 8);
+      drawTwoColRow(page3, 220, "Monitoring Device 1", data.monitorDevice1, "Serial Number 1", data.monitorSerial1);
+      drawTwoColRow(page3, 192, "Monitoring Device 2", data.monitorDevice2, "Serial Number 2", data.monitorSerial2);
+      drawTwoColRow(page3, 164, "Authorising Person", data.authorisingPerson, "Authorising Time", data.authorisingTime);
+      drawTwoColRow(page3, 136, "Closure Name", data.closureName, "Closure Time", data.closureTime);
 
       const outBytes = await pdfDoc.save();
       const blob = new Blob([outBytes], { type:"application/pdf" });
