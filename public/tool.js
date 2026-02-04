@@ -2084,6 +2084,273 @@ window.__pdfLibLoadFailed = false;
       setTimeout(()=> URL.revokeObjectURL(url), 2500);
     }
 
+    async function generateConfinedSpacePDF(data){
+      if(!window.PDFLib){
+        throw new Error("PDF engine is blocked (pdf-lib did not load). If you use a strict Content-Security-Policy, you must allow the CDN or host pdf-lib locally.");
+      }
+
+      const { PDFDocument, StandardFonts, rgb } = PDFLib;
+      const pdfDoc = await PDFDocument.create();
+      const helv = await pdfDoc.embedFont(StandardFonts.Helvetica);
+      const helvBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+
+      const A4 = [595.28, 841.89];
+      const page1 = pdfDoc.addPage(A4);
+      const page2 = pdfDoc.addPage(A4);
+      const page3 = pdfDoc.addPage(A4);
+
+      const RED = rgb(0.78, 0.1, 0.1);
+      const BLACK = rgb(0,0,0);
+      const LIGHT = rgb(0.97,0.97,0.97);
+      const WHITE = rgb(1,1,1);
+
+      const sanitize = (text) => {
+        let s = String(text ?? "");
+        s = s.replace(/[\u2018\u2019]/g, "'")
+             .replace(/[\u201C\u201D]/g, '"')
+             .replace(/[\u2010-\u2015\u2212\u00ad]/g, "-")
+             .replace(/\u2026/g, "...")
+             .replace(/\u00A0/g, " ");
+        if (s.normalize) {
+          s = s.normalize("NFKD").replace(/[\u0300-\u036f]/g, "");
+        }
+        s = s.replace(/[^\x0A\x0D\x20-\x7E]/g, "");
+        return s;
+      };
+
+      const drawText = (page, text, x, y, size=9, font=helv, color=BLACK) => {
+        const t = sanitize(text);
+        if(!t) return;
+        page.drawText(t, { x, y, size, font, color });
+      };
+
+      const drawWrap = (page, text, x, topY, maxW, lineH=11, size=9, maxLines=10, font=helv, color=BLACK) => {
+        const t = sanitize(text);
+        if(!t) return;
+        const parts = t.replace(/\r/g, "").split("\n");
+        const lines = [];
+        parts.forEach(part => {
+          const words = part.split(/\s+/).filter(Boolean);
+          if(words.length === 0){ lines.push(""); return; }
+          let line = "";
+          words.forEach(w => {
+            const test = line ? (line + " " + w) : w;
+            if(font.widthOfTextAtSize(test, size) <= maxW) line = test;
+            else { if(line) lines.push(line); line = w; }
+          });
+          if(line) lines.push(line);
+        });
+        let y = topY;
+        lines.slice(0, maxLines).forEach(ln => {
+          page.drawText(ln, { x, y, size, font, color });
+          y -= lineH;
+        });
+      };
+
+      const drawSectionHeader = (page, title, yTop) => {
+        page.drawRectangle({ x:40, y:yTop-16, width:515, height:16, color: RED });
+        drawText(page, title, 46, yTop-12, 9, helvBold, WHITE);
+      };
+
+      const drawLabeledBox = (page, label, value, x, y, w, h=18) => {
+        drawText(page, label, x, y + h + 2, 7, helvBold);
+        page.drawRectangle({ x, y, width:w, height:h, borderColor: BLACK, borderWidth: 1, color: LIGHT });
+        drawText(page, value, x + 4, y + 6, 8);
+      };
+
+      const drawTextArea = (page, label, value, x, y, w, h) => {
+        drawText(page, label, x, y + h + 2, 7, helvBold);
+        page.drawRectangle({ x, y, width:w, height:h, borderColor: BLACK, borderWidth: 1, color: LIGHT });
+        drawWrap(page, value, x + 6, y + h - 6, w - 12, 10, 8, Math.floor(h / 12));
+      };
+
+      const drawCheckboxGrid = (page, items, x, yTop, colCount=3, rowH=14, colW=170) => {
+        const rows = Math.ceil(items.length / colCount);
+        for(let r=0;r<rows;r++){
+          for(let c=0;c<colCount;c++){
+            const idx = r*colCount + c;
+            if(idx >= items.length) continue;
+            const item = items[idx];
+            const x0 = x + (c * colW);
+            const y = yTop - (r * rowH);
+            page.drawRectangle({ x: x0, y: y-9, width: 10, height: 10, borderColor: BLACK, borderWidth: 1, color: WHITE });
+            if(item.checked){
+              page.drawText("X", { x: x0 + 2, y: y-8, size: 9, font: helvBold, color: BLACK });
+            }
+            drawText(page, item.label, x0 + 14, y-6, 7);
+          }
+        }
+      };
+
+      const points = [
+        { label: "Confined Spaces / Areas", checked: data.points.confined },
+        { label: "Emergency Procedures", checked: data.points.emergency },
+        { label: "Lifting Equipment - Chains / Slings", checked: data.points.lifting },
+        { label: "Permits to Work", checked: data.points.permits },
+        { label: "Plant & Equipment", checked: data.points.plant },
+        { label: "Safety Planning", checked: data.points.safetyPlanning },
+        { label: "Barriers / Edge Protection", checked: data.points.barriers },
+        { label: "Clear Access Ways", checked: data.points.clearAccess },
+        { label: "Method Statements / Risk Assessments", checked: data.points.methodStatements },
+        { label: "Suitable PPE", checked: data.points.suitablePPE },
+        { label: "Trench Collapse", checked: data.points.trenchCollapse },
+        { label: "Welfare Facilities", checked: data.points.welfare },
+        { label: "COSHH Assessments", checked: data.points.coshh },
+        { label: "Fire Precautions", checked: data.points.fire },
+        { label: "Materials", checked: data.points.materials },
+        { label: "Competence", checked: data.points.competence },
+        { label: "Overhead / Underground Cable Strike", checked: data.points.cables },
+        { label: "Trips / Falls", checked: data.points.trips }
+      ];
+
+      const risks = [
+        { label: "Oxygen enrichment/deficiency", checked: data.riskAssessment.o2 },
+        { label: "Toxic gases/vapours/fumes", checked: data.riskAssessment.toxic },
+        { label: "Flammable gases/vapours/fumes", checked: data.riskAssessment.flammable },
+        { label: "Ingress of liquids/gas/solids", checked: data.riskAssessment.ingress },
+        { label: "Sludge/deposits/waste", checked: data.riskAssessment.sludge },
+        { label: "Animals/biological hazards", checked: data.riskAssessment.animals },
+        { label: "Mechanical/electrical hazards", checked: data.riskAssessment.mechanical },
+        { label: "Hot work within space", checked: data.riskAssessment.hotwork },
+        { label: "Use of chemicals", checked: data.riskAssessment.chemicals },
+        { label: "Physical/structural hazards", checked: data.riskAssessment.physical },
+        { label: "Temperature extremes", checked: data.riskAssessment.temperature },
+        { label: "Ionising radiation", checked: data.riskAssessment.radiation }
+      ];
+
+      const controls = [
+        { label: "Isolation - Physical", checked: data.controls.isoPhys },
+        { label: "Isolation - Electrical", checked: data.controls.isoElec },
+        { label: "Isolation - Mechanical", checked: data.controls.isoMech },
+        { label: "Cleaning/Purging of space", checked: data.controls.cleaning },
+        { label: "Ventilation - Natural", checked: data.controls.ventNat },
+        { label: "Ventilation - Forced", checked: data.controls.ventForced },
+        { label: "Lighting - 110V", checked: data.controls.light110 },
+        { label: "Lighting - Low Voltage", checked: data.controls.lightLow },
+        { label: "Safety signage/Barricades", checked: data.controls.signage },
+        { label: "Communication equipment", checked: data.controls.comms },
+        { label: "Atmospheric testing (initial)", checked: data.controls.testing },
+        { label: "Constant monitoring", checked: data.controls.monitoring },
+        { label: "Fire extinguishers", checked: data.controls.extinguishers },
+        { label: "RPE (BA / Escape set)", checked: data.controls.rpe },
+        { label: "Training/Competence", checked: data.controls.training }
+      ];
+
+      const emergency = [
+        { label: "Rescue plan in place", checked: data.emergency.plan },
+        { label: "Tripod / Winch / Davit", checked: data.emergency.tripod },
+        { label: "Harness / Rescue line", checked: data.emergency.harness },
+        { label: "Fall arrest equipment", checked: data.emergency.fallArrest },
+        { label: "Recovery stretcher", checked: data.emergency.stretcher },
+        { label: "Resuscitation equipment", checked: data.emergency.resuscitation },
+        { label: "Breathing apparatus (Rescue)", checked: data.emergency.ba },
+        { label: "Emergency lighting", checked: data.emergency.light },
+        { label: "Method of raising alarm", checked: data.emergency.alarm },
+        { label: "Method of communication", checked: data.emergency.comms },
+        { label: "Standby person (Top-man)", checked: data.emergency.standby }
+      ];
+
+      const safety = [
+        { label: "Head protection (Hard hat)", checked: data.safetyEquipment.head },
+        { label: "Eye protection", checked: data.safetyEquipment.eye },
+        { label: "Hearing protection", checked: data.safetyEquipment.hearing },
+        { label: "Foot protection", checked: data.safetyEquipment.foot },
+        { label: "Hand protection", checked: data.safetyEquipment.hand },
+        { label: "High visibility clothing", checked: data.safetyEquipment.hiVis },
+        { label: "Fall arrest / restraint", checked: data.safetyEquipment.fallArrest },
+        { label: "Respiratory protection (RPE)", checked: data.safetyEquipment.rpe }
+      ];
+
+      // Page 1
+      page1.drawRectangle({ x:40, y:800, width:515, height:24, color: RED });
+      drawText(page1, "CONFINED SPACE PERMIT", 50, 806, 11, helvBold, WHITE);
+
+      let y = 730;
+      drawSectionHeader(page1, "1. Work Description", 770);
+      drawLabeledBox(page1, "Project Title", data.projectTitle, 40, y, 250);
+      drawLabeledBox(page1, "Project No", data.projectNo, 305, y, 250);
+      y -= 30;
+      drawLabeledBox(page1, "Site Location", data.siteLocation, 40, y, 250);
+      drawLabeledBox(page1, "Work Location", data.workLocation, 305, y, 250);
+      y -= 30;
+      drawLabeledBox(page1, "Contractor Name", data.contractorName, 40, y, 250);
+      drawLabeledBox(page1, "Supervisor Name", data.supervisorName, 305, y, 250);
+      y -= 30;
+      drawLabeledBox(page1, "Briefer Name", data.brieferName, 40, y, 250);
+      drawLabeledBox(page1, "Job Title", data.jobTitle, 305, y, 250);
+      y -= 30;
+      drawLabeledBox(page1, "Permit No", data.permitNo, 40, y, 180);
+      drawLabeledBox(page1, "Date", data.dateISO, 230, y, 140);
+      drawLabeledBox(page1, "Valid From", data.startTime, 380, y, 80);
+      drawLabeledBox(page1, "Valid To", data.finishTime, 470, y, 80);
+
+      drawTextArea(page1, "Description of work to be carried out", data.workDescription, 40, 470, 515, 60);
+      drawTextArea(page1, "Personnel entering the confined space", data.personnel, 40, 400, 515, 50);
+
+      drawSectionHeader(page1, "Pre-entry Briefing", 370);
+      drawCheckboxGrid(page1, points, 46, 340, 3, 14, 170);
+      drawTextArea(page1, "Additional Briefing Information", data.preEntryBriefing, 40, 140, 515, 60);
+
+      // Page 2
+      page2.drawRectangle({ x:40, y:800, width:515, height:24, color: RED });
+      drawText(page2, "CONFINED SPACE PERMIT (CONT.)", 50, 806, 11, helvBold, WHITE);
+
+      drawSectionHeader(page2, "2. Equipment / Tools to be used", 770);
+      drawTextArea(page2, "Tools & Equipment", data.equipment, 40, 690, 515, 70);
+
+      drawSectionHeader(page2, "3. Risk Assessment", 660);
+      drawCheckboxGrid(page2, risks, 46, 630, 3, 14, 170);
+      drawLabeledBox(page2, "Others (specify)", data.riskOthers, 40, 520, 515);
+
+      drawSectionHeader(page2, "4. Controls", 490);
+      drawCheckboxGrid(page2, controls, 46, 460, 3, 14, 170);
+      drawLabeledBox(page2, "Others (specify)", data.controlsOthers, 40, 320, 515);
+
+      // Page 3
+      page3.drawRectangle({ x:40, y:800, width:515, height:24, color: RED });
+      drawText(page3, "CONFINED SPACE PERMIT (CONT.)", 50, 806, 11, helvBold, WHITE);
+
+      drawSectionHeader(page3, "5. Emergency Arrangements", 770);
+      drawCheckboxGrid(page3, emergency, 46, 740, 3, 14, 170);
+
+      drawLabeledBox(page3, "Standby Person(s) Name", data.standbyPerson, 40, 600, 250);
+      drawLabeledBox(page3, "Emergency Contact Number", data.emergencyContact, 305, 600, 250);
+      drawLabeledBox(page3, "Nearest Hospital Details", data.hospitalDetails, 40, 570, 250);
+      drawLabeledBox(page3, "Emergency First Aid provision", data.firstAid, 305, 570, 250);
+      drawLabeledBox(page3, "Method of Communication", data.commMethod, 40, 540, 515);
+      drawTextArea(page3, "Specific Rescue Arrangements / Plan", data.rescueArrangements, 40, 470, 515, 50);
+
+      drawSectionHeader(page3, "6. Safety Equipment", 440);
+      drawCheckboxGrid(page3, safety, 46, 410, 3, 14, 170);
+      drawLabeledBox(page3, "Others (specify)", data.safetyOthers, 40, 300, 515);
+
+      drawSectionHeader(page3, "Monitoring, Certification & Closure", 270);
+      drawText(page3, `Gas Monitor Bump Test confirmed? ${data.bumpTestDone ? "Yes" : "No"}`, 46, 250, 8);
+      drawLabeledBox(page3, "Monitoring Device 1", data.monitorDevice1, 40, 220, 250);
+      drawLabeledBox(page3, "Serial Number 1", data.monitorSerial1, 305, 220, 250);
+      drawLabeledBox(page3, "Monitoring Device 2", data.monitorDevice2, 40, 190, 250);
+      drawLabeledBox(page3, "Serial Number 2", data.monitorSerial2, 305, 190, 250);
+      drawLabeledBox(page3, "Authorising Person", data.authorisingPerson, 40, 160, 250);
+      drawLabeledBox(page3, "Authorising Time", data.authorisingTime, 305, 160, 250);
+      drawLabeledBox(page3, "Closure Name", data.closureName, 40, 130, 250);
+      drawLabeledBox(page3, "Closure Time", data.closureTime, 305, 130, 250);
+
+      const outBytes = await pdfDoc.save();
+      const blob = new Blob([outBytes], { type:"application/pdf" });
+      const url = URL.createObjectURL(blob);
+      const filename = `Confined-space-permit_${new Date().toISOString().slice(0,10)}.pdf`;
+
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      a.rel = "noopener";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+
+      setTimeout(()=> URL.revokeObjectURL(url), 2500);
+    }
+
     async function generateHotWorkPermitPDF(data, precautionsList, checksList){
       if(!window.PDFLib){
         throw new Error("PDF engine is blocked (pdf-lib did not load). If you use a strict Content-Security-Policy, you must allow the CDN or host pdf-lib locally.");
@@ -2782,6 +3049,8 @@ window.__pdfLibLoadFailed = false;
       renderDailyBrief();
     }else if(tLower === "hot work permit" || tLower === "hot works permit"){
       renderHotWorkPermit();
+    }else if(tLower === "confined space permit"){
+      renderConfinedSpacePermit();
     }else if(
       tLower === "ground disturbance permit" ||
       tLower === "break ground (red)" ||
