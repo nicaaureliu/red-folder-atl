@@ -2100,12 +2100,12 @@ window.__pdfLibLoadFailed = false;
         };
 
         let y = startY - headerH;
-        rows.forEach((row) => {
+        rows.forEach((row, rowIdx) => {
           y -= rowH;
           let x = marginX;
           row.forEach((key, idx) => {
             const group = colGroups[idx];
-            drawCell(page, x, y, group.labelW, rowH, { fill: (r % 2 === 0) ? LIGHT_GRAY : undefined });
+            drawCell(page, x, y, group.labelW, rowH, { fill: (rowIdx % 2 === 0) ? LIGHT_GRAY : undefined });
             drawCell(page, x + group.labelW, y, group.checkW, rowH, { fill: LIGHT_BLUE });
             drawText(page, labels[key], x + 6, y + 6, 7.5);
             if(data.points && data.points[key]){
