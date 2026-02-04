@@ -1449,7 +1449,19 @@ window.__pdfLibLoadFailed = false;
       const ddmmyyyy = toDDMMYYYY(data.dateISO || todayISO());
       const attendeesCount = (data.attendees || []).length;
 
-      const sanitizePdfText = (text) => String(text ?? "").replace(/[\u2010-\u2015\u2212\u00ad]/g, "-");
+      const sanitizePdfText = (text) => {
+        let s = String(text ?? "");
+        s = s.replace(/[\u2018\u2019]/g, "'")
+             .replace(/[\u201C\u201D]/g, '"')
+             .replace(/[\u2010-\u2015\u2212\u00ad]/g, "-")
+             .replace(/\u2026/g, "...")
+             .replace(/\u00A0/g, " ");
+        if (s.normalize) {
+          s = s.normalize("NFKD").replace(/[\u0300-\u036f]/g, "");
+        }
+        s = s.replace(/[^\x0A\x0D\x20-\x7E]/g, "");
+        return s;
+      };
 
       const drawText = (page, text, x, y, size=10, font=helvBold, color=BLACK) => {
         const safeText = sanitizePdfText(text);
@@ -1828,7 +1840,19 @@ window.__pdfLibLoadFailed = false;
       const BLACK = rgb(0,0,0);
       const RED = rgb(0.78, 0.1, 0.1);
 
-      const sanitizePdfText = (text) => String(text ?? "").replace(/[\u2010-\u2015\u2212\u00ad]/g, "-");
+      const sanitizePdfText = (text) => {
+        let s = String(text ?? "");
+        s = s.replace(/[\u2018\u2019]/g, "'")
+             .replace(/[\u201C\u201D]/g, '"')
+             .replace(/[\u2010-\u2015\u2212\u00ad]/g, "-")
+             .replace(/\u2026/g, "...")
+             .replace(/\u00A0/g, " ");
+        if (s.normalize) {
+          s = s.normalize("NFKD").replace(/[\u0300-\u036f]/g, "");
+        }
+        s = s.replace(/[^\x0A\x0D\x20-\x7E]/g, "");
+        return s;
+      };
       const drawText = (page, text, x, y, size=9, font=helv) => {
         const safeText = sanitizePdfText(text);
         if(!safeText) return;
