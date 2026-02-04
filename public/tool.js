@@ -1589,14 +1589,14 @@ window.__pdfLibLoadFailed = false;
         const yesY = startY - headerH + 3;
         drawYesNoBox(page, yesX, yesY, boxSize, data.prevPlanned === "Yes");
 
-        const qH = 55;
+        const qH = 36;
         const qY = startY - headerH - qH;
         drawCell(page, marginX, qY, 515, qH, { fill: undefined });
         drawText(page, "Any concerns from the previous day?", marginX + 6, qY + qH - 18, 9);
-        drawCell(page, marginX, qY - 55, 515, 55, { fill: LIGHT_BLUE });
-        drawWrappedFromTop(page, data.prevConcerns, marginX + 6, qY - 8, 500, 12, 10, 4);
+        drawCell(page, marginX, qY - 36, 515, 36, { fill: LIGHT_BLUE });
+        drawWrappedFromTop(page, data.prevConcerns, marginX + 6, qY - 6, 500, 12, 10, 2);
 
-        return qY - 70;
+        return qY - 52;
       }
 
       function drawTodayPlanned(page, startY){
