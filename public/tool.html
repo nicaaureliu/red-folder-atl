@@ -1287,10 +1287,9 @@
       }
     }
 
-    async function generateHotWorksPDF(data){
-      if(!window.PDFLib){
-        throw new Error("PDF engine is blocked.");
-      }
+    function renderHotWorkPermit(){
+      const app = $("#app");
+      app.innerHTML = "";
 
       const state = {
         permitNo:"",
@@ -1337,756 +1336,210 @@
         clearanceDate:""
       };
 
-      const A4 = [595.28, 841.89];
-      const BLACK = rgb(0, 0, 0);
-      const RED = rgb(0.753, 0, 0); // rgb(192, 0, 0)
-      const HEADER_TEXT = rgb(1, 1, 1);
-      const LIGHT_FILL = rgb(0.985, 0.985, 0.99);
-
-      // --- Helpers ---
-      async function fetchImage(url){
-        try{
-          const res = await fetch(url, { cache:"no-store" });
-          if(!res.ok) return null;
-          return new Uint8Array(await res.arrayBuffer());
-        }catch(err){ return null; }
-      }
-
-      const detectImageType = (bytes) => {
-        if(!bytes || bytes.length < 4) return null;
-        if(bytes[0] === 0xff && bytes[1] === 0xd8) return "jpeg";
-        if(bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47) return "png";
-        return null;
-      };
-
-      const embedImageBytes = async (bytes) => {
-        const type = detectImageType(bytes);
-        if(type === "jpeg") return await pdfDoc.embedJpg(bytes);
-        if(type === "png") return await pdfDoc.embedPng(bytes);
-        return null;
-      };
-
-      let atlLogo;
-      const atlBytes = await fetchImage("/atl-logo.png") || await fetchImage("atl-logo.png");
-      if(atlBytes) atlLogo = await embedImageBytes(atlBytes);
-
-      const drawCell = (page, x, y, w, h, { fill, border = 1, borderColor = BLACK } = {}) => {
-        const opts = { x, y, width: w, height: h, borderColor, borderWidth: border };
-        if (fill) opts.color = fill;
-        page.drawRectangle(opts);
-      };
-
-      const drawTextInCell = (page, text, x, y, w, h, {
-        size = 10, font = helv, color = BLACK, padding = 6, align = "left"
-      } = {}) => {
-        if (text === undefined || text === null || text === "") return;
-        const s = String(text);
-        let tx = x + padding;
-        if (align === "center") {
-          const tw = font.widthOfTextAtSize(s, size);
-          tx = x + (w - tw) / 2;
-        } else if (align === "right") {
-          const tw = font.widthOfTextAtSize(s, size);
-          tx = x + w - padding - tw;
-        }
-        const ty = y + (h - size) / 2 + (size * 0.2);
-        page.drawText(s, { x: tx, y: ty, size, font, color });
-      };
-
-      const wrapLines = (font, text, size, maxWidth) => {
-        const raw = String(text || "").replace(/\r/g, "");
-        const parts = raw.split("\n");
-        const lines = [];
-        for(const part of parts){
-          const words = part.split(/\s+/).filter(Boolean);
-          if(words.length === 0){ lines.push(""); continue; }
-          let line = "";
-          for(const w of words){
-            const test = line ? (line + " " + w) : w;
-            if(font.widthOfTextAtSize(test, size) <= maxWidth) line = test;
-            else { if(line) lines.push(line); line = w; }
-          }
-          if(line) lines.push(line);
-        }
-        return lines;
-      };
-
-      const drawWrappedText = (page, text, x, y, w, h, { size=9, font=helv, color=BLACK, padding=6, lineHeight=11 } = {}) => {
-        const lines = wrapLines(font, text, size, w - (padding * 2));
-        lines.forEach((ln, i) => {
-          const ty = y + h - padding - size - (i * lineHeight);
-          if (ty > y) {
-            page.drawText(ln, { x: x + padding, y: ty, size, font, color });
-          }
-        });
-      };
-
-      const drawHeader = (page, pageNo, total) => {
-        if(atlLogo){
-          const scale = 120 / atlLogo.width;
-          page.drawImage(atlLogo, { x:40, y:775, width: atlLogo.width * scale, height: atlLogo.height * scale });
-        }
-        page.drawText("Hot Work Permit", { x: 430, y: 795, size: 11, font: helvBold, color: RED });
-        page.drawText("QPFS19.0", { x: 430, y: 780, size: 9, font: helvBold, color: RED });
-        if(data.permitNo) page.drawText("Permit No: " + data.permitNo, { x: 430, y: 765, size: 9, font: helvBold, color: RED });
-        page.drawLine({ start: { x: 40, y: 755 }, end: { x: 555, y: 755 }, thickness: 1 });
-        // Footer
-        page.drawText("Document Ref: QPFS19.0", { x: 40, y: 30, size: 8, font: helv });
-        page.drawText(`Page No. ${pageNo} of ${total}`, { x: 480, y: 30, size: 8, font: helv });
-      };
-
-      // --- Page 1 ---
-      const p1 = pdfDoc.addPage(A4);
-      drawHeader(p1, 1, 4);
-      drawCell(p1, 40, 720, 515, 20, { fill: RED });
-      drawTextInCell(p1, "HOT WORK PERMIT - AUTHORISATION", 40, 720, 515, 20, { color: HEADER_TEXT, font: helvBold, size: 11, align: "center" });
-
-      let curY = 700;
-      const rowH = 25;
-      const col1W = 110;
-      const col2W = 160;
-      const col3W = 100;
-      const col4W = 145;
-
-      const rows = [
-        ["PROJECT TITLE", data.projectTitle, "DATE", toDDMMYYYY(data.dateISO)],
-        ["SITE LOCATION", data.siteLocation, "PROJECT NO", data.projectNo],
-        ["CONTRACTOR", data.contractorName, "PERMIT NO", data.permitNo],
-        ["AUTHORISING PERSON", data.authorisingPerson, "FIRE WATCHER", data.fireWatcher]
-      ];
-
-      rows.forEach(row => {
-        curY -= rowH;
-        drawCell(p1, 40, curY, col1W, rowH);
-        drawTextInCell(p1, row[0], 40, curY, col1W, rowH, { font: helvBold, size: 8 });
-        drawCell(p1, 40 + col1W, curY, col2W, rowH, { fill: LIGHT_FILL });
-        drawTextInCell(p1, row[1], 40 + col1W, curY, col2W, rowH, { size: 9 });
-        drawCell(p1, 40 + col1W + col2W, curY, col3W, rowH);
-        drawTextInCell(p1, row[2], 40 + col1W + col2W, curY, col3W, rowH, { font: helvBold, size: 8 });
-        drawCell(p1, 40 + col1W + col2W + col3W, curY, col4W, rowH, { fill: LIGHT_FILL });
-        drawTextInCell(p1, row[3], 40 + col1W + col2W + col3W, curY, col4W, rowH, { size: 9 });
-      });
-
-      curY -= 30;
-      drawCell(p1, 40, curY, 515, 20, { fill: RED });
-      drawTextInCell(p1, "1. Description of Work", 40, curY, 515, 20, { color: HEADER_TEXT, font: helvBold, size: 10 });
-      curY -= 100;
-      drawCell(p1, 40, curY, 515, 100);
-      drawWrappedText(p1, data.workDescription, 40, curY, 515, 100);
-
-      curY -= 40;
-      drawCell(p1, 40, curY, 515, 20, { fill: RED });
-      drawTextInCell(p1, "2. Authorisation (Digital)", 40, curY, 515, 20, { color: HEADER_TEXT, font: helvBold, size: 10 });
-      curY -= 40;
-      drawCell(p1, 40, curY, 515, 40);
-      drawWrappedText(p1, "I confirm that the above work is authorised and the necessary precautions outlined in this permit must be followed.", 40, curY, 515, 40);
-
-      // --- Page 2 ---
-      const p2 = pdfDoc.addPage(A4);
-      drawHeader(p2, 2, 4);
-      drawCell(p2, 40, 720, 515, 20, { fill: RED });
-      drawTextInCell(p2, "3. General Precautions (TO BE COMPLETED ON SITE)", 40, 720, 515, 20, { color: HEADER_TEXT, font: helvBold, size: 11, align: "center" });
-
-      curY = 700;
-      const precautions = [
-        "All flammable materials removed or protected",
-        "Fire extinguishers available and checked",
-        "Area inspected for combustible materials",
-        "Gas cylinders secured and in good condition",
-        "Equipment checked for leaks or damage",
-        "Screens or blankets in place to contain sparks",
-        "Ventilation adequate for the work",
-        "Emergency exit routes clear",
-        "Communication method established"
-      ];
-      precautions.forEach(p => {
-        curY -= 25;
-        drawCell(p2, 40, curY, 475, 25);
-        drawTextInCell(p2, p, 40, curY, 475, 25, { size: 9 });
-        drawCell(p2, 515, curY, 40, 25);
-      });
-
-      // --- Page 3 ---
-      const p3 = pdfDoc.addPage(A4);
-      drawHeader(p3, 3, 4);
-      drawCell(p3, 40, 720, 515, 20, { fill: RED });
-      drawTextInCell(p3, "4. Fire Watcher / Monitoring (TO BE COMPLETED ON SITE)", 40, 720, 515, 20, { color: HEADER_TEXT, font: helvBold, size: 11, align: "center" });
-
-      curY = 700;
-      const monColW = [80, 100, 335];
-      const monLabels = ["Time", "Initials", "Notes / Observations"];
-      let monX = 40;
-      monLabels.forEach((h, i) => {
-        drawCell(p3, monX, curY, monColW[i], 20, { fill: RED });
-        drawTextInCell(p3, h, monX, curY, monColW[i], 20, { color: HEADER_TEXT, font: helvBold, size: 9, align: "center" });
-        monX += monColW[i];
-      });
-      for(let i=0; i<20; i++){
-        curY -= 20;
-        monX = 40;
-        monColW.forEach(w => { drawCell(p3, monX, curY, w, 20); monX += w; });
-      }
-
-      // --- Page 4 ---
-      const p4 = pdfDoc.addPage(A4);
-      drawHeader(p4, 4, 4);
-      drawCell(p4, 40, 720, 515, 20, { fill: RED });
-      drawTextInCell(p4, "5. Sign-off & Closure (TO BE COMPLETED ON SITE)", 40, 720, 515, 20, { color: HEADER_TEXT, font: helvBold, size: 11, align: "center" });
-
-      curY = 680;
-      drawCell(p4, 40, curY, 515, 40);
-      drawWrappedText(p4, "Work completed, area inspected, and fire watch maintained for the required period (min 30-60 mins).", 40, curY, 515, 40);
-
-      curY -= 40;
-      drawCell(p4, 40, curY, 150, 25, { fill: LIGHT_FILL });
-      drawTextInCell(p4, "Fire Watcher Sign-off:", 40, curY, 150, 25, { font: helvBold, size: 8 });
-      drawCell(p4, 190, curY, 365, 25);
-
-      curY -= 30;
-      drawCell(p4, 40, curY, 150, 25, { fill: LIGHT_FILL });
-      drawTextInCell(p4, "Permit Holder Sign-off:", 40, curY, 150, 25, { font: helvBold, size: 8 });
-      drawCell(p4, 190, curY, 365, 25);
-
-      curY -= 30;
-      drawCell(p4, 40, curY, 150, 25, { fill: LIGHT_FILL });
-      drawTextInCell(p4, "Authorising Person Sign-off:", 40, curY, 150, 25, { font: helvBold, size: 8 });
-      drawCell(p4, 190, curY, 365, 25);
-
-      const outBytes = await pdfDoc.save();
-      const blob = new Blob([outBytes], { type:"application/pdf" });
-      const url = URL.createObjectURL(blob);
-      const filename = `Hot_Work_Permit_${data.permitNo || todayISO()}.pdf`;
-      const a = document.createElement("a");
-      a.href = url; a.download = filename; a.rel = "noopener";
-      document.body.appendChild(a); a.click(); a.remove();
-      setTimeout(()=> URL.revokeObjectURL(url), 2500);
-    }
-
-    async function generateConfinedSpacePDF(data){
-      if(!window.PDFLib){
-        throw new Error("PDF engine is blocked.");
-      }
-
-      const { PDFDocument, StandardFonts, rgb } = PDFLib;
-      const pdfDoc = await PDFDocument.create();
-      const helv = await pdfDoc.embedFont(StandardFonts.Helvetica);
-      const helvBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
-
-      const A4 = [595.28, 841.89];
-      const BLACK = rgb(0, 0, 0);
-      const RED = rgb(0.753, 0, 0); // rgb(192, 0, 0)
-      const HEADER_TEXT = rgb(1, 1, 1);
-      const LIGHT_FILL = rgb(0.985, 0.985, 0.99);
-      const YELLOW = rgb(1, 1, 0); // Full yellow
-
-      // --- Helpers ---
-      async function fetchImage(url){
-        try{
-          const res = await fetch(url, { cache:"no-store" });
-          if(!res.ok) return null;
-          return new Uint8Array(await res.arrayBuffer());
-        }catch(err){ return null; }
-      }
-
-      const detectImageType = (bytes) => {
-        if(!bytes || bytes.length < 4) return null;
-        if(bytes[0] === 0xff && bytes[1] === 0xd8) return "jpeg";
-        if(bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47) return "png";
-        return null;
-      };
-
-      const embedImageBytes = async (bytes) => {
-        const type = detectImageType(bytes);
-        if(type === "jpeg") return await pdfDoc.embedJpg(bytes);
-        if(type === "png") return await pdfDoc.embedPng(bytes);
-        return null;
-      };
-
-      let atlLogo;
-      const atlBytes = await fetchImage("/atl-logo.png") || await fetchImage("atl-logo.png");
-      if(atlBytes) atlLogo = await embedImageBytes(atlBytes);
-
-      const drawCell = (page, x, y, w, h, { fill, border = 1, borderColor = BLACK } = {}) => {
-        const opts = { x, y, width: w, height: h, borderColor, borderWidth: border };
-        if (fill) opts.color = fill;
-        page.drawRectangle(opts);
-      };
-
-      const drawTextInCell = (page, text, x, y, w, h, {
-        size = 10, font = helv, color = BLACK, padding = 6, align = "left"
-      } = {}) => {
-        if (text === undefined || text === null || text === "") return;
-        const s = String(text);
-        let tx = x + padding;
-        if (align === "center") {
-          const tw = font.widthOfTextAtSize(s, size);
-          tx = x + (w - tw) / 2;
-        } else if (align === "right") {
-          const tw = font.widthOfTextAtSize(s, size);
-          tx = x + w - padding - tw;
-        }
-        const ty = y + (h - size) / 2 + (size * 0.2);
-        page.drawText(s, { x: tx, y: ty, size, font, color });
-      };
-
-      const wrapLines = (font, text, size, maxWidth) => {
-        const raw = String(text || "").replace(/\r/g, "");
-        const parts = raw.split("\n");
-        const lines = [];
-        for(const part of parts){
-          const words = part.split(/\s+/).filter(Boolean);
-          if(words.length === 0){ lines.push(""); continue; }
-          let line = "";
-          for(const w of words){
-            const test = line ? (line + " " + w) : w;
-            if(font.widthOfTextAtSize(test, size) <= maxWidth) line = test;
-            else { if(line) lines.push(line); line = w; }
-          }
-          if(line) lines.push(line);
-        }
-        return lines;
-      };
-
-      const drawWrappedText = (page, text, x, y, w, h, { size=9, font=helv, color=BLACK, padding=6, lineHeight=11 } = {}) => {
-        const lines = wrapLines(font, text, size, w - (padding * 2));
-        lines.forEach((ln, i) => {
-          const ty = y + h - padding - size - (i * lineHeight);
-          if (ty > y) {
-            page.drawText(ln, { x: x + padding, y: ty, size, font, color });
-          }
-        });
-      };
-
-      const drawCheckbox = (page, x, y, size=10, checked=false) => {
-        drawCell(page, x, y, size, size, { border: 1 });
-        if(checked){
-          page.drawText("X", { x: x+2, y: y+1.5, size: size-1, font: helvBold, color: BLACK });
-        }
-      };
-
-      const drawRow = (p, label, value, x, y, w, lw, h=20) => {
-        drawCell(p, x, y, lw, h);
-        drawTextInCell(p, label, x, y, lw, h, { font: helvBold, size: 9 });
-        drawCell(p, x + lw, y, w - lw, h, { fill: LIGHT_FILL });
-        drawTextInCell(p, value, x + lw, y, w - lw, h, { size: 9 });
-      };
-
-      const drawMultiLine = (p, label, value, x, y, w, h) => {
-        drawCell(p, x, y - h, w, h);
-        drawTextInCell(p, label, x, y - 15, w, 15, { font: helvBold, size: 8.5 });
-        drawWrappedText(p, value, x, y - h, w, h - 15, { size: 9 });
-      };
-
-      function drawHeader(page, pageNo, total){
-        if(atlLogo){
-          const scale = 120 / atlLogo.width;
-          page.drawImage(atlLogo, { x:40, y:775, width: atlLogo.width * scale, height: atlLogo.height * scale });
-        }
-
-        page.drawText("Confined Space Permit", { x: 430, y: 795, size: 9, font: helvBold, color: RED });
-        page.drawText("QPFS18.0", { x: 430, y: 783, size: 9, font: helvBold, color: RED });
-        if(data.permitNo) page.drawText("Permit No: " + data.permitNo, { x: 430, y: 771, size: 9, font: helvBold, color: RED });
-
-        page.drawText("Title: Confined Space Permit", { x: 40, y: 760, size: 12, font: helvBold });
-        page.drawLine({ start: { x: 40, y: 755 }, end: { x: 555, y: 755 }, thickness: 1 });
-
-        // Footer
-        page.drawText("Document Ref: QPFS18.0", { x: 40, y: 30, size: 8, font: helv });
-        page.drawText("August 2024", { x: 280, y: 30, size: 8, font: helv });
-        page.drawText(`Page No. ${pageNo} of ${total}`, { x: 480, y: 30, size: 8, font: helv });
-      }
-
-      // --- Content Generation ---
-
-      // Page 1
-      const p1 = pdfDoc.addPage(A4);
-      drawHeader(p1, 1, 4);
-
-      // Section 1: Work Description (Header Table)
-      drawCell(p1, 40, 730, 515, 20, { fill: RED });
-      drawTextInCell(p1, "HEALTH & SAFETY - CONFINED SPACE PERMIT", 40, 730, 515, 20, { color: HEADER_TEXT, font: helvBold, size: 11, align: "center" });
-
-      let curY = 730;
-      const rowH = 22;
-      const col1W = 110;
-      const col2W = 160;
-      const col3W = 100;
-      const col4W = 145;
-
-      const headerRows = [
-        ["PROJECT TITLE", data.projectTitle, "SITE LOCATION", data.siteLocation],
-        ["WORK LOCATION", data.workLocation, "PROJECT NO", data.projectNo],
-        ["CONTRACTOR", data.contractorName, "DATE", toDDMMYYYY(data.dateISO)],
-        ["SUPERVISOR", data.supervisorName, "PERMIT NO", data.permitNo],
-        ["VALID FROM", data.startTime, "VALID TO", data.finishTime]
-      ];
-
-      headerRows.forEach(row => {
-        curY -= rowH;
-        drawCell(p1, 40, curY, col1W, rowH);
-        drawTextInCell(p1, row[0], 40, curY, col1W, rowH, { font: helvBold, size: 8 });
-        drawCell(p1, 40 + col1W, curY, col2W, rowH, { fill: LIGHT_FILL });
-        drawTextInCell(p1, row[1], 40 + col1W, curY, col2W, rowH, { size: 9 });
-        drawCell(p1, 40 + col1W + col2W, curY, col3W, rowH);
-        drawTextInCell(p1, row[2], 40 + col1W + col2W, curY, col3W, rowH, { font: helvBold, size: 8 });
-        drawCell(p1, 40 + col1W + col2W + col3W, curY, col4W, rowH, { fill: LIGHT_FILL });
-        drawTextInCell(p1, row[3], 40 + col1W + col2W + col3W, curY, col4W, rowH, { size: 9 });
-      });
-
-      curY -= 10;
-      drawCell(p1, 40, curY - 20, 515, 20, { fill: RED });
-      drawTextInCell(p1, "1 Work Description", 40, curY - 20, 515, 20, { color: HEADER_TEXT, font: helvBold, size: 10 });
-      curY -= 20;
-
-      drawMultiLine(p1, "Description of work to be carried out:", data.workDescription, 40, curY, 515, 45);
-      curY -= 45;
-      drawMultiLine(p1, "Personnel entering the confined space:", data.personnel, 40, curY, 515, 45);
-      curY -= 45;
-
-      // Pre-entry Briefing Section
-      drawCell(p1, 40, curY - 20, 515, 20, { fill: RED });
-      drawTextInCell(p1, "Pre-entry Briefing Points Discussed", 40, curY - 20, 515, 20, { color: HEADER_TEXT, font: helvBold, size: 10 });
-      curY -= 20;
-
-      const briefRowH = 14;
-      const bColGroups = [ { lW: 150, cW: 20 }, { lW: 150, cW: 20 }, { lW: 155, cW: 20 } ];
-      const bRows = [
-        ["confined", "barriers", "coshh"], ["emergency", "clearAccess", "fire"], ["lifting", "methodStatements", "materials"],
-        ["permits", "suitablePPE", "competence"], ["plant", "trenchCollapse", "cables"], ["safetyPlanning", "welfare", "trips"]
-      ];
-      const bLabels = {
-        confined: "Confined Spaces / Areas", emergency: "Emergency Procedures", lifting: "Lifting Equipment",
-        permits: "Permits to Work", plant: "Plant & Equipment", safetyPlanning: "Safety Planning",
-        barriers: "Barriers / Edge Protection", clearAccess: "Clear Access Ways", methodStatements: "Method Statements",
-        suitablePPE: "Suitable PPE", trenchCollapse: "Trench Collapse", welfare: "Welfare Facilities",
-        coshh: "COSHH Assessments", fire: "Fire Precautions", materials: "Materials",
-        competence: "Operative Experience", cables: "Cable Strike", trips: "Trips / Falls"
-      };
-
-      bRows.forEach(row => {
-        curY -= briefRowH;
-        let x = 40;
-        row.forEach((key, idx) => {
-          const group = bColGroups[idx];
-          drawCell(p1, x, curY, group.lW, briefRowH);
-          drawTextInCell(p1, bLabels[key], x, curY, group.lW, briefRowH, { size: 7.5, font: helvBold });
-          drawCell(p1, x + group.lW, curY, group.cW, briefRowH, { fill: LIGHT_FILL });
-          if(data.points[key]) drawCheckbox(p1, x + group.lW + 5, curY + 2, 10, true);
-          x += group.lW + group.cW;
-        });
-      });
-
-      drawMultiLine(p1, "Additional Briefing Information:", data.preEntryBriefing, 40, curY, 515, 40);
-      curY -= 40;
-
-      // Section 2: Equipment
-      curY -= 25;
-      drawCell(p1, 40, curY, 515, 20, { fill: RED });
-      drawTextInCell(p1, "2 Equipment / Tools to be used", 40, curY, 515, 20, { color: HEADER_TEXT, font: helvBold, size: 11 });
-      curY -= 60;
-      drawCell(p1, 40, curY, 515, 60);
-      drawWrappedText(p1, data.equipment, 40, curY, 515, 60, { size: 9 });
-
-      // Section 3: Risk Assessment
-      curY -= 25;
-      drawCell(p1, 40, curY, 515, 20, { fill: RED });
-      drawTextInCell(p1, "3 Risk Assessment", 40, curY, 515, 20, { color: HEADER_TEXT, font: helvBold, size: 11 });
-      curY -= 20;
-      drawCell(p1, 40, curY, 415, 20);
-      drawTextInCell(p1, "Hazards Identified", 40, curY, 415, 20, { font: helvBold, size: 9 });
-      drawCell(p1, 455, curY, 100, 20);
-      drawTextInCell(p1, "Tick if applicable", 455, curY, 100, 20, { font: helvBold, size: 9, align: "center" });
-
-      const risks = [
-        ["Oxygen enrichment / deficiency", data.riskAssessment.o2],
-        ["Toxic gases / vapours / fumes", data.riskAssessment.toxic],
-        ["Flammable gases / vapours / fumes", data.riskAssessment.flammable],
-        ["Ingress of liquids / gas / solids", data.riskAssessment.ingress],
-        ["Sludge / deposits / waste", data.riskAssessment.sludge],
-        ["Animals / biological hazards", data.riskAssessment.animals],
-        ["Mechanical / electrical hazards", data.riskAssessment.mechanical],
-        ["Hot work within space", data.riskAssessment.hotwork],
-        ["Use of chemicals", data.riskAssessment.chemicals],
-        ["Physical / structural hazards", data.riskAssessment.physical],
-        ["Temperature extremes", data.riskAssessment.temperature],
-        ["Ionising radiation", data.riskAssessment.radiation]
-      ];
-
-      risks.forEach(([label, checked]) => {
-        curY -= 15;
-        drawCell(p1, 40, curY, 415, 15);
-        drawTextInCell(p1, label, 40, curY, 415, 15, { size: 8 });
-        drawCell(p1, 455, curY, 100, 15);
-        drawCheckbox(p1, 498, curY + 2.5, 10, checked);
-      });
-      curY -= 20;
-      drawRow(p1, "Others (specify):", data.riskOthers, 40, curY, 515, 100);
-
-      // Page 2
-      const p2 = pdfDoc.addPage(A4);
-      drawHeader(p2, 2, 4);
-
-      // Section 4: Controls
-      curY = 725;
-      drawCell(p2, 40, curY, 515, 20, { fill: RED });
-      drawTextInCell(p2, "4 Controls", 40, curY, 515, 20, { color: HEADER_TEXT, font: helvBold, size: 11 });
-      curY -= 20;
-      drawCell(p2, 40, curY, 415, 20);
-      drawTextInCell(p2, "Precautions / Control Measures", 40, curY, 415, 20, { font: helvBold, size: 9 });
-      drawCell(p2, 455, curY, 100, 20);
-      drawTextInCell(p2, "Tick if applicable", 455, curY, 100, 20, { font: helvBold, size: 9, align: "center" });
-
-      const controls = [
-        ["Isolation - Physical (e.g. blanks, disconnected)", data.controls.isoPhys],
-        ["Isolation - Electrical", data.controls.isoElec],
-        ["Isolation - Mechanical", data.controls.isoMech],
-        ["Cleaning / Purging of space", data.controls.cleaning],
-        ["Ventilation - Natural", data.controls.ventNat],
-        ["Ventilation - Forced", data.controls.ventForced],
-        ["Lighting - 110V (Internal)", data.controls.light110],
-        ["Lighting - Low Voltage (Internal)", data.controls.lightLow],
-        ["Safety signage / Barricades", data.controls.signage],
-        ["Communication equipment", data.controls.comms],
-        ["Atmospheric testing (initial)", data.controls.testing],
-        ["Constant monitoring", data.controls.monitoring],
-        ["Fire extinguishers", data.controls.extinguishers],
-        ["RPE (BA / Escape set)", data.controls.rpe],
-        ["Training / Competence", data.controls.training]
-      ];
-
-      controls.forEach(([label, checked]) => {
-        curY -= 15;
-        drawCell(p2, 40, curY, 415, 15);
-        drawTextInCell(p2, label, 40, curY, 415, 15, { size: 8 });
-        drawCell(p2, 455, curY, 100, 15);
-        drawCheckbox(p2, 498, curY + 2.5, 10, checked);
-      });
-      curY -= 20;
-      drawRow(p2, "Others (specify):", data.controlsOthers, 40, curY, 515, 100);
-
-      // Section 5: Emergency Arrangements
-      curY -= 30;
-      drawCell(p2, 40, curY, 515, 20, { fill: RED });
-      drawTextInCell(p2, "5 Emergency Arrangements", 40, curY, 515, 20, { color: HEADER_TEXT, font: helvBold, size: 11 });
-      curY -= 20;
-      drawCell(p2, 40, curY, 415, 20);
-      drawTextInCell(p2, "Emergency Equipment / Procedures", 40, curY, 415, 20, { font: helvBold, size: 9 });
-      drawCell(p2, 455, curY, 100, 20);
-      drawTextInCell(p2, "Tick if applicable", 455, curY, 100, 20, { font: helvBold, size: 9, align: "center" });
-
-      const emergency = [
-        ["Rescue plan in place", data.emergency.plan],
-        ["Tripod / Winch / Davit", data.emergency.tripod],
-        ["Harness / Rescue line", data.emergency.harness],
-        ["Fall arrest equipment", data.emergency.fallArrest],
-        ["Recovery stretcher", data.emergency.stretcher],
-        ["Resuscitation equipment", data.emergency.resuscitation],
-        ["Breathing apparatus (Rescue)", data.emergency.ba],
-        ["Emergency lighting", data.emergency.light],
-        ["Method of raising alarm", data.emergency.alarm],
-        ["Method of communication", data.emergency.comms],
-        ["Standby person (Top-man)", data.emergency.standby]
-      ];
-
-      emergency.forEach(([label, checked]) => {
-        curY -= 15;
-        drawCell(p2, 40, curY, 415, 15);
-        drawTextInCell(p2, label, 40, curY, 415, 15, { size: 8 });
-        drawCell(p2, 455, curY, 100, 15);
-        drawCheckbox(p2, 498, curY + 2.5, 10, checked);
-      });
-      curY -= 20;
-      drawRow(p2, "Standby Person(s):", data.standbyPerson, 40, curY, 515, 150);
-      curY -= 20;
-      drawRow(p2, "Emergency Contact:", data.emergencyContact, 40, curY, 257.5, 100);
-      drawRow(p2, "Hospital:", data.hospitalDetails, 297.5, curY, 257.5, 100);
-      curY -= 20;
-      drawRow(p2, "Emergency First Aid:", data.firstAid, 40, curY, 257.5, 100);
-      drawRow(p2, "Communication:", data.commMethod, 297.5, curY, 257.5, 100);
-      curY -= 50;
-      drawCell(p2, 40, curY, 515, 50);
-      drawTextInCell(p2, "Specific Rescue Arrangements / Plan:", 40, curY + 35, 515, 15, { font: helvBold, size: 9 });
-      drawWrappedText(p2, data.rescueArrangements, 40, curY, 515, 35, { size: 9 });
-
-      // Section 6: Safety Equipment
-      curY -= 25;
-      drawCell(p2, 40, curY, 515, 15, { fill: RED });
-      drawTextInCell(p2, "6 Safety Equipment", 40, curY, 515, 15, { color: HEADER_TEXT, font: helvBold, size: 9 });
-      curY -= 15;
-      drawCell(p2, 40, curY, 415, 15);
-      drawTextInCell(p2, "PPE / Safety Equipment", 40, curY, 415, 15, { font: helvBold, size: 8 });
-      drawCell(p2, 455, curY, 100, 15);
-      drawTextInCell(p2, "Tick if applicable", 455, curY, 100, 15, { font: helvBold, size: 8, align: "center" });
-
-      const safety = [
-        ["Head protection (Hard hat)", data.safetyEquipment.head],
-        ["Eye protection", data.safetyEquipment.eye],
-        ["Hearing protection", data.safetyEquipment.hearing],
-        ["Foot protection", data.safetyEquipment.foot],
-        ["Hand protection", data.safetyEquipment.hand],
-        ["High visibility clothing", data.safetyEquipment.hiVis],
-        ["Fall arrest / restraint", data.safetyEquipment.fallArrest],
-        ["Respiratory protection (RPE)", data.safetyEquipment.rpe]
-      ];
-
-      safety.forEach(([label, checked]) => {
-        curY -= 12;
-        drawCell(p2, 40, curY, 415, 12);
-        drawTextInCell(p2, label, 40, curY, 415, 12, { size: 7.5 });
-        drawCell(p2, 455, curY, 100, 12);
-        drawCheckbox(p2, 498, curY + 1.5, 9, checked);
-      });
-      curY -= 15;
-      drawRow(p2, "Others (specify):", data.safetyOthers, 40, curY, 515, 100, 15);
-
-      // Section 7: Atmospheric Testing
-      curY -= 25;
-      drawCell(p2, 40, curY, 515, 15, { fill: RED });
-      drawTextInCell(p2, "7 Atmospheric Testing", 40, curY, 515, 15, { color: HEADER_TEXT, font: helvBold, size: 9 });
-      curY -= 15;
-      drawTextInCell(p2, "Bump Test Done:", 40, curY, 100, 15, { font: helvBold, size: 8 });
-      drawCheckbox(p2, 140, curY + 2.5, 10, data.bumpTestDone);
-
-      curY -= 15;
-      drawCell(p2, 40, curY, 150, 15, { fill: RED });
-      drawTextInCell(p2, "Device", 40, curY, 150, 15, { color: HEADER_TEXT, font: helvBold, size: 8 });
-      drawCell(p2, 190, curY, 150, 15, { fill: RED });
-      drawTextInCell(p2, "Serial No.", 190, curY, 150, 15, { color: HEADER_TEXT, font: helvBold, size: 8 });
-
-      curY -= 12;
-      drawCell(p2, 40, curY, 150, 12);
-      drawTextInCell(p2, data.monitorDevice1, 40, curY, 150, 12, { size: 8 });
-      drawCell(p2, 190, curY, 150, 12);
-      drawTextInCell(p2, data.monitorSerial1, 190, curY, 150, 12, { size: 8 });
-
-      curY -= 12;
-      drawCell(p2, 40, curY, 150, 12);
-      drawTextInCell(p2, data.monitorDevice2, 40, curY, 150, 12, { size: 8 });
-      drawCell(p2, 190, curY, 150, 12);
-      drawTextInCell(p2, data.monitorSerial2, 190, curY, 150, 12, { size: 8 });
-
-      curY -= 15;
-      const amColW = [40, 90, 55, 55, 55, 55, 165];
-      const amLabels = ["Time", "Sampled by", "O2 (19.5-22.5)", "LEL (<10%)", "CO (<25ppm)", "H2S (<10ppm)", "Notes"];
-      let amX = 40;
-      amLabels.forEach((h, i) => {
-        drawCell(p2, amX, curY, amColW[i], 15, { fill: RED });
-        drawTextInCell(p2, h, amX, curY, amColW[i], 15, { color: HEADER_TEXT, font: helvBold, size: 6.5, align: "center" });
-        amX += amColW[i];
-      });
-      curY -= 15;
-      amX = 40;
-      amColW.forEach(w => { drawCell(p2, amX, curY, w, 15, { fill: YELLOW }); amX += w; });
-      drawTextInCell(p2, "Initial Test", 40 + 40, curY, 90, 15, { size: 7, align: "center" });
-
-      // Page 3: Personnel Entry & Exit record
-      const p3 = pdfDoc.addPage(A4);
-      drawHeader(p3, 3, 4);
-      curY = 725;
-      drawCell(p3, 40, curY, 515, 20, { fill: RED });
-      drawTextInCell(p3, "4 Personnel Entry & Exit record", 40, curY, 515, 20, { color: HEADER_TEXT, font: helvBold, size: 11 });
-      curY -= 15;
-      drawTextInCell(p3, "(to be completed before and during the work)", 40, curY, 515, 15, { size: 8, font: helv });
-
-      curY -= 25;
-      const eeColW = [85, 71.6, 71.6, 71.6, 71.6, 71.6, 71.6];
-      const eeHeaders = ["", "Entrant\nname:", "Attendant\nname:", "Entrant\nname:", "Attendant\nname:", "Entrant\nname:", "Attendant\nname:"];
-      let eeX = 40;
-      eeHeaders.forEach((h, i) => {
-        drawCell(p3, eeX, curY, eeColW[i], 25, { fill: RED });
-        if(h) drawWrappedText(p3, h, eeX, curY, eeColW[i], 25, { color: HEADER_TEXT, font: helvBold, size: 8, padding: 4, lineHeight: 9 });
-        eeX += eeColW[i];
-      });
-
-      for(let i=0; i<24; i++){
-        curY -= 15;
-        eeX = 40;
-        const label = (i % 2 === 0) ? "Time in" : "Time out";
-        drawCell(p3, eeX, curY, eeColW[0], 15, { fill: RED });
-        drawTextInCell(p3, label, eeX, curY, eeColW[0], 15, { color: HEADER_TEXT, font: helvBold, size: 8 });
-        eeX += eeColW[0];
-        for(let j=1; j<7; j++){
-          drawCell(p3, eeX, curY, eeColW[j], 15);
-          eeX += eeColW[j];
-        }
-      }
-
-      curY -= 100;
-      drawCell(p3, 40, curY, 515, 100);
-      drawTextInCell(p3, "Notes:", 40, curY + 85, 515, 15, { font: helv, size: 9 });
-
-      // Page 4: Air Monitoring, Certification and closure
-      const p4 = pdfDoc.addPage(A4);
-      drawHeader(p4, 4, 4);
-
-      curY = 725;
-      drawCell(p4, 40, curY, 515, 20, { fill: RED });
-      drawTextInCell(p4, "5 Air Monitoring Results", 40, curY, 515, 20, { color: HEADER_TEXT, font: helvBold, size: 11 });
-      curY -= 15;
-      drawTextInCell(p4, "(to be completed during the work)", 40, curY, 515, 15, { size: 8, font: helv });
-
-      curY -= 20;
-      drawRow(p4, "Device(s):", "", 40, curY, 257.5, 100);
-      drawRow(p4, "Serial number:", "", 297.5, curY, 257.5, 100);
-      curY -= 20;
-      drawRow(p4, "1.", "", 40, curY, 257.5, 100);
-      drawRow(p4, " ", "", 297.5, curY, 257.5, 100);
-      curY -= 20;
-      drawRow(p4, "2.", "", 40, curY, 257.5, 100);
-      drawRow(p4, " ", "", 297.5, curY, 257.5, 100);
-
-      curY -= 20;
-      const monColW = [40, 90, 75, 75, 235];
-      const monLabels = ["Time", "Sampled by", "O2 (19.5-21%)", "CO (<25 ppm)", "Other (from section 3)"];
-      let monX = 40;
-      monLabels.forEach((h, i) => {
-        drawCell(p4, monX, curY, monColW[i], 20, { fill: RED });
-        drawTextInCell(p4, h, monX, curY, monColW[i], 20, { color: HEADER_TEXT, font: helvBold, size: 8, align: "center" });
-        monX += monColW[i];
-      });
-
-      for(let i=0; i<15; i++){
-        curY -= 18;
-        monX = 40;
-        monColW.forEach(w => {
-          drawCell(p4, monX, curY, w, 18);
-          monX += w;
-        });
-      }
-
-      curY -= 25;
-      drawCell(p4, 40, curY, 515, 15, { fill: RED });
-      drawTextInCell(p4, "6 Pre-entry Certification", 40, curY, 515, 15, { color: HEADER_TEXT, font: helvBold, size: 9 });
-      curY -= 12;
-      drawTextInCell(p4, "(must be signed by the confined space authorising person before entry)", 40, curY, 515, 12, { size: 7, font: helv });
-      curY -= 30;
-      drawCell(p4, 40, curY, 515, 30);
-      drawWrappedText(p4, "I hereby certify that all required hazard controls are in place, that air monitoring is being conducted as required and results show that the atmosphere is acceptable for entry, and that all required information is documented on this permit.", 40, curY, 515, 30, { size: 8 });
-      curY -= 20;
-      drawRow(p4, "Confined space entry authorising person for this entry:", "", 40, curY, 515, 250);
-      curY -= 20;
-      drawRow(p4, "Signature:", "", 40, curY, 350, 100);
-      drawRow(p4, "Date:", "", 390, curY, 165, 50);
-
-      curY -= 30;
-      drawCell(p4, 40, curY, 515, 15, { fill: RED });
-      drawTextInCell(p4, "7 Permit Closure", 40, curY, 515, 15, { color: HEADER_TEXT, font: helvBold, size: 9 });
-      curY -= 12;
-      drawTextInCell(p4, "(must be signed by the confined space authorising person after work is completed)", 40, curY, 515, 12, { size: 7, font: helv });
-      curY -= 25;
-      drawCell(p4, 40, curY, 515, 25);
-      drawWrappedText(p4, "The work was done in accordance with this permit. A copy of this permit will be forwarded to the confined space Supervisor/Project Manager.", 40, curY, 515, 25, { size: 8 });
-      curY -= 20;
-      drawRow(p4, "Name:", "", 40, curY, 515, 100);
-      curY -= 20;
-      drawRow(p4, "Signature:", "", 40, curY, 350, 100);
-      drawRow(p4, "Date:", "", 390, curY, 165, 50);
-
-      // Save and Download
-      const outBytes = await pdfDoc.save();
-      const blob = new Blob([outBytes], { type:"application/pdf" });
-      const url = URL.createObjectURL(blob);
-      const filename = `Confined_Space_Permit_${data.permitNo || todayISO()}.pdf`;
+      const head = el("div",{class:"head"},[
+        el("div",{},[
+          el("h1",{},["Hot Work Permit"]),
+          el("div",{class:"sub"},["Fill in the permit details, then download the PDF."])
+        ]),
+        el("div",{class:"pillRow"},[
+          el("span",{id:"pillLib", class:"pill warn"},["PDF engine: checking…"])
+        ])
+      ]);
+
+      const banner = el("div",{id:"banner", class:"banner"},[""]);
+
+      const sDetails = el("div",{class:"section"},[
+        el("div",{class:"sectionTitle"},["Permit details"]),
+        el("div",{class:"grid2"},[
+          field("Permit No.","permitNo","text",""),
+          field("Date required","dateRequired","date",""),
+          field("Permit requested by","requestedBy","text",""),
+          textareaField("Address and location","address",""),
+          textareaField("Description of works","description","")
+        ])
+      ]);
+
+      const sActivities = el("div",{class:"section"},[
+        el("div",{class:"sectionTitle"},["Activity involves"]),
+        el("div",{class:"grid3auto"},[
+          chk("welding","Welding incl. Thermic Melting"),
+          chk("burning","Burning or Cutting"),
+          chk("soldering","Soldering"),
+          chk("gasCutting","Gas cutting"),
+          chk("brazing","Brazing"),
+          chk("discCutting","Disc cutting/grinding"),
+          chk("heathland","Heathland clearing"),
+          chk("other","Other")
+        ])
+      ]);
+
+      const sPeople = el("div",{class:"section"},[
+        el("div",{class:"sectionTitle"},["Responsible people"]),
+        el("div",{class:"grid2"},[
+          field("Hot Works Responsible Person (HWRP)","hwrp","text",""),
+          field("Contractor/company carrying out hot works","contractor","text",""),
+          field("Responsible person for Fire Safety","fireSafety","text","")
+        ])
+      ]);
+
+      const formatQpfs = (num)=> `QPFS.${String(num).padStart(3, "0")}`;
+      const precautionsList = [
+        "A risk assessment has been carried out for the Hot Works Activity",
+        "The inherent risks within the building or asset fire risk assessment have been considered",
+        "The building/asset fire warden has been made aware of any potential risks",
+        "There will be an appointed Fire Watcher, who will be available for the period of the Hot Works",
+        "Have any automatic fire alarms and detection systems been isolated?",
+        "Confirmation that the fire alarm will be immediately, cleaned, tested and reinstated before the permit is signed off",
+        "If work is to take place outside/in rural areas, specify any additional controls required",
+        "Is area clear of removable combustible material/flamable liquids within 6m of the hot work?",
+        "Any non-moveable combustible material within 6m protected from heat/sparks?",
+        "Access/egress arrangements defined for non‑authorised personnel?",
+        "Duties and nominated persons for fire watch and inspection defined and briefed?",
+        "Other working in proximity of hot works informed and briefed?",
+        "Suitable screens/barriers to contain sparks/shield arc from eyes?",
+        "Suitable clear escape signage posted?",
+        "Competency checks carried out on those undertaking the works?",
+        "Gas cylinders secured in vertical position or trolley 6m from burners?",
+        "Regulators and flashback arrestors fitted to all gas cylinders?",
+        "All equipment checked/tested? Jubilee clips must not be used.",
+        "Is the area adequately ventilated? If Confined Space, permit/gas detection in place?"
+      ].map((text, idx)=> ({ code: formatQpfs(idx + 1), text }));
+
+      const checksList = [
+        "Has a check been undertaken to confirm there is no gas leakage?",
+        "Are smoking and naked lights prohibited?",
+        "Has suitable firefighting equipment been provided and user is competent?",
+        "Has consideration been given to isolation and purging of systems?",
+        "Have sand and sand trays been provided for containment of molten metal?",
+        "Has suitable flame retardant PPE been issued?",
+        "Is there a clear process of what to do in the event of a fire?"
+      ].map((text, idx)=> ({
+        code: formatQpfs(precautionsList.length + idx + 1),
+        text
+      }));
+
+      const sPrecautions = el("div",{class:"section"},[
+        el("div",{class:"sectionTitle"},["Precautions to be checked immediately before commencement"]),
+        el("div",{class:"grid1"},[
+          ...precautionsList.map(({ code, text }, idx)=> {
+            const yesId = `prec_${idx}`;
+            const naId = `prec_na_${idx}`;
+            return el("div",{class:"check", style:"justify-content:space-between; gap:12px;"},[
+              el("div",{},[
+                el("span",{},[el("strong",{},[`${code} `]), text])
+              ]),
+              el("div",{style:"display:flex; gap:10px; align-items:center;"},[
+                el("label",{for:"pt_"+yesId, style:"display:flex; align-items:center; gap:6px; margin:0;"},[
+                  el("input",{type:"checkbox", id:"pt_"+yesId}),
+                  el("span",{},["Yes"])
+                ]),
+                el("label",{for:"pt_"+naId, style:"display:flex; align-items:center; gap:6px; margin:0;"},[
+                  el("input",{type:"checkbox", id:"pt_"+naId}),
+                  el("span",{},["N/A"])
+                ])
+              ])
+            ]);
+          })
+        ])
+      ]);
+
+      const sChecks = el("div",{class:"section"},[
+        el("div",{class:"sectionTitle"},["Additional checks"]),
+        el("div",{class:"grid1"},[
+          ...checksList.map(({ code, text }, idx)=> {
+            const yesId = `chk_${idx}`;
+            const naId = `chk_na_${idx}`;
+            return el("div",{class:"check", style:"justify-content:space-between; gap:12px;"},[
+              el("div",{},[
+                el("span",{},[el("strong",{},[`${code} `]), text])
+              ]),
+              el("div",{style:"display:flex; gap:10px; align-items:center;"},[
+                el("label",{for:"pt_"+yesId, style:"display:flex; align-items:center; gap:6px; margin:0;"},[
+                  el("input",{type:"checkbox", id:"pt_"+yesId}),
+                  el("span",{},["Yes"])
+                ]),
+                el("label",{for:"pt_"+naId, style:"display:flex; align-items:center; gap:6px; margin:0;"},[
+                  el("input",{type:"checkbox", id:"pt_"+naId}),
+                  el("span",{},["N/A"])
+                ])
+              ])
+            ]);
+          })
+        ]),
+        el("div",{class:"grid3auto", style:"margin-top:10px;"},[
+          chk("co2","CO2"),
+          chk("foam","Foam"),
+          chk("water","Water"),
+          chk("dryPowder","Dry Powder")
+        ])
+      ]);
+
+      const sSketch = el("div",{class:"section"},[
+        el("div",{class:"sectionTitle"},["Sketch of work area"]),
+        el("div",{class:"grid1"},[
+          textareaField("Work area sketch / notes","sketch","")
+        ])
+      ]);
+
+      const sAuth = el("div",{class:"section"},[
+        el("div",{class:"sectionTitle"},["Authorisation"]),
+        el("div",{class:"grid2"},[
+          field("Permit valid from (date)","permitValidFrom","date",""),
+          field("Permit valid to (date)","permitValidTo","date",""),
+          field("Time from","permitTimeFrom","text",""),
+          field("Time to","permitTimeTo","text",""),
+          field("Name of person undertaking hot works","authorisedBy","text",""),
+          field("Signature","authorisedSig","text",""),
+          field("Date/Time","authorisedDate","text",""),
+          field("Name of person appointed as Fire Watcher","fireWatcher","text",""),
+          field("Signature","fireWatcherSig","text",""),
+          field("Date/Time","fireWatcherDate","text",""),
+          field("Name of HWRP","hwrpName","text",""),
+          field("Signature","hwrpSig","text",""),
+          field("Date/Time","hwrpDate","text","")
+        ])
+      ]);
+
+      const sClear = el("div",{class:"section"},[
+        el("div",{class:"sectionTitle"},["Fire Watch Clearance & Cancellation"]),
+        el("div",{class:"grid2"},[
+          field("Works completed after (hrs)","completionHours","text",""),
+          field("Fire watch maintained after (hrs)","fireWatchHours","text",""),
+          field("From (time)","completionTimeFrom","text",""),
+          field("To (time)","completionTimeTo","text",""),
+          field("From (time)","fireWatchTimeFrom","text",""),
+          field("To (time)","fireWatchTimeTo","text",""),
+          field("Name of person appointed as Fire Watcher","clearanceBy","text",""),
+          field("Signature","clearanceSig","text",""),
+          field("Date/Time","clearanceDate","text","")
+        ])
+      ]);
+
+      const sticky = el("div",{class:"stickyBar"},[
+        el("div",{class:"actionBar"},[
+          el("div",{class:"btnRow"},[
+            el("a",{class:"btn btnYellow", href:"daily.html"},["Back"])
+          ]),
+          el("div",{class:"btnRow"},[
+            el("button",{id:"btnDownload", class:"btn", type:"button", onclick: async()=> {
+              hideBanner();
+              await onDownload();
+            }},["Download PDF"])
+          ])
+        ])
+      ]);
+
+      app.appendChild(head);
+      app.appendChild(banner);
+      app.appendChild(sDetails);
+      app.appendChild(sActivities);
+      app.appendChild(sPeople);
+      app.appendChild(sPrecautions);
+      app.appendChild(sChecks);
+      app.appendChild(sSketch);
+      app.appendChild(sAuth);
+      app.appendChild(sClear);
+      app.appendChild(sticky);
 
       checkTemplateAndLib();
 
@@ -2213,7 +1666,9 @@
         contractor:"",
         fireSafety:"",
         precautions:{},
+        precautionsNa:{},
         checks:{},
+        checksNa:{},
         extinguishers:{ co2:false, foam:false, water:false, dryPowder:false },
         sketch:"",
         permitValidFrom:"",
@@ -2241,12 +1696,6 @@
         clearanceSig:"",
         clearanceDate:""
       };
-
-      const A4 = [595.28, 841.89];
-      const BLACK = rgb(0, 0, 0);
-      const RED = rgb(0.753, 0, 0); // rgb(192, 0, 0)
-      const HEADER_TEXT = rgb(1, 1, 1);
-      const LIGHT_FILL = rgb(0.985, 0.985, 0.99);
 
       const pdfDoc = await PDFDocument.create();
       const helv = await pdfDoc.embedFont(StandardFonts.Helvetica);
@@ -2655,6 +2104,259 @@
       setTimeout(()=> URL.revokeObjectURL(url), 2500);
     }
 
+    async function generateHotWorkPermitPDF(data, precautionsList, checksList){
+      if(!window.PDFLib){
+        throw new Error("PDF engine is blocked (pdf-lib did not load). If you use a strict Content-Security-Policy, you must allow the CDN or host pdf-lib locally.");
+      }
+
+      const { PDFDocument, StandardFonts, rgb } = PDFLib;
+      const pdfDoc = await PDFDocument.create();
+      const helv = await pdfDoc.embedFont(StandardFonts.Helvetica);
+      const helvBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+
+      const A4 = [595.28, 841.89];
+      const page1 = pdfDoc.addPage(A4);
+      const page2 = pdfDoc.addPage(A4);
+
+      const BLACK = rgb(0,0,0);
+      const RED = rgb(0.78, 0.1, 0.1);
+
+      const drawText = (page, text, x, y, size=9, font=helv) => {
+        if(!text) return;
+        page.drawText(String(text), { x, y, size, font, color: BLACK });
+      };
+      const drawBold = (page, text, x, y, size=9) => {
+        if(!text) return;
+        page.drawText(String(text), { x, y, size, font: helvBold, color: BLACK });
+      };
+      const drawCell = (page, x, y, w, h, fill=null) => {
+        page.drawRectangle({ x, y, width:w, height:h, borderColor: BLACK, borderWidth: 1, color: fill || undefined });
+      };
+      const drawCheck = (page, x, y, size, checked) => {
+        drawCell(page, x, y, size, size);
+        if(checked){
+          page.drawLine({ start:{ x:x+2, y:y+4 }, end:{ x:x+5, y:y+2 }, thickness:1.4, color: BLACK });
+          page.drawLine({ start:{ x:x+5, y:y+2 }, end:{ x:x+size-2, y:y+size-2 }, thickness:1.4, color: BLACK });
+        }
+      };
+
+      async function fetchImage(url){
+        try{
+          const res = await fetch(url, { cache:"no-store" });
+          if(!res.ok) return null;
+          return new Uint8Array(await res.arrayBuffer());
+        }catch(err){
+          return null;
+        }
+      }
+      const detectImageType = (bytes) => {
+        if(!bytes || bytes.length < 4) return null;
+        if(bytes[0] === 0xff && bytes[1] === 0xd8) return "jpeg";
+        if(bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47) return "png";
+        return null;
+      };
+      const embedImageBytes = async (bytes) => {
+        const type = detectImageType(bytes);
+        if(type === "jpeg") return await pdfDoc.embedJpg(bytes);
+        if(type === "png") return await pdfDoc.embedPng(bytes);
+        return null;
+      };
+
+      const atlBytes = await fetchImage("/atl-logo.png") || await fetchImage("atl-logo.png");
+      if(atlBytes){
+        const logo = await embedImageBytes(atlBytes);
+        if(logo){
+          const scale = 140 / logo.width;
+          page1.drawImage(logo, { x:40, y:780, width: logo.width*scale, height: logo.height*scale });
+          page2.drawImage(logo, { x:40, y:780, width: logo.width*scale, height: logo.height*scale });
+        }
+      }
+
+      drawText(page1, "Hot Works Permit", 430, 800, 12, helvBold);
+      page1.drawLine({ start:{ x:40, y:760 }, end:{ x:555, y:760 }, thickness:1, color: BLACK });
+
+      let y = 730;
+      drawCell(page1, 40, y-20, 360, 40);
+      drawText(page1, "Copy of permit to be retained by person carrying out work and by the Hot Works Responsible Person for the duration of the hot work operation", 46, y-12, 7);
+      drawCell(page1, 400, y-20, 80, 20);
+      drawCell(page1, 480, y-20, 75, 20);
+      drawBold(page1, "Permit No:", 404, y-8, 8);
+      drawText(page1, data.permitNo, 485, y-8, 8);
+      drawCell(page1, 400, y-40, 80, 20);
+      drawCell(page1, 480, y-40, 75, 20);
+      drawBold(page1, "Date Required:", 404, y-28, 8);
+      drawText(page1, data.dateRequired, 485, y-28, 8);
+
+      y -= 60;
+      const rows = [
+        ["1. Permit requested by:", data.requestedBy],
+        ["2. Address and location:", data.address],
+        ["3. Description of works:", data.description]
+      ];
+      rows.forEach(([label, value])=>{
+        drawCell(page1, 40, y-20, 515, 20);
+        drawBold(page1, label, 46, y-8, 8);
+        drawText(page1, value, 180, y-8, 8);
+        y -= 20;
+      });
+
+      drawCell(page1, 40, y-22, 515, 22);
+      drawBold(page1, "4. Activity involves:", 46, y-8, 8);
+      const acts = [
+        ["Welding incl. Thermic Melting","welding"],
+        ["Burning or Cutting","burning"],
+        ["Soldering","soldering"],
+        ["Gas cutting","gasCutting"],
+        ["Brazing","brazing"],
+        ["Disc cutting/grinding","discCutting"],
+        ["Heathland Clearing","heathland"],
+        ["Other","other"]
+      ];
+      let ax = 140;
+      acts.forEach(([label,key], idx)=>{
+        const boxX = ax + (idx%4)*100;
+        const rowY = y-18 - Math.floor(idx/4)*14;
+        drawCheck(page1, boxX, rowY, 10, data.activities[key]);
+        drawText(page1, label, boxX+14, rowY+2, 7);
+      });
+      y -= 40;
+
+      const infoRows = [
+        ["5. Hot Works Responsible Person (HWRP):", data.hwrp],
+        ["6. Name of contractor/company carrying out Hot Works:", data.contractor],
+        ["7. Name of the Responsible Person for Fire Safety:", data.fireSafety]
+      ];
+      infoRows.forEach(([label, value])=>{
+        drawCell(page1, 40, y-20, 515, 20);
+        drawBold(page1, label, 46, y-8, 8);
+        drawText(page1, value, 300, y-8, 8);
+        y -= 20;
+      });
+
+      drawCell(page1, 40, y-24, 515, 24);
+      drawText(page1, "8. Hot works area is to be under continuous fire watch for at least 1 hour after hot works have ceased and regularly inspected for at least a further 1 hour", 46, y-12, 7);
+      y -= 30;
+
+      drawCell(page1, 40, y-18, 515, 18);
+      drawBold(page1, "9. Precautions to be checked immediately before commencement of works", 46, y-7, 8);
+      drawBold(page1, "YES", 485, y-7, 7);
+      drawBold(page1, "N/A", 525, y-7, 7);
+      y -= 18;
+      precautionsList.forEach(({ code, text }, idx)=>{
+        drawCell(page1, 40, y-16, 475, 16);
+        drawText(page1, code, 46, y-6, 7);
+        drawText(page1, text, 84, y-6, 7);
+        drawCheck(page1, 520, y-12, 10, data.precautions[idx]);
+        drawCheck(page1, 548, y-12, 10, data.precautionsNa[idx]);
+        y -= 16;
+        if(y < 80) return;
+      });
+
+      drawText(page1, "Document Ref: QPFS18.6", 40, 24, 8);
+      drawText(page1, "August 2024", 260, 24, 8);
+      drawText(page1, "01", 520, 24, 8);
+
+      // Page 2
+      drawText(page2, "Hot Works Permit", 430, 800, 12, helvBold);
+      page2.drawLine({ start:{ x:40, y:760 }, end:{ x:555, y:760 }, thickness:1, color: BLACK });
+
+      let y2 = 740;
+      checksList.forEach(({ code, text }, idx)=>{
+        drawText(page2, "•", 44, y2, 10);
+        drawText(page2, code, 54, y2, 7);
+        drawText(page2, text, 94, y2, 7);
+        drawCheck(page2, 520, y2-6, 10, data.checks[idx]);
+        drawCheck(page2, 545, y2-6, 10, data.checksNa[idx]);
+        y2 -= 14;
+      });
+
+      drawText(page2, "No. of Extinguishers", 54, y2, 7);
+      ["co2","foam","water","dryPowder"].forEach((k, idx)=>{
+        drawCheck(page2, 200 + (idx*60), y2-6, 10, data.extinguishers[k]);
+        drawText(page2, k.toUpperCase(), 214 + (idx*60), y2, 7);
+      });
+      y2 -= 24;
+
+      drawText(page2, "7. In the area below, prepare a sketch of the work area highlighting; cutting/welding area(s) and any combustible material/flammable liquids areas which need to be protected:", 40, y2, 7);
+      y2 -= 10;
+      drawCell(page2, 40, y2-200, 515, 200);
+      drawText(page2, data.sketch, 46, y2-12, 8);
+
+      y2 -= 220;
+      drawCell(page2, 40, y2-20, 515, 20, RED);
+      drawText(page2, "8. Authorisation (Permit must be issued for a defined period not exceeding 1 working day/shift)", 46, y2-12, 7, helvBold);
+      y2 -= 20;
+      drawCell(page2, 40, y2-72, 515, 72);
+      drawText(page2, "Permit valid from:", 46, y2-12, 7);
+      drawText(page2, data.permitValidFrom, 130, y2-12, 7);
+      drawText(page2, "Time:", 220, y2-12, 7);
+      drawText(page2, data.permitTimeFrom, 250, y2-12, 7);
+      drawText(page2, "To:", 320, y2-12, 7);
+      drawText(page2, data.permitValidTo, 340, y2-12, 7);
+      drawText(page2, "Time:", 420, y2-12, 7);
+      drawText(page2, data.permitTimeTo, 450, y2-12, 7);
+
+      y2 -= 80;
+      drawCell(page2, 40, y2-90, 515, 90);
+      drawText(page2, "Name of person undertaking Hot Works:", 46, y2-12, 7);
+      drawText(page2, data.authorisedBy, 230, y2-12, 7);
+      drawText(page2, "Signature:", 320, y2-12, 7);
+      drawText(page2, data.authorisedSig, 380, y2-12, 7);
+      drawText(page2, "Date/Time:", 430, y2-12, 7);
+      drawText(page2, data.authorisedDate, 490, y2-12, 7);
+
+      drawText(page2, "Name of person appointed as Fire Watcher", 46, y2-34, 7);
+      drawText(page2, data.fireWatcher, 230, y2-34, 7);
+      drawText(page2, "Signature:", 320, y2-34, 7);
+      drawText(page2, data.fireWatcherSig, 380, y2-34, 7);
+      drawText(page2, "Date/Time:", 430, y2-34, 7);
+      drawText(page2, data.fireWatcherDate, 490, y2-34, 7);
+
+      drawText(page2, "Name of HWRP", 46, y2-56, 7);
+      drawText(page2, data.hwrpName, 230, y2-56, 7);
+      drawText(page2, "Signature:", 320, y2-56, 7);
+      drawText(page2, data.hwrpSig, 380, y2-56, 7);
+      drawText(page2, "Date/Time:", 430, y2-56, 7);
+      drawText(page2, data.hwrpDate, 490, y2-56, 7);
+
+      y2 -= 100;
+      drawCell(page2, 40, y2-70, 515, 70);
+      drawText(page2, "9. Fire Watch Clearance and Cancellation of Permit", 46, y2-12, 7, helvBold);
+      drawText(page2, "The works were completed at:", 46, y2-30, 7);
+      drawText(page2, data.completionTimeFrom, 170, y2-30, 7);
+      drawText(page2, "hrs", 210, y2-30, 7);
+      drawText(page2, "and a fire watch has been maintained continuously from", 230, y2-30, 7);
+      drawText(page2, data.fireWatchTimeFrom, 420, y2-30, 7);
+      drawText(page2, "hrs to", 460, y2-30, 7);
+      drawText(page2, data.fireWatchTimeTo, 490, y2-30, 7);
+
+      drawText(page2, "Name of person appointed as Fire Watcher:", 46, y2-48, 7);
+      drawText(page2, data.clearanceBy, 240, y2-48, 7);
+      drawText(page2, "Signature:", 320, y2-48, 7);
+      drawText(page2, data.clearanceSig, 380, y2-48, 7);
+      drawText(page2, "Date/Time:", 430, y2-48, 7);
+      drawText(page2, data.clearanceDate, 490, y2-48, 7);
+
+      drawText(page2, "Document Ref: QPFS18.6", 40, 24, 8);
+      drawText(page2, "August 2024", 260, 24, 8);
+      drawText(page2, "01", 520, 24, 8);
+
+      const outBytes = await pdfDoc.save();
+      const blob = new Blob([outBytes], { type:"application/pdf" });
+      const url = URL.createObjectURL(blob);
+      const filename = `Hot-Works-Permit_${data.dateRequired || todayISO()}.pdf`;
+
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      a.rel = "noopener";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+
+      setTimeout(()=> URL.revokeObjectURL(url), 2500);
+    }
+
     function renderHotWorksPermit(){
       const app = $("#app");
       app.innerHTML = "";
@@ -2887,10 +2589,8 @@
 
     if(t.toLowerCase() === "daily brief" || t.toLowerCase() === "daily briefing"){
       renderDailyBrief();
-    }else if(t.toLowerCase() === "confined space permit"){
-      renderConfinedSpacePermit();
-    }else if(t.toLowerCase() === "hot work permit"){
-      renderHotWorksPermit();
+    }else if(t.toLowerCase() === "hot work permit" || t.toLowerCase() === "hot works permit"){
+      renderHotWorkPermit();
     }else{
       renderPlaceholder(t);
     }
