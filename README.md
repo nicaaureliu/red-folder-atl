@@ -17,6 +17,14 @@ Deploy
 
 - Enable GitHub Pages in repository Settings and point it to the `main` branch. If you prefer automatic deployment, add a Pages workflow to deploy the `public/` folder.
 
+Automation
+
+- To enable branch protection and check Pages status from a local machine, set the `GITHUB_TOKEN` environment variable (a personal access token with `repo` scope) and run:
+
+```powershell
+.github\scripts\protect-main.ps1
+```
+
 Contributing
 
 - Make changes on a branch and open a pull request against `main`.
