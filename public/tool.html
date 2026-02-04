@@ -342,7 +342,7 @@
     }
   </style>
 
-  <script src="tool.js" defer></script>
+  <script src="tool.js?v=20260204-2" defer></script>
 </head>
 
 <body>
@@ -379,5 +379,26 @@
       </div>
     </div>
   </div>
+  <script defer>
+    window.addEventListener('DOMContentLoaded', () => {
+      setTimeout(() => {
+        if (!window.__toolReady) {
+          const app = document.querySelector('#app');
+          if (app) {
+            app.innerHTML = '';
+            const box = document.createElement('div');
+            box.style.border = '1px solid #fecaca';
+            box.style.background = '#fef2f2';
+            box.style.color = '#7f1d1d';
+            box.style.borderRadius = '14px';
+            box.style.padding = '12px 14px';
+            box.style.fontWeight = '800';
+            box.textContent = 'The form failed to load. Please hard refresh (Ctrl+F5) or clear cache.';
+            app.appendChild(box);
+          }
+        }
+      }, 800);
+    });
+  </script>
 </body>
 </html>

@@ -81,6 +81,8 @@ async function loadPdfLib() {
   });
 }
 
+window.__toolReady = false;
+
     const $ = (q) => document.querySelector(q);
     const el = (tag, attrs={}, children=[]) => {
       const n = document.createElement(tag);
@@ -1381,7 +1383,7 @@ async function loadPdfLib() {
         throw new Error("PDF engine is blocked (pdf-lib did not load). If you use a strict Content-Security-Policy, you must allow the CDN or host pdf-lib locally.");
       }
 
-      function readForm(){
+      async function readForm(){
         const data = {
           permitNo: $("#permitNo").value.trim(),
           dateRequired: $("#dateRequired").value || todayISO(),
@@ -2380,3 +2382,5 @@ function renderSchemaForm(schema, target) {
   // This is a placeholder for future extensibility.
   console.warn('renderSchemaForm is not yet implemented.', schema, target);
 }
+
+window.__toolReady = true;
