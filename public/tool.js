@@ -3199,9 +3199,6 @@ window.__pdfLibLoadFailed = false;
       const pageH = page.getHeight();
       const fromTop = (top, size=9) => pageH - top - size;
 
-      const pageH = page.getHeight();
-      const fromTop = (top, size=9) => pageH - top - size;
-
       // Header
       drawText("ATL", 60, fromTop(95, 18), 18, helvBold);
       drawText("Excavation Inspection", 110, fromTop(95, 18), 18, helvBold);
