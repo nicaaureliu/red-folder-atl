@@ -341,7 +341,7 @@ window.__pdfLibLoadFailed = false;
       }else if(mode === "ground"){
         ok = await tryFetch("templates/1.pdf") || await tryFetch("/templates/1.pdf");
       }else if(mode === "excavation"){
-        ok = await tryFetch("templates/excavation%20checks.pdf") || await tryFetch("/templates/excavation%20checks.pdf");
+        ok = await tryFetch("atl-logo.png") || await tryFetch("/atl-logo.png");
       }else{
         ok = await tryFetch("templates/daily-briefing.pdf");
       }
@@ -3200,42 +3200,42 @@ window.__pdfLibLoadFailed = false;
       const fromTop = (top, size=9) => pageH - top - size;
 
       // Header
-      drawText("ATL", 60, fromTop(95, 18), 18, helvBold);
-      drawText("Excavation Inspection", 110, fromTop(95, 18), 18, helvBold);
-      drawText("REPORT OF INSPECTION – Excavation Inspection and Register.", 60, fromTop(119, 11), 11, helvBold);
-      drawWrap("This inspection report is carried out on behalf of ATL Ltd in accordance with the Construction (Health, Safety and Welfare) Regulations 1996", 60, fromTop(142, 9) + 8, 680, 10, 9, 2, helv);
+      drawText("ATL", 60, fromTop(95.2, 14), 14, helvBold);
+      drawText("Excavation Inspection", 95, fromTop(95.2, 14), 14, helvBold);
+      drawText("REPORT OF INSPECTION – Excavation Inspection and Register.", 60, fromTop(119.0, 10), 10, helvBold);
+      drawWrap("This inspection report is carried out on behalf of ATL Ltd in accordance with the Construction (Health, Safety and Welfare) Regulations 1996", 60, fromTop(142.2, 8) + 8, 680, 10, 8, 2, helv);
 
       // Site details
-      drawText("Site Address", 60, fromTop(175.8, 9), 9, helvBold);
-      drawText("Site Number", 560, fromTop(175.8, 9), 9, helvBold);
-      drawBox(150, fromTop(185, 12), 380, 18, LIGHT);
-      drawBox(640, fromTop(185, 12), 120, 18, LIGHT);
-      drawText(data.siteAddress, 156, fromTop(181, 9), 9, helv);
-      drawText(data.siteNumber, 646, fromTop(181, 9), 9, helv);
+      drawText("Site Address", 60, fromTop(175.8, 8), 8, helvBold);
+      drawText("Site Number", 560, fromTop(175.8, 8), 8, helvBold);
+      drawBox(150, fromTop(185.8, 10), 390, 16, undefined);
+      drawBox(640, fromTop(185.8, 10), 110, 16, undefined);
+      drawText(data.siteAddress, 156, fromTop(183.2, 8), 8, helv);
+      drawText(data.siteNumber, 646, fromTop(183.2, 8), 8, helv);
 
-      drawText("Location of Excavation onsite", 60, fromTop(198.9, 9), 9, helvBold);
-      drawBox(250, fromTop(208, 12), 510, 18, LIGHT);
-      drawText(data.location, 256, fromTop(204, 9), 9, helv);
+      drawText("Location of Excavation onsite", 60, fromTop(198.9, 8), 8, helvBold);
+      drawBox(250, fromTop(208.9, 10), 500, 16, undefined);
+      drawText(data.location, 256, fromTop(206.2, 8), 8, helv);
 
-      drawText("Name and position of person making report", 60, fromTop(223.4, 9), 9, helvBold);
-      drawText("Name of person receiving report", 440, fromTop(223.4, 9), 9, helvBold);
-      drawBox(300, fromTop(233, 12), 210, 18, LIGHT);
-      drawBox(610, fromTop(233, 12), 150, 18, LIGHT);
-      drawText(data.reporterName, 306, fromTop(229, 9), 9, helv);
-      drawText(data.receiverName, 616, fromTop(229, 9), 9, helv);
+      drawText("Name and position of person making report", 60, fromTop(223.4, 8), 8, helvBold);
+      drawText("Name of person receiving report", 440, fromTop(223.4, 8), 8, helvBold);
+      drawBox(300, fromTop(233.4, 10), 220, 16, undefined);
+      drawBox(610, fromTop(233.4, 10), 140, 16, undefined);
+      drawText(data.reporterName, 306, fromTop(231.0, 8), 8, helv);
+      drawText(data.receiverName, 616, fromTop(231.0, 8), 8, helv);
 
-      drawText("Can work be carried out safely", 410, fromTop(264.4, 9), 9, helvBold);
-      drawText("Y", 424, fromTop(302.6, 9), 9, helvBold);
-      drawText("N", 458, fromTop(302.6, 9), 9, helvBold);
-      const ynY = fromTop(302.6, 9);
+      drawWrap("Can work be carried out safely", 412, fromTop(264.4, 8) + 8, 160, 9, 8, 2, helvBold);
+      drawText("Y", 420, fromTop(302.6, 8), 8, helvBold);
+      drawText("N", 454, fromTop(302.6, 8), 8, helvBold);
+      const ynY = fromTop(302.6, 8);
       drawCheck(418, ynY - 2, 10, data.canWork === "Yes");
       drawCheck(452, ynY - 2, 10, data.canWork === "No");
 
       // Register header
-      drawText("Date", 90, fromTop(275.4, 9), 9, helvBold);
-      drawText("Time", 150, fromTop(275.4, 9), 9, helvBold);
-      drawText("Condition of Excavation (type of Excavation)", 190, fromTop(275.4, 9), 9, helvBold);
-      drawWrap("Details of any action taken as a result of any matter identified", 520, fromTop(275.4, 9) + 8, 240, 10, 9, 2, helvBold);
+      drawText("Date", 90, fromTop(275.4, 8), 8, helvBold);
+      drawText("Time", 150, fromTop(275.4, 8), 8, helvBold);
+      drawText("Condition of Excavation (type of Excavation)", 188, fromTop(275.4, 8), 8, helvBold);
+      drawWrap("Details of any action taken as a result of any matter identified", 528, fromTop(275.4, 8) + 8, 240, 9, 8, 2, helvBold);
 
       // Register table
       const tableX = 60;
@@ -3243,9 +3243,9 @@ window.__pdfLibLoadFailed = false;
       const rows = (data.entries || []).slice(0, 8);
       const rowH = 24;
       const tableW = 692;
-      const dateW = 80;
-      const timeW = 70;
-      const condW = 300;
+      const dateW = 90;
+      const timeW = 50;
+      const condW = 320;
       const actionW = tableW - dateW - timeW - condW;
       const tableH = rowH * 8;
 
@@ -3264,10 +3264,10 @@ window.__pdfLibLoadFailed = false;
       rows.forEach((row, idx) => {
         const top = tableTop + (idx * rowH) + 6;
         const y = fromTop(top, 9);
-        drawText(row.date, tableX + 6, y, 9, helv);
-        drawText(row.time, tableX + dateW + 6, y, 9, helv);
-        drawWrap(row.condition, tableX + dateW + timeW + 6, y + 6, condW - 12, 10, 9, 2, helv);
-        drawWrap(row.action, tableX + dateW + timeW + condW + 6, y + 6, actionW - 12, 10, 9, 2, helv);
+        drawText(row.date, tableX + 6, y, 8, helv);
+        drawText(row.time, tableX + dateW + 6, y, 8, helv);
+        drawWrap(row.condition, tableX + dateW + timeW + 6, y + 6, condW - 12, 9, 8, 2, helv);
+        drawWrap(row.action, tableX + dateW + timeW + condW + 6, y + 6, actionW - 12, 9, 8, 2, helv);
       });
 
       drawText("Document Ref: QPFS22.0    August 2024    01", 60, fromTop(532.3, 8), 8, helv);
