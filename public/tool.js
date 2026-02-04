@@ -915,8 +915,8 @@ window.__pdfLibLoadFailed = false;
         list.forEach((a, idx)=>{
           const sigUrl = sigStore.get(a.id) || "";
 
-          const sigPreview = el("div",{class:"sigPreview", "data-prev":a.id},[
-            sigUrl ? el("img",{src:sigUrl, alt:"Signature"}) : el("span",{},["No signature"])
+          const sigPreview = el("div",{class:"sigPreview", "data-prev":a.id, role:"button", tabindex:"0", title:"Tap to sign"},[
+            sigUrl ? el("img",{src:sigUrl, alt:"Signature"}) : el("span",{},["Tap to sign"])
           ]);
 
           const nameInput = el("input",{type:"text", value:a.name || "", placeholder:"Name", "data-name":a.id});
@@ -924,7 +924,7 @@ window.__pdfLibLoadFailed = false;
 
           nameInput.addEventListener("input", updateAttCount);
 
-          const btnSign = el("button",{class:"btn btnGhost", type:"button", onclick:()=>{
+          const openSig = () => {
             const nm = (nameInput.value || "").trim();
             SigModal.open(a.id, nm || `Attendee ${idx+1}`, (id, url)=>{
               const box = wrap.querySelector(`[data-prev="${id}"]`);
@@ -933,16 +933,26 @@ window.__pdfLibLoadFailed = false;
                 box.appendChild(el("img",{src:url, alt:"Signature"}));
               }
             });
-          }},["Sign"]);
+          };
 
-          const btnClearSig = el("button",{class:"btn btnDanger", type:"button", onclick:()=>{
+          sigPreview.addEventListener("click", openSig);
+          sigPreview.addEventListener("keydown", (e)=>{
+            if(e.key === "Enter" || e.key === " "){
+              e.preventDefault();
+              openSig();
+            }
+          });
+
+          const btnSign = el("button",{class:"btn", type:"button", onclick: openSig},[sigUrl ? "Update signature" : "Add signature"]);
+
+          const btnClearSig = el("button",{class:"btn btnGhost", type:"button", onclick:()=>{
             sigStore.delete(a.id);
             const box = wrap.querySelector(`[data-prev="${a.id}"]`);
             if(box){
               box.innerHTML = "";
-              box.appendChild(el("span",{},["No signature"]));
+              box.appendChild(el("span",{},["Tap to sign"]));
             }
-          }},["Clear sig"]);
+          }},["Clear signature"]);
 
           const btnDelete = el("button",{class:"btn btnDanger", type:"button", onclick:()=>{
             const now = collectAttendees().filter(x=>x.id !== a.id);
@@ -964,6 +974,7 @@ window.__pdfLibLoadFailed = false;
             el("div",{},[
               el("label",{},["Signature"]),
               sigPreview,
+              el("div",{class:"note", style:"margin-top:6px;"},["Tap the box above to sign"]),
               el("div",{class:"btnRow", style:"margin-top:8px;"},[btnSign, btnClearSig])
             ]),
             el("div",{},[
