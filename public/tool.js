@@ -64,24 +64,39 @@
 //
 // ===========================
 
-const pdfLibUrl = 'https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js';
+const pdfLibUrls = [
+  './assets/pdf-lib.min.js',
+  'https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js'
+];
 
 // Lazy-load pdf-lib only when needed
 async function loadPdfLib() {
   if (window.PDFLib) return window.PDFLib;
-  return new Promise((resolve, reject) => {
-    const script = document.createElement('script');
-    script.src = pdfLibUrl;
-    script.onload = () => {
-      if (window.PDFLib) resolve(window.PDFLib);
-      else reject(new Error('PDF engine failed to load. Please check your internet connection or Content-Security-Policy.'));
-    };
-    script.onerror = () => reject(new Error('Could not load PDF engine (pdf-lib). Please check your internet connection or Content-Security-Policy.'));
-    document.head.appendChild(script);
-  });
+  window.__pdfLibLoadFailed = false;
+  let lastErr;
+  for (const url of pdfLibUrls) {
+    try {
+      await new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = url;
+        script.onload = () => {
+          if (window.PDFLib) resolve();
+          else reject(new Error('PDF engine failed to load.'));
+        };
+        script.onerror = () => reject(new Error(`Could not load PDF engine from ${url}`));
+        document.head.appendChild(script);
+      });
+      if (window.PDFLib) return window.PDFLib;
+    } catch (err) {
+      lastErr = err;
+    }
+  }
+  window.__pdfLibLoadFailed = true;
+  throw (lastErr || new Error('PDF engine failed to load. Please check your internet connection or Content-Security-Policy.'));
 }
 
 window.__toolReady = false;
+window.__pdfLibLoadFailed = false;
 
     const $ = (q) => document.querySelector(q);
     const el = (tag, attrs={}, children=[]) => {
@@ -302,9 +317,12 @@ window.__toolReady = false;
       if(window.PDFLib){
         libPill.className = "pill ok";
         libPill.textContent = "PDF engine: OK";
-      }else{
+      }else if(window.__pdfLibLoadFailed){
         libPill.className = "pill bad";
         libPill.textContent = "PDF engine: BLOCKED";
+      }else{
+        libPill.className = "pill warn";
+        libPill.textContent = "PDF engine: ON DEMAND";
       }
 
       const tryFetch = async (url) => {
@@ -1383,47 +1401,7 @@ window.__toolReady = false;
         throw new Error("PDF engine is blocked (pdf-lib did not load). If you use a strict Content-Security-Policy, you must allow the CDN or host pdf-lib locally.");
       }
 
-      async function readForm(){
-        const data = {
-          permitNo: $("#permitNo").value.trim(),
-          dateRequired: $("#dateRequired").value || todayISO(),
-          requestedBy: $("#requestedBy").value.trim(),
-          address: $("#address").value.trim(),
-          description: $("#description").value.trim(),
-          activities: {},
-          hwrp: $("#hwrp").value.trim(),
-          contractor: $("#contractor").value.trim(),
-          fireSafety: $("#fireSafety").value.trim(),
-          precautions: {},
-          precautionsNa: {},
-          checks: {},
-          checksNa: {},
-          extinguishers: {},
-          sketch: $("#sketch").value.trim(),
-          permitValidFrom: $("#permitValidFrom").value.trim(),
-          permitValidTo: $("#permitValidTo").value.trim(),
-          permitTimeFrom: $("#permitTimeFrom").value.trim(),
-          permitTimeTo: $("#permitTimeTo").value.trim(),
-          authorisedBy: $("#authorisedBy").value.trim(),
-          authorisedSig: $("#authorisedSig").value.trim(),
-          authorisedDate: $("#authorisedDate").value.trim(),
-          fireWatcher: $("#fireWatcher").value.trim(),
-          fireWatcherSig: $("#fireWatcherSig").value.trim(),
-          fireWatcherDate: $("#fireWatcherDate").value.trim(),
-          hwrpName: $("#hwrpName").value.trim(),
-          hwrpSig: $("#hwrpSig").value.trim(),
-          hwrpDate: $("#hwrpDate").value.trim(),
-          completionHours: $("#completionHours").value.trim(),
-          fireWatchHours: $("#fireWatchHours").value.trim(),
-          completionTimeFrom: $("#completionTimeFrom").value.trim(),
-          completionTimeTo: $("#completionTimeTo").value.trim(),
-          fireWatchTimeFrom: $("#fireWatchTimeFrom").value.trim(),
-          fireWatchTimeTo: $("#fireWatchTimeTo").value.trim(),
-          clearanceBy: $("#clearanceBy").value.trim(),
-          clearanceSig: $("#clearanceSig").value.trim(),
-          clearanceDate: $("#clearanceDate").value.trim()
-        };
-
+      const { PDFDocument, StandardFonts, rgb } = PDFLib;
       const pdfDoc = await PDFDocument.create();
       const helv = await pdfDoc.embedFont(StandardFonts.Helvetica);
       const helvBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
@@ -1454,17 +1432,22 @@ window.__toolReady = false;
           return null;
         }
       }
-    }
 
       let atlLogo;
-      const atlBytes = await fetchImage("/atl-logo.png") || await fetchImage("atl-logo.png");
+      const atlBytes = await fetchImage("assets/atl-logo.png")
+        || await fetchImage("/assets/atl-logo.png")
+        || await fetchImage("atl-logo.png")
+        || await fetchImage("/atl-logo.png");
       if(atlBytes) atlLogo = await embedImageBytes(atlBytes);
+
       const RED = rgb(0.78, 0.1, 0.1);
       const HEADER_TEXT = rgb(1, 1, 1);
-
       const BLACK = rgb(0,0,0);
       const LIGHT_BLUE = rgb(1, 1, 1);
       const LIGHT_GRAY = rgb(1, 1, 1);
+
+      const ddmmyyyy = toDDMMYYYY(data.dateISO || todayISO());
+      const attendeesCount = (data.attendees || []).length;
 
       const sanitizePdfText = (text) => String(text ?? "").replace(/[\u2010-\u2015\u2212\u00ad]/g, "-");
 
@@ -1505,7 +1488,9 @@ window.__toolReady = false;
       };
 
       const wrapLines = (font, text, size, maxWidth) => {
-        const words = sanitizePdfText(text).replace(/\r/g,"").split(/\s+/).filter(Boolean);
+        const safe = sanitizePdfText(text);
+        if(!safe) return [];
+        const parts = safe.replace(/\r/g, "").split("\n");
         const lines = [];
         for(const part of parts){
           const words = part.split(/\s+/).filter(Boolean);
@@ -1532,24 +1517,10 @@ window.__toolReady = false;
 
       const drawYesNoBox = (page, x, y, size, isYes) => {
         drawCell(page, x, y, size, size, { fill: undefined, border: 1 });
-        const centerX = x + (size / 2);
-        const centerY = y + (size / 2);
-        const radius = (size / 2) - 2;
         if(isYes){
           drawCheckmark(page, x + 1.5, y + 1.5, size - 3, size - 3);
         }
       };
-
-      function drawHeader(page){
-        if(atlLogo){
-          const scale = 140 / atlLogo.width;
-          page.drawImage(atlLogo, { x:40, y:760, width: atlLogo.width * scale, height: atlLogo.height * scale });
-        }
-        drawText(page, "ATL Daily Task Briefing", 430, 795, 9, helvBold, RED);
-        drawText(page, "QPFS12.4", 430, 783, 9, helvBold, RED);
-        drawCell(page, 40, 705, 515, 22, { fill: RED, border: 1 });
-        drawCenteredText(page, "HEALTH & SAFETY - MORNING BRIEFING", 297.5, 712, 12, helvBold, HEADER_TEXT);
-      }
 
       function drawHeader(page){
         if(atlLogo){
