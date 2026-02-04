@@ -1919,14 +1919,14 @@ window.__pdfLibLoadFailed = false;
       };
 
       const drawCheckmark = (page, boxX, boxY, boxW, boxH) => {
-        const left = boxX + (boxW * 0.18);
+        const left = boxX + (boxW * 0.2);
         const midX = boxX + (boxW * 0.42);
         const right = boxX + (boxW * 0.82);
-        const lower = boxY + (boxH * 0.35);
-        const midY = boxY + (boxH * 0.15);
-        const upper = boxY + (boxH * 0.75);
-        page.drawLine({ start:{ x:left, y:lower }, end:{ x:midX, y:midY }, thickness:1.4, color: BLACK });
-        page.drawLine({ start:{ x:midX, y:midY }, end:{ x:right, y:upper }, thickness:1.4, color: BLACK });
+        const lower = boxY + (boxH * 0.3);
+        const midY = boxY + (boxH * 0.1);
+        const upper = boxY + (boxH * 0.72);
+        page.drawLine({ start:{ x:left, y:lower }, end:{ x:midX, y:midY }, thickness:1.8, color: BLACK });
+        page.drawLine({ start:{ x:midX, y:midY }, end:{ x:right, y:upper }, thickness:1.8, color: BLACK });
       };
 
       const wrapLines = (font, text, size, maxWidth) => {
@@ -1955,6 +1955,24 @@ window.__pdfLibLoadFailed = false;
           page.drawText(ln, { x, y, size, font, color });
           y -= lineHeight;
         }
+      };
+
+      const drawTextInCellLeft = (page, text, x, y, w, h, size=10, font=helvBold, color=BLACK, pad=6) => {
+        const safe = sanitizePdfText(text);
+        if(!safe) return;
+        const yText = y + Math.max(2, (h - size) / 2 + 1);
+        page.drawText(safe, { x: x + pad, y: yText, size, font, color });
+      };
+
+      const drawWrapInCellLeft = (page, text, x, y, w, h, size=8, lineHeight=9, maxLines=2, font=helvBold, color=BLACK, pad=6) => {
+        const lines = wrapLines(font, text, size, w - (pad * 2)).slice(0, maxLines);
+        if(!lines.length) return;
+        const totalH = (lines.length - 1) * lineHeight + size;
+        let yText = y + Math.max(2, (h - totalH) / 2 + (totalH - size));
+        lines.forEach(ln => {
+          page.drawText(ln, { x: x + pad, y: yText, size, font, color });
+          yText -= lineHeight;
+        });
       };
 
       const drawYesNoBox = (page, x, y, size, isYes) => {
@@ -1997,10 +2015,10 @@ window.__pdfLibLoadFailed = false;
           drawCell(page, marginX + labelW, y, valueW, rowH, { fill: LIGHT_BLUE });
           drawCell(page, marginX + labelW + valueW, y, label2W, rowH, { fill: undefined });
           drawCell(page, marginX + labelW + valueW + label2W, y, value2W, rowH, { fill: LIGHT_BLUE });
-          drawWrappedFromTop(page, row[0], marginX + 6, y + rowH - 10, labelW - 10, 10, 8, 2, BLACK);
-          drawText(page, row[1], marginX + labelW + 6, y + 10, 10);
-          drawWrappedFromTop(page, row[2], marginX + labelW + valueW + 6, y + rowH - 10, label2W - 10, 10, 8, 2, BLACK);
-          drawText(page, row[3], marginX + labelW + valueW + label2W + 6, y + 10, 10);
+          drawWrapInCellLeft(page, row[0], marginX, y, labelW, rowH, 8, 9, 2, helvBold, BLACK);
+          drawTextInCellLeft(page, row[1], marginX + labelW, y, valueW, rowH, 10, helvBold, BLACK);
+          drawWrapInCellLeft(page, row[2], marginX + labelW + valueW, y, label2W, rowH, 8, 9, 2, helvBold, BLACK);
+          drawTextInCellLeft(page, row[3], marginX + labelW + valueW + label2W, y, value2W, rowH, 10, helvBold, BLACK);
         });
 
         return tableTop - (rowH * rows.length) - 10;
@@ -2012,7 +2030,7 @@ window.__pdfLibLoadFailed = false;
         drawCell(page, marginX, startY - headerH, 395, headerH, { fill: RED });
         drawCell(page, marginX + 395, startY - headerH, 120, headerH, { fill: RED });
         drawText(page, "PREVIOUS DAY'S ACTIVITIES", marginX + 6, startY - 14, 9, helvBold, HEADER_TEXT);
-        drawWrappedFromTop(page, "DID THEY GO AS\nPLANNED? [Yes / No]", marginX + 402, startY - 6, 110, 9, 7, 2, HEADER_TEXT, helvBold);
+        drawWrapInCellLeft(page, "DID THEY GO AS PLANNED? [Yes / No]", marginX + 395, startY - headerH, 120, headerH, 7, 8, 2, helvBold, HEADER_TEXT);
 
         const boxSize = 14;
         const yesX = marginX + 495;
@@ -2022,9 +2040,9 @@ window.__pdfLibLoadFailed = false;
         const qH = 36;
         const qY = startY - headerH - qH;
         drawCell(page, marginX, qY, 515, qH, { fill: undefined });
-        drawText(page, "Any concerns from the previous day?", marginX + 6, qY + qH - 18, 9);
+        drawTextInCellLeft(page, "Any concerns from the previous day?", marginX, qY, 515, qH, 9, helvBold, BLACK);
         drawCell(page, marginX, qY - 36, 515, 36, { fill: LIGHT_BLUE });
-        drawWrappedFromTop(page, data.prevConcerns, marginX + 6, qY - 6, 500, 12, 10, 2);
+        drawWrappedFromTop(page, data.prevConcerns, marginX + 6, qY - 8, 500, 11, 9, 3, BLACK, helvBold);
 
         return qY - 52;
       }
@@ -2036,7 +2054,7 @@ window.__pdfLibLoadFailed = false;
         drawText(page, "TODAY'S PLANNED ACTIVITIES BRIEFING", marginX + 6, startY - 12, 9, helvBold, HEADER_TEXT);
         const bodyH = 120;
         drawCell(page, marginX, startY - headerH - bodyH, 515, bodyH, { fill: LIGHT_BLUE });
-        drawWrappedFromTop(page, data.todayPlanned, marginX + 6, startY - headerH - 8, 500, 12, 10, 8);
+        drawWrappedFromTop(page, data.todayPlanned, marginX + 6, startY - headerH - 8, 500, 11, 9, 9, BLACK, helvBold);
         return startY - headerH - bodyH - 18;
       }
 
@@ -2089,7 +2107,7 @@ window.__pdfLibLoadFailed = false;
             const group = colGroups[idx];
             drawCell(page, x, y, group.labelW, rowH, { fill: undefined });
             drawCell(page, x + group.labelW, y, group.checkW, rowH, { fill: LIGHT_BLUE });
-            drawText(page, labels[key], x + 6, y + 6, 8);
+            drawText(page, labels[key], x + 6, y + 6, 7.5);
             if(data.points && data.points[key]){
               drawCheckmark(page, x + group.labelW + 2, y + 3, group.checkW - 4, rowH - 6);
             }
@@ -2126,7 +2144,7 @@ window.__pdfLibLoadFailed = false;
       function drawSignUpPage(page){
         drawHeader(page);
         drawCell(page, 40, 675, 515, 20, { fill: RED });
-        drawCenteredText(page, "HEALTH & SAFETY - MORNING BRIEFING SIGN-UP Sheet", 297.5, 680, 9, helvBold, HEADER_TEXT);
+        drawCenteredText(page, "HEALTH & SAFETY - MORNING BRIEFING SIGN-UP Sheet", 297.5, 680, 8.5, helvBold, HEADER_TEXT);
         drawCell(page, 40, 645, 515, 30, { fill: undefined });
         drawWrappedFromTop(
           page,
@@ -2134,8 +2152,8 @@ window.__pdfLibLoadFailed = false;
           50,
           668,
           495,
-          10,
-          8,
+          9,
+          7.5,
           3,
           BLACK
         );
