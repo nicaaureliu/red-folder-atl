@@ -963,21 +963,20 @@ window.__pdfLibLoadFailed = false;
           }},["Delete"]);
 
           const row = el("div",{class:"attRow"},[
-            el("div",{},[
+            el("div",{class:"attName"},[
               el("label",{},["Name"]),
               nameInput
             ]),
-            el("div",{},[
+            el("div",{class:"attDate"},[
               el("label",{},["Date"]),
               dateInput
             ]),
-            el("div",{},[
+            el("div",{class:"attSig"},[
               el("label",{},["Signature"]),
               sigPreview,
-              el("div",{class:"note", style:"margin-top:6px;"},["Tap the box above to sign"]),
-              el("div",{class:"btnRow", style:"margin-top:8px;"},[btnSign, btnClearSig])
+              el("div",{class:"sigActions"},[btnSign, btnClearSig])
             ]),
-            el("div",{},[
+            el("div",{class:"attRemove"},[
               el("label",{},["Remove"]),
               btnDelete
             ])

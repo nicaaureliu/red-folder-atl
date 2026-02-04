@@ -183,13 +183,28 @@
       background:#fff;
       margin-top: 10px;
       display:grid;
-      grid-template-columns: 2fr 1fr 2fr 1.2fr;
+      grid-template-columns: 2fr 1fr 1fr;
+      grid-template-areas:
+        "name date remove"
+        "sig  sig  remove";
       gap: 10px;
-      align-items:end;
+      align-items:start;
+    }
+
+    .attName{ grid-area: name; }
+    .attDate{ grid-area: date; }
+    .attSig{ grid-area: sig; }
+    .attRemove{ grid-area: remove; }
+
+    .sigActions{
+      display:flex;
+      gap:8px;
+      flex-wrap:wrap;
+      margin-top:8px;
     }
 
     .sigPreview{
-      height: 44px;
+      height: 56px;
       border: 1px dashed var(--line);
       border-radius: 12px;
       background:#fafafa;
@@ -197,6 +212,7 @@
       align-items:center;
       justify-content:center;
       overflow:hidden;
+      cursor:pointer;
     }
     .sigPreview img{
       width:100%;
@@ -354,7 +370,14 @@
 
     @media (max-width: 900px){
       .grid2{ grid-template-columns: 1fr; }
-      .attRow{ grid-template-columns: 1fr; }
+      .attRow{
+        grid-template-columns: 1fr;
+        grid-template-areas:
+          "name"
+          "date"
+          "sig"
+          "remove";
+      }
       canvas{ height: 220px; }
       .pillRow{ justify-content:flex-start; }
     }
