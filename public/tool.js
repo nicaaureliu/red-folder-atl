@@ -340,6 +340,8 @@ window.__pdfLibLoadFailed = false;
         ok = await tryFetch("atl-logo.png") || await tryFetch("/atl-logo.png");
       }else if(mode === "ground"){
         ok = await tryFetch("templates/1.pdf") || await tryFetch("/templates/1.pdf");
+      }else if(mode === "excavation"){
+        ok = await tryFetch("templates/excavation%20checks.pdf") || await tryFetch("/templates/excavation%20checks.pdf");
       }else{
         ok = await tryFetch("templates/daily-briefing.pdf");
       }
@@ -1656,6 +1658,175 @@ window.__pdfLibLoadFailed = false;
       }
     }
 
+    function renderExcavationInspectionChecks(){
+      const app = $("#app");
+      app.innerHTML = "";
+
+      const state = {
+        siteAddress: "",
+        siteNumber: "",
+        location: "",
+        reporterName: "",
+        receiverName: "",
+        canWork: "Yes",
+        entries: [
+          { date: todayISO(), time: "", condition: "", action: "" }
+        ]
+      };
+
+      const head = el("div",{class:"head"},[
+        el("div",{},[
+          el("h1",{},["Excavation inspection checks"]),
+          el("div",{class:"sub"},["Pre-fill the inspection checks, then download the PDF."])
+        ]),
+        el("div",{class:"pillRow"},[
+          el("span",{id:"pillLib", class:"pill warn"},["PDF engine: checking…"]),
+          el("span",{id:"pillTpl", class:"pill warn"},["Template: checking…"])
+        ])
+      ]);
+
+      const banner = el("div",{id:"banner", class:"banner"},[""]);
+
+      const sSite = el("div",{class:"section"},[
+        el("div",{class:"sectionTitle"},["Site details"]),
+        el("div",{class:"grid2"},[
+          field("Site Address","ex_siteAddress","text","", state.siteAddress),
+          field("Site Number","ex_siteNumber","text","", state.siteNumber)
+        ]),
+        field("Location of Excavation onsite","ex_location","text","", state.location)
+      ]);
+
+      const sPeople = el("div",{class:"section"},[
+        el("div",{class:"sectionTitle"},["Report details"]),
+        el("div",{class:"grid2"},[
+          field("Name and position of person making report","ex_reporter","text","", state.reporterName),
+          field("Name of person receiving report","ex_receiver","text","", state.receiverName)
+        ]),
+        el("div",{style:"max-width:280px;"},[
+          selectField("Can work be carried out safely?","ex_canWork", ["Yes","No"], state.canWork)
+        ])
+      ]);
+
+      const sRegister = el("div",{class:"section"},[
+        el("div",{class:"sectionTitle"},["Inspection register"]),
+        el("div",{class:"attTop"},[
+          el("div",{class:"sub"},["Add entries for each inspection."]),
+          el("div",{class:"btnRow"},[
+            el("button",{class:"btn btnGhost", type:"button", onclick: ()=> addEntry()},["Add entry"]),
+            el("button",{class:"btn btnGhost", type:"button", onclick: ()=> removeEntry()},["Remove last"])
+          ])
+        ]),
+        el("div",{id:"ex_entries"},[])
+      ]);
+
+      const sticky = el("div",{class:"stickyBar"},[
+        el("div",{class:"actionBar"},[
+          el("div",{class:"btnRow"},[
+            el("a",{class:"btn btnYellow", href:"daily.html"},["Back"])
+          ]),
+          el("div",{class:"btnRow"},[
+            el("button",{id:"btnDownload", class:"btn", type:"button", onclick: async()=> {
+              hideBanner();
+              await onDownload();
+            }},["Download PDF"])
+          ])
+        ])
+      ]);
+
+      app.appendChild(head);
+      app.appendChild(banner);
+      app.appendChild(sSite);
+      app.appendChild(sPeople);
+      app.appendChild(sRegister);
+      app.appendChild(sticky);
+
+      renderEntries();
+      checkTemplateAndLib("excavation");
+
+      function field(labelText, id, type, placeholder, val = ""){
+        return el("div",{},[
+          el("label",{for:id},[labelText]),
+          el("input",{id, type, placeholder, value: val})
+        ]);
+      }
+      function selectField(labelText, id, options, val){
+        const sel = el("select",{id});
+        options.forEach(opt => {
+          sel.appendChild(el("option",{value: opt, selected: opt === val ? "selected" : null},[opt]));
+        });
+        return el("div",{},[
+          el("label",{for:id},[labelText]),
+          sel
+        ]);
+      }
+
+      function entryRow(idx, row){
+        return el("div",{class:"attRow", style:"grid-template-columns: 1fr 1fr 2fr 2fr;"},[
+          field("Date","ex_date_"+idx,"date","", row.date),
+          field("Time","ex_time_"+idx,"time","", row.time),
+          field("Condition of Excavation","ex_condition_"+idx,"text","", row.condition),
+          field("Action taken","ex_action_"+idx,"text","", row.action)
+        ]);
+      }
+
+      function renderEntries(){
+        const wrap = $("#ex_entries");
+        wrap.innerHTML = "";
+        state.entries.forEach((row, idx)=>{
+          wrap.appendChild(entryRow(idx, row));
+        });
+      }
+
+      function addEntry(){
+        if(state.entries.length >= 8) return;
+        state.entries.push({ date: "", time: "", condition: "", action: "" });
+        renderEntries();
+      }
+
+      function removeEntry(){
+        if(state.entries.length <= 1) return;
+        state.entries.pop();
+        renderEntries();
+      }
+
+      function readForm(){
+        const entries = [];
+        for(let i=0;i<state.entries.length;i++){
+          const date = $("#ex_date_"+i)?.value || "";
+          const time = $("#ex_time_"+i)?.value || "";
+          const condition = $("#ex_condition_"+i)?.value || "";
+          const action = $("#ex_action_"+i)?.value || "";
+          if(date || time || condition || action){
+            entries.push({ date, time, condition, action });
+          }
+        }
+        return {
+          siteAddress: $("#ex_siteAddress").value.trim(),
+          siteNumber: $("#ex_siteNumber").value.trim(),
+          location: $("#ex_location").value.trim(),
+          reporterName: $("#ex_reporter").value.trim(),
+          receiverName: $("#ex_receiver").value.trim(),
+          canWork: $("#ex_canWork").value,
+          entries
+        };
+      }
+
+      async function onDownload(){
+        const btn = $("#btnDownload");
+        btn.disabled = true;
+        btn.textContent = "Generating…";
+        try{
+          const data = readForm();
+          await generateExcavationChecksPDF(data);
+        }catch(err){
+          showBanner(String(err && err.message ? err.message : err), "bad");
+        }finally{
+          btn.disabled = false;
+          btn.textContent = "Download PDF";
+        }
+      }
+    }
+
     async function generateDailyBriefPDF(data){
       // 1) pdf-lib availability
       if(!window.PDFLib){
@@ -2956,6 +3127,131 @@ window.__pdfLibLoadFailed = false;
       setTimeout(()=> URL.revokeObjectURL(url), 2500);
     }
 
+    async function generateExcavationChecksPDF(data){
+      if(!window.PDFLib){
+        throw new Error("PDF engine is blocked (pdf-lib did not load). If you use a strict Content-Security-Policy, you must allow the CDN or host pdf-lib locally.");
+      }
+
+      const { PDFDocument, StandardFonts, rgb } = PDFLib;
+      const fetchTemplate = async () => {
+        const urls = [
+          "templates/excavation%20checks.pdf",
+          "/templates/excavation%20checks.pdf"
+        ];
+        let lastErr;
+        for(const url of urls){
+          try{
+            const res = await fetch(url, { cache:"no-store" });
+            if(res.ok) return new Uint8Array(await res.arrayBuffer());
+          }catch(err){
+            lastErr = err;
+          }
+        }
+        throw new Error("Excavation checks template not found.");
+      };
+
+      const tplBytes = await fetchTemplate();
+      const tplDoc = await PDFDocument.load(tplBytes);
+      const pdfDoc = await PDFDocument.create();
+      const [tplPage] = await pdfDoc.copyPages(tplDoc, [0]);
+      const page = pdfDoc.addPage(tplPage);
+
+      const helv = await pdfDoc.embedFont(StandardFonts.Helvetica);
+      const helvBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+      const BLACK = rgb(0,0,0);
+
+      const sanitize = (text) => {
+        let s = String(text ?? "");
+        s = s.replace(/[\u2018\u2019]/g, "'")
+             .replace(/[\u201C\u201D]/g, '"')
+             .replace(/[\u2010-\u2015\u2212\u00ad]/g, "-")
+             .replace(/\u2026/g, "...")
+             .replace(/\u00A0/g, " ");
+        if (s.normalize) {
+          s = s.normalize("NFKD").replace(/[\u0300-\u036f]/g, "");
+        }
+        s = s.replace(/[^\x0A\x0D\x20-\x7E]/g, "");
+        return s;
+      };
+
+      const drawText = (text, x, y, size=9, font=helv) => {
+        const t = sanitize(text);
+        if(!t) return;
+        page.drawText(t, { x, y, size, font, color: BLACK });
+      };
+
+      const drawWrap = (text, x, topY, maxW, lineH=10, size=9, maxLines=2, font=helv) => {
+        const t = sanitize(text);
+        if(!t) return;
+        const parts = t.replace(/\r/g, "").split("\n");
+        const lines = [];
+        parts.forEach(part => {
+          const words = part.split(/\s+/).filter(Boolean);
+          if(words.length === 0){ lines.push(""); return; }
+          let line = "";
+          words.forEach(w => {
+            const test = line ? (line + " " + w) : w;
+            if(font.widthOfTextAtSize(test, size) <= maxW) line = test;
+            else { if(line) lines.push(line); line = w; }
+          });
+          if(line) lines.push(line);
+        });
+        let y = topY;
+        lines.slice(0, maxLines).forEach(ln => {
+          page.drawText(ln, { x, y, size, font, color: BLACK });
+          y -= lineH;
+        });
+      };
+
+      const drawCheck = (x, y, size, checked) => {
+        page.drawRectangle({ x, y, width:size, height:size, borderColor: BLACK, borderWidth: 1, color: undefined });
+        if(checked){
+          page.drawLine({ start:{ x:x+2, y:y+2 }, end:{ x:x+size-2, y:y+size-2 }, thickness:1.2, color: BLACK });
+          page.drawLine({ start:{ x:x+2, y:y+size-2 }, end:{ x:x+size-2, y:y+2 }, thickness:1.2, color: BLACK });
+        }
+      };
+
+      const pageH = page.getHeight();
+      const fromTop = (top, size=9) => pageH - top - size;
+
+      drawText(data.siteAddress, 150, fromTop(175.8, 9), 9, helv);
+      drawText(data.siteNumber, 640, fromTop(175.8, 9), 9, helv);
+      drawText(data.location, 250, fromTop(198.9, 9), 9, helv);
+      drawText(data.reporterName, 300, fromTop(223.4, 9), 9, helv);
+      drawText(data.receiverName, 640, fromTop(223.4, 9), 9, helv);
+
+      const ynY = fromTop(302.6, 9);
+      drawCheck(418, ynY - 2, 10, data.canWork === "Yes");
+      drawCheck(452, ynY - 2, 10, data.canWork === "No");
+
+      const rows = (data.entries || []).slice(0, 8);
+      const rowH = 24;
+      const startTop = 320;
+      rows.forEach((row, idx) => {
+        const top = startTop + (idx * rowH);
+        const y = fromTop(top, 9);
+        drawText(row.date, 90, y, 9, helv);
+        drawText(row.time, 150, y, 9, helv);
+        drawWrap(row.condition, 190, y + 6, 310, 10, 9, 2, helv);
+        drawWrap(row.action, 520, y + 6, 240, 10, 9, 2, helv);
+      });
+
+      const outBytes = await pdfDoc.save();
+      const blob = new Blob([outBytes], { type:"application/pdf" });
+      const url = URL.createObjectURL(blob);
+      const filename = `Excavation-inspection-checks_${new Date().toISOString().slice(0,10)}.pdf`;
+
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      a.rel = "noopener";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+
+      setTimeout(()=> URL.revokeObjectURL(url), 2500);
+    }
+
     function renderHotWorksPermit(){
       const app = $("#app");
       app.innerHTML = "";
@@ -3199,6 +3495,11 @@ window.__pdfLibLoadFailed = false;
       tLower === "break ground (blue)"
     ){
       renderGroundDisturbancePermit();
+    }else if(
+      tLower === "excavation inspection checks" ||
+      tLower === "excavation checks"
+    ){
+      renderExcavationInspectionChecks();
     }else{
       renderPlaceholder(t);
     }
@@ -3224,7 +3525,7 @@ function wrapPdfGen(fnName) {
 }
 
 // Apply lazy-loading wrapper to all PDF generation functions
-['generateDailyBriefPDF','generateHotWorkPermitPDF','generateHotWorksPDF','generateConfinedSpacePDF','generateGroundDisturbancePDF'].forEach(wrapPdfGen);
+['generateDailyBriefPDF','generateHotWorkPermitPDF','generateHotWorksPDF','generateConfinedSpacePDF','generateGroundDisturbancePDF','generateExcavationChecksPDF'].forEach(wrapPdfGen);
 
 // === Placeholder for future config-driven (JSON schema) forms ===
 // To support extensibility, future forms can be defined as JSON schemas and rendered dynamically.
