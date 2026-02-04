@@ -1287,6 +1287,241 @@
       }
     }
 
+    async function generateHotWorksPDF(data){
+      if(!window.PDFLib){
+        throw new Error("PDF engine is blocked.");
+      }
+
+      const { PDFDocument, StandardFonts, rgb } = PDFLib;
+      const pdfDoc = await PDFDocument.create();
+      const helv = await pdfDoc.embedFont(StandardFonts.Helvetica);
+      const helvBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+
+      const A4 = [595.28, 841.89];
+      const BLACK = rgb(0, 0, 0);
+      const RED = rgb(0.753, 0, 0); // rgb(192, 0, 0)
+      const HEADER_TEXT = rgb(1, 1, 1);
+      const LIGHT_FILL = rgb(0.985, 0.985, 0.99);
+
+      // --- Helpers ---
+      async function fetchImage(url){
+        try{
+          const res = await fetch(url, { cache:"no-store" });
+          if(!res.ok) return null;
+          return new Uint8Array(await res.arrayBuffer());
+        }catch(err){ return null; }
+      }
+
+      const detectImageType = (bytes) => {
+        if(!bytes || bytes.length < 4) return null;
+        if(bytes[0] === 0xff && bytes[1] === 0xd8) return "jpeg";
+        if(bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47) return "png";
+        return null;
+      };
+
+      const embedImageBytes = async (bytes) => {
+        const type = detectImageType(bytes);
+        if(type === "jpeg") return await pdfDoc.embedJpg(bytes);
+        if(type === "png") return await pdfDoc.embedPng(bytes);
+        return null;
+      };
+
+      let atlLogo;
+      const atlBytes = await fetchImage("/atl-logo.png") || await fetchImage("atl-logo.png");
+      if(atlBytes) atlLogo = await embedImageBytes(atlBytes);
+
+      const drawCell = (page, x, y, w, h, { fill, border = 1, borderColor = BLACK } = {}) => {
+        const opts = { x, y, width: w, height: h, borderColor, borderWidth: border };
+        if (fill) opts.color = fill;
+        page.drawRectangle(opts);
+      };
+
+      const drawTextInCell = (page, text, x, y, w, h, {
+        size = 10, font = helv, color = BLACK, padding = 6, align = "left"
+      } = {}) => {
+        if (text === undefined || text === null || text === "") return;
+        const s = String(text);
+        let tx = x + padding;
+        if (align === "center") {
+          const tw = font.widthOfTextAtSize(s, size);
+          tx = x + (w - tw) / 2;
+        } else if (align === "right") {
+          const tw = font.widthOfTextAtSize(s, size);
+          tx = x + w - padding - tw;
+        }
+        const ty = y + (h - size) / 2 + (size * 0.2);
+        page.drawText(s, { x: tx, y: ty, size, font, color });
+      };
+
+      const wrapLines = (font, text, size, maxWidth) => {
+        const raw = String(text || "").replace(/\r/g, "");
+        const parts = raw.split("\n");
+        const lines = [];
+        for(const part of parts){
+          const words = part.split(/\s+/).filter(Boolean);
+          if(words.length === 0){ lines.push(""); continue; }
+          let line = "";
+          for(const w of words){
+            const test = line ? (line + " " + w) : w;
+            if(font.widthOfTextAtSize(test, size) <= maxWidth) line = test;
+            else { if(line) lines.push(line); line = w; }
+          }
+          if(line) lines.push(line);
+        }
+        return lines;
+      };
+
+      const drawWrappedText = (page, text, x, y, w, h, { size=9, font=helv, color=BLACK, padding=6, lineHeight=11 } = {}) => {
+        const lines = wrapLines(font, text, size, w - (padding * 2));
+        lines.forEach((ln, i) => {
+          const ty = y + h - padding - size - (i * lineHeight);
+          if (ty > y) {
+            page.drawText(ln, { x: x + padding, y: ty, size, font, color });
+          }
+        });
+      };
+
+      const drawHeader = (page, pageNo, total) => {
+        if(atlLogo){
+          const scale = 120 / atlLogo.width;
+          page.drawImage(atlLogo, { x:40, y:775, width: atlLogo.width * scale, height: atlLogo.height * scale });
+        }
+        page.drawText("Hot Work Permit", { x: 430, y: 795, size: 11, font: helvBold, color: RED });
+        page.drawText("QPFS19.0", { x: 430, y: 780, size: 9, font: helvBold, color: RED });
+        if(data.permitNo) page.drawText("Permit No: " + data.permitNo, { x: 430, y: 765, size: 9, font: helvBold, color: RED });
+        page.drawLine({ start: { x: 40, y: 755 }, end: { x: 555, y: 755 }, thickness: 1 });
+        // Footer
+        page.drawText("Document Ref: QPFS19.0", { x: 40, y: 30, size: 8, font: helv });
+        page.drawText(`Page No. ${pageNo} of ${total}`, { x: 480, y: 30, size: 8, font: helv });
+      };
+
+      // --- Page 1 ---
+      const p1 = pdfDoc.addPage(A4);
+      drawHeader(p1, 1, 4);
+      drawCell(p1, 40, 720, 515, 20, { fill: RED });
+      drawTextInCell(p1, "HOT WORK PERMIT - AUTHORISATION", 40, 720, 515, 20, { color: HEADER_TEXT, font: helvBold, size: 11, align: "center" });
+
+      let curY = 700;
+      const rowH = 25;
+      const col1W = 110;
+      const col2W = 160;
+      const col3W = 100;
+      const col4W = 145;
+
+      const rows = [
+        ["PROJECT TITLE", data.projectTitle, "DATE", toDDMMYYYY(data.dateISO)],
+        ["SITE LOCATION", data.siteLocation, "PROJECT NO", data.projectNo],
+        ["CONTRACTOR", data.contractorName, "PERMIT NO", data.permitNo],
+        ["AUTHORISING PERSON", data.authorisingPerson, "FIRE WATCHER", data.fireWatcher]
+      ];
+
+      rows.forEach(row => {
+        curY -= rowH;
+        drawCell(p1, 40, curY, col1W, rowH);
+        drawTextInCell(p1, row[0], 40, curY, col1W, rowH, { font: helvBold, size: 8 });
+        drawCell(p1, 40 + col1W, curY, col2W, rowH, { fill: LIGHT_FILL });
+        drawTextInCell(p1, row[1], 40 + col1W, curY, col2W, rowH, { size: 9 });
+        drawCell(p1, 40 + col1W + col2W, curY, col3W, rowH);
+        drawTextInCell(p1, row[2], 40 + col1W + col2W, curY, col3W, rowH, { font: helvBold, size: 8 });
+        drawCell(p1, 40 + col1W + col2W + col3W, curY, col4W, rowH, { fill: LIGHT_FILL });
+        drawTextInCell(p1, row[3], 40 + col1W + col2W + col3W, curY, col4W, rowH, { size: 9 });
+      });
+
+      curY -= 30;
+      drawCell(p1, 40, curY, 515, 20, { fill: RED });
+      drawTextInCell(p1, "1. Description of Work", 40, curY, 515, 20, { color: HEADER_TEXT, font: helvBold, size: 10 });
+      curY -= 100;
+      drawCell(p1, 40, curY, 515, 100);
+      drawWrappedText(p1, data.workDescription, 40, curY, 515, 100);
+
+      curY -= 40;
+      drawCell(p1, 40, curY, 515, 20, { fill: RED });
+      drawTextInCell(p1, "2. Authorisation (Digital)", 40, curY, 515, 20, { color: HEADER_TEXT, font: helvBold, size: 10 });
+      curY -= 40;
+      drawCell(p1, 40, curY, 515, 40);
+      drawWrappedText(p1, "I confirm that the above work is authorised and the necessary precautions outlined in this permit must be followed.", 40, curY, 515, 40);
+
+      // --- Page 2 ---
+      const p2 = pdfDoc.addPage(A4);
+      drawHeader(p2, 2, 4);
+      drawCell(p2, 40, 720, 515, 20, { fill: RED });
+      drawTextInCell(p2, "3. General Precautions (TO BE COMPLETED ON SITE)", 40, 720, 515, 20, { color: HEADER_TEXT, font: helvBold, size: 11, align: "center" });
+
+      curY = 700;
+      const precautions = [
+        "All flammable materials removed or protected",
+        "Fire extinguishers available and checked",
+        "Area inspected for combustible materials",
+        "Gas cylinders secured and in good condition",
+        "Equipment checked for leaks or damage",
+        "Screens or blankets in place to contain sparks",
+        "Ventilation adequate for the work",
+        "Emergency exit routes clear",
+        "Communication method established"
+      ];
+      precautions.forEach(p => {
+        curY -= 25;
+        drawCell(p2, 40, curY, 475, 25);
+        drawTextInCell(p2, p, 40, curY, 475, 25, { size: 9 });
+        drawCell(p2, 515, curY, 40, 25);
+      });
+
+      // --- Page 3 ---
+      const p3 = pdfDoc.addPage(A4);
+      drawHeader(p3, 3, 4);
+      drawCell(p3, 40, 720, 515, 20, { fill: RED });
+      drawTextInCell(p3, "4. Fire Watcher / Monitoring (TO BE COMPLETED ON SITE)", 40, 720, 515, 20, { color: HEADER_TEXT, font: helvBold, size: 11, align: "center" });
+
+      curY = 700;
+      const monColW = [80, 100, 335];
+      const monLabels = ["Time", "Initials", "Notes / Observations"];
+      let monX = 40;
+      monLabels.forEach((h, i) => {
+        drawCell(p3, monX, curY, monColW[i], 20, { fill: RED });
+        drawTextInCell(p3, h, monX, curY, monColW[i], 20, { color: HEADER_TEXT, font: helvBold, size: 9, align: "center" });
+        monX += monColW[i];
+      });
+      for(let i=0; i<20; i++){
+        curY -= 20;
+        monX = 40;
+        monColW.forEach(w => { drawCell(p3, monX, curY, w, 20); monX += w; });
+      }
+
+      // --- Page 4 ---
+      const p4 = pdfDoc.addPage(A4);
+      drawHeader(p4, 4, 4);
+      drawCell(p4, 40, 720, 515, 20, { fill: RED });
+      drawTextInCell(p4, "5. Sign-off & Closure (TO BE COMPLETED ON SITE)", 40, 720, 515, 20, { color: HEADER_TEXT, font: helvBold, size: 11, align: "center" });
+
+      curY = 680;
+      drawCell(p4, 40, curY, 515, 40);
+      drawWrappedText(p4, "Work completed, area inspected, and fire watch maintained for the required period (min 30-60 mins).", 40, curY, 515, 40);
+
+      curY -= 40;
+      drawCell(p4, 40, curY, 150, 25, { fill: LIGHT_FILL });
+      drawTextInCell(p4, "Fire Watcher Sign-off:", 40, curY, 150, 25, { font: helvBold, size: 8 });
+      drawCell(p4, 190, curY, 365, 25);
+
+      curY -= 30;
+      drawCell(p4, 40, curY, 150, 25, { fill: LIGHT_FILL });
+      drawTextInCell(p4, "Permit Holder Sign-off:", 40, curY, 150, 25, { font: helvBold, size: 8 });
+      drawCell(p4, 190, curY, 365, 25);
+
+      curY -= 30;
+      drawCell(p4, 40, curY, 150, 25, { fill: LIGHT_FILL });
+      drawTextInCell(p4, "Authorising Person Sign-off:", 40, curY, 150, 25, { font: helvBold, size: 8 });
+      drawCell(p4, 190, curY, 365, 25);
+
+      const outBytes = await pdfDoc.save();
+      const blob = new Blob([outBytes], { type:"application/pdf" });
+      const url = URL.createObjectURL(blob);
+      const filename = `Hot_Work_Permit_${data.permitNo || todayISO()}.pdf`;
+      const a = document.createElement("a");
+      a.href = url; a.download = filename; a.rel = "noopener";
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(()=> URL.revokeObjectURL(url), 2500);
+    }
+
     async function generateConfinedSpacePDF(data){
       if(!window.PDFLib){
         throw new Error("PDF engine is blocked.");
@@ -2341,10 +2576,127 @@
       setTimeout(()=> URL.revokeObjectURL(url), 2500);
     }
 
+    function renderHotWorksPermit(){
+      const app = $("#app");
+      app.innerHTML = "";
+
+      const state = {
+        projectTitle: "",
+        projectNo: "",
+        siteLocation: "",
+        permitNo: "",
+        dateISO: todayISO(),
+        workDescription: "",
+        authorisingPerson: "",
+        fireWatcher: "",
+        contractorName: "Active Tunnelling"
+      };
+
+      const head = el("div",{class:"head"},[
+        el("div",{},[
+          el("h1",{},["Hot Work Permit"]),
+          el("div",{class:"sub"},["Pre-fill the permit details, then download the PDF to be completed by hand on site."])
+        ]),
+        el("div",{class:"pillRow"},[
+          el("span",{id:"pillLib", class:"pill warn"},["PDF engine: checking…"]),
+          el("span",{id:"pillTpl", class:"pill warn"},["Assets: checking…"])
+        ])
+      ]);
+
+      const banner = el("div",{id:"banner", class:"banner"},[""]);
+
+      const sDetails = el("div",{class:"section"},[
+        el("div",{class:"sectionTitle"},["1. Work Details"]),
+        el("div",{class:"grid2"},[
+          field("Project Title","projectTitle","text","e.g. Sizewell C", state.projectTitle),
+          field("Project No","projectNo","text","e.g. 836", state.projectNo),
+          field("Site Location","siteLocation","text","e.g. Sizewell", state.siteLocation),
+          field("Permit No.","permitNo","text","e.g. HWP-001", state.permitNo),
+          field("Date","dateISO","date","", state.dateISO),
+          field("Contractor Name","contractorName","text","", state.contractorName),
+        ]),
+        el("div",{style:"margin-top:12px"},[
+          textareaField("Description of work to be carried out","workDescription","What hot work is being carried out?", state.workDescription),
+        ])
+      ]);
+
+      const sPersonnel = el("div",{class:"section"},[
+        el("div",{class:"sectionTitle"},["2. Personnel"]),
+        el("div",{class:"grid2"},[
+          field("Authorising Person","authorisingPerson","text","Name of person authorising", state.authorisingPerson),
+          field("Fire Watcher","fireWatcher","text","Name of fire watcher", state.fireWatcher),
+        ])
+      ]);
+
+      const sticky = el("div",{class:"stickyBar"},[
+        el("div",{class:"actionBar"},[
+          el("div",{class:"btnRow"},[
+            el("a",{class:"btn btnYellow", href:"daily.html"},["Back"]),
+          ]),
+          el("div",{class:"btnRow"},[
+            el("button",{id:"btnDownload", class:"btn", type:"button", onclick: async()=> {
+              hideBanner();
+              await onDownload();
+            }},["Download PDF"])
+          ])
+        ])
+      ]);
+
+      app.appendChild(head);
+      app.appendChild(banner);
+      app.appendChild(sDetails);
+      app.appendChild(sPersonnel);
+      app.appendChild(sticky);
+
+      checkTemplateAndLib("csp");
+
+      function field(labelText, id, type, placeholder, val = ""){
+        return el("div",{},[
+          el("label",{for:id},[labelText]),
+          el("input",{id, type, placeholder, value: val})
+        ]);
+      }
+      function textareaField(labelText, id, placeholder, val = ""){
+        const txt = el("textarea",{id, placeholder});
+        txt.value = val;
+        return el("div",{},[
+          el("label",{for:id},[labelText]),
+          txt
+        ]);
+      }
+
+      async function onDownload(){
+        const btn = $("#btnDownload");
+        btn.disabled = true;
+        btn.textContent = "Generating…";
+        try{
+          const data = {
+            projectTitle: $("#projectTitle").value.trim(),
+            projectNo: $("#projectNo").value.trim(),
+            siteLocation: $("#siteLocation").value.trim(),
+            permitNo: $("#permitNo").value.trim(),
+            dateISO: $("#dateISO").value,
+            workDescription: $("#workDescription").value.trim(),
+            authorisingPerson: $("#authorisingPerson").value.trim(),
+            fireWatcher: $("#fireWatcher").value.trim(),
+            contractorName: $("#contractorName").value.trim(),
+          };
+          await generateHotWorksPDF(data);
+        }catch(err){
+          showBanner(String(err && err.message ? err.message : err), "bad");
+        }finally{
+          btn.disabled = false;
+          btn.textContent = "Download PDF";
+        }
+      }
+    }
+
     if(t.toLowerCase() === "daily brief" || t.toLowerCase() === "daily briefing"){
       renderDailyBrief();
     }else if(t.toLowerCase() === "confined space permit"){
       renderConfinedSpacePermit();
+    }else if(t.toLowerCase() === "hot work permit"){
+      renderHotWorksPermit();
     }else{
       renderPlaceholder(t);
     }
