@@ -2420,10 +2420,16 @@ window.__pdfLibLoadFailed = false;
         drawText(page, title, 46, yTop-12, 9, helvBold, WHITE);
       };
 
-      const drawField = (page, label, value, x, y, w, h=20) => {
-        drawText(page, label, x, y + h + 2, 8, helvBold);
+      const drawLabeledBox = (page, label, value, x, y, w, h=20) => {
+        drawText(page, label, x, y + h + 2, 7, helvBold);
         page.drawRectangle({ x, y, width:w, height:h, borderColor: BLACK, borderWidth: 1, color: LIGHT });
-        drawText(page, value, x + 4, y + 6, 9);
+        drawText(page, value, x + 4, y + 6, 8);
+      };
+
+      const drawTextArea = (page, label, value, x, y, w, h) => {
+        drawText(page, label, x, y + h + 2, 7, helvBold);
+        page.drawRectangle({ x, y, width:w, height:h, borderColor: BLACK, borderWidth: 1, color: LIGHT });
+        drawWrap(page, value, x + 6, y + h - 6, w - 12, 10, 8, Math.floor(h / 12));
       };
 
       const utils = [
@@ -2440,60 +2446,69 @@ window.__pdfLibLoadFailed = false;
       page1.drawRectangle({ x:40, y:800, width:515, height:24, color: RED });
       drawText(page1, "PERMIT TO BREAK GROUND (EXCLUSION ZONE)", 50, 806, 11, helvBold, WHITE);
 
-      drawField(page1, "Project Name", data.projectName, 40, 755, 250);
-      drawField(page1, "Project No", data.projectNo, 305, 755, 250);
-      drawField(page1, "Permit No", data.permitNo, 40, 715, 180);
-      drawField(page1, "Permit compiled by", data.preparedBy, 230, 715, 325);
-      drawField(page1, "Permit issued to", data.issuedTo, 40, 675, 250);
-      drawField(page1, "Permit validity from", data.validFrom, 305, 675, 120);
-      drawField(page1, "Permit validity to", data.validTo, 435, 675, 120);
-      drawField(page1, "Work Package Plan Name & No", data.workPackage, 40, 635, 515);
+      let y = 770;
+      drawLabeledBox(page1, "Project Name", data.projectName, 40, y, 250);
+      drawLabeledBox(page1, "Project No", data.projectNo, 305, y, 250);
 
-      drawSectionHeader(page1, "1. Extent of permit, location & brief description of work", 610);
-      page1.drawRectangle({ x:40, y:520, width:515, height:80, borderColor: BLACK, borderWidth: 1, color: LIGHT });
-      drawWrap(page1, data.locationDescription, 46, 590, 505, 11, 9, 6);
+      y -= 40;
+      drawLabeledBox(page1, "Permit No", data.permitNo, 40, y, 180);
+      drawLabeledBox(page1, "Permit compiled by", data.preparedBy, 230, y, 325);
 
-      drawSectionHeader(page1, "2. Survey conclusions", 500);
-      page1.drawRectangle({ x:40, y:420, width:515, height:70, borderColor: BLACK, borderWidth: 1, color: LIGHT });
-      drawWrap(page1, data.surveyConclusions, 46, 485, 505, 11, 9, 5);
-      drawText(page1, `Utilities: ${utils}`, 46, 408, 8);
-      drawText(page1, `Other: ${data.utilitiesOther}`, 46, 396, 8);
-      drawText(page1, `Signed (Utility Co-ordinator): ${data.coordinatorName}  Date: ${data.coordinatorDate}  Time: ${data.coordinatorTime}`, 46, 384, 8);
+      y -= 40;
+      drawLabeledBox(page1, "Permit issued to", data.issuedTo, 40, y, 250);
+      drawLabeledBox(page1, "Permit validity from", data.validFrom, 305, y, 120);
+      drawLabeledBox(page1, "Permit validity to", data.validTo, 435, y, 120);
 
-      drawSectionHeader(page1, "3. Controls (Utility Co-ordinator)", 370);
-      drawText(page1, "Isolations requested granted/denied (details)", 46, 350, 8, helvBold);
-      page1.drawRectangle({ x:40, y:320, width:515, height:28, borderColor: BLACK, borderWidth: 1, color: LIGHT });
-      drawWrap(page1, data.isolationsDetails, 46, 342, 505, 11, 8, 2);
+      y -= 40;
+      drawLabeledBox(page1, "Work Package Plan Name & No", data.workPackage, 40, y, 515);
 
-      drawText(page1, "Design changes requested granted/denied (details)", 46, 305, 8, helvBold);
-      page1.drawRectangle({ x:40, y:275, width:515, height:28, borderColor: BLACK, borderWidth: 1, color: LIGHT });
-      drawWrap(page1, data.designChangesDetails, 46, 297, 505, 11, 8, 2);
+      y -= 28;
+      drawSectionHeader(page1, "1. Extent of permit, location & brief description of work", y);
+      y -= 86;
+      drawTextArea(page1, "Description", data.locationDescription, 40, y, 515, 80);
 
-      drawText(page1, `PPE required: ${sanitize(data.ppeRequired)}`, 46, 260, 8);
-      drawText(page1, `Excavation tools required: ${sanitize(data.excavationTools)}`, 46, 246, 8);
-      drawText(page1, "Excavation support/protection equipment required:", 46, 232, 8, helvBold);
-      page1.drawRectangle({ x:40, y:202, width:515, height:28, borderColor: BLACK, borderWidth: 1, color: LIGHT });
-      drawWrap(page1, data.excavationSupport, 46, 224, 505, 11, 8, 2);
+      y -= 26;
+      drawSectionHeader(page1, "2. Survey conclusions", y);
+      y -= 76;
+      drawTextArea(page1, "Survey conclusions", data.surveyConclusions, 40, y, 515, 70);
 
-      drawText(page1, "Backfill/marker placement requirements:", 46, 190, 8, helvBold);
-      page1.drawRectangle({ x:40, y:160, width:515, height:28, borderColor: BLACK, borderWidth: 1, color: LIGHT });
-      drawWrap(page1, data.backfillRequirements, 46, 182, 505, 11, 8, 2);
+      y -= 24;
+      drawText(page1, `Utilities: ${utils}`, 46, y + 6, 8);
+      drawText(page1, `Other: ${data.utilitiesOther}`, 46, y - 6, 8);
+      drawText(page1, `Signed (Utility Co-ordinator): ${data.coordinatorName}  Date: ${data.coordinatorDate}  Time: ${data.coordinatorTime}`, 46, y - 18, 8);
 
-      drawText(page1, "Composite colour drawing / reference:", 46, 148, 8, helvBold);
-      page1.drawRectangle({ x:40, y:118, width:515, height:28, borderColor: BLACK, borderWidth: 1, color: LIGHT });
-      drawWrap(page1, data.compositeDrawing, 46, 140, 505, 11, 8, 2);
+      y -= 40;
+      drawSectionHeader(page1, "3. Controls (Utility Co-ordinator)", y);
+      y -= 46;
+      drawTextArea(page1, "Isolations requested granted/denied (details)", data.isolationsDetails, 40, y, 515, 36);
 
-      drawText(page1, "Utility markers details:", 46, 106, 8, helvBold);
-      page1.drawRectangle({ x:40, y:76, width:515, height:28, borderColor: BLACK, borderWidth: 1, color: LIGHT });
-      drawWrap(page1, data.utilityMarkers, 46, 98, 505, 11, 8, 2);
+      y -= 46;
+      drawTextArea(page1, "Design changes requested granted/denied (details)", data.designChangesDetails, 40, y, 515, 36);
 
-      drawText(page1, `Network Rail Buried Services forms completed: ${data.networkRailConfirmed ? "Yes" : "No"}`, 46, 64, 8);
+      y -= 34;
+      drawLabeledBox(page1, "PPE required", data.ppeRequired, 40, y, 250);
+      drawLabeledBox(page1, "Excavation tools required", data.excavationTools, 305, y, 250);
+
+      y -= 42;
+      drawTextArea(page1, "Excavation support/protection equipment required", data.excavationSupport, 40, y, 515, 36);
+
+      y -= 42;
+      drawTextArea(page1, "Backfill/marker placement requirements", data.backfillRequirements, 40, y, 515, 36);
+
+      y -= 42;
+      drawTextArea(page1, "Composite colour drawing / reference", data.compositeDrawing, 40, y, 515, 36);
+
+      y -= 42;
+      drawTextArea(page1, "Utility markers details", data.utilityMarkers, 40, y, 515, 36);
+
+      y -= 24;
+      drawText(page1, `Network Rail Buried Services forms completed: ${data.networkRailConfirmed ? "Yes" : "No"}`, 46, y, 8);
 
       // Page 2
       page2.drawRectangle({ x:40, y:800, width:515, height:24, color: RED });
       drawText(page2, "4. Simplified sketch of all known utilities", 50, 806, 11, helvBold, WHITE);
-      page2.drawRectangle({ x:40, y:140, width:515, height:650, borderColor: BLACK, borderWidth: 1, color: LIGHT });
-      drawWrap(page2, data.sketch, 46, 780, 505, 11, 9, 40);
+      page2.drawRectangle({ x:40, y:140, width:515, height:640, borderColor: BLACK, borderWidth: 1, color: LIGHT });
+      drawWrap(page2, data.sketch, 46, 770, 505, 11, 9, 38);
 
       drawSectionHeader(page2, "5. Excavation Supervisor's acceptance", 120);
       drawText(page2, `Name: ${data.acceptanceName}`, 46, 96, 9);
