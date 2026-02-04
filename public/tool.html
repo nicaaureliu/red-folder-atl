@@ -1292,10 +1292,48 @@
         throw new Error("PDF engine is blocked.");
       }
 
-      const { PDFDocument, StandardFonts, rgb } = PDFLib;
-      const pdfDoc = await PDFDocument.create();
-      const helv = await pdfDoc.embedFont(StandardFonts.Helvetica);
-      const helvBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+      const state = {
+        permitNo:"",
+        dateRequired: todayISO(),
+        requestedBy:"",
+        address:"",
+        description:"",
+        activities:{
+          welding:false, burning:false, soldering:false, gasCutting:false, brazing:false,
+          discCutting:false, heathland:false, other:false
+        },
+        hwrp:"",
+        contractor:"",
+        fireSafety:"",
+        precautions:{},
+        checks:{},
+        extinguishers:{ co2:false, foam:false, water:false, dryPowder:false },
+        sketch:"",
+        permitValidFrom:"",
+        permitValidTo:"",
+        permitTimeFrom:"",
+        permitTimeTo:"",
+        authorisedBy:"",
+        authorisedSig:"",
+        authorisedDate:"",
+        fireWatcher:"",
+        fireWatcherSig:"",
+        fireWatcherDate:"",
+        hwrpName:"",
+        hwrpSig:"",
+        hwrpDate:"",
+        clearanceYes:false,
+        clearanceNa:false,
+        completionHours:"",
+        fireWatchHours:"",
+        completionTimeFrom:"",
+        completionTimeTo:"",
+        fireWatchTimeFrom:"",
+        fireWatchTimeTo:"",
+        clearanceBy:"",
+        clearanceSig:"",
+        clearanceDate:""
+      };
 
       const A4 = [595.28, 841.89];
       const BLACK = rgb(0, 0, 0);
@@ -2048,27 +2086,126 @@
       const url = URL.createObjectURL(blob);
       const filename = `Confined_Space_Permit_${data.permitNo || todayISO()}.pdf`;
 
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = filename;
-      a.rel = "noopener";
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      setTimeout(()=> URL.revokeObjectURL(url), 2500);
+      checkTemplateAndLib();
+
+      function field(labelText, id, type, placeholder){
+        return el("div",{},[
+          el("label",{for:id},[labelText]),
+          el("input",{id, type, placeholder})
+        ]);
+      }
+      function textareaField(labelText, id, placeholder){
+        return el("div",{},[
+          el("label",{for:id},[labelText]),
+          el("textarea",{id, placeholder})
+        ]);
+      }
+      function chk(key, labelText){
+        const id = "pt_" + key;
+        return el("label",{class:"check", for:id},[
+          el("input",{type:"checkbox", id}),
+          el("span",{},[labelText])
+        ]);
+      }
+
+      function readForm(){
+        const data = {
+          permitNo: $("#permitNo").value.trim(),
+          dateRequired: $("#dateRequired").value || todayISO(),
+          requestedBy: $("#requestedBy").value.trim(),
+          address: $("#address").value.trim(),
+          description: $("#description").value.trim(),
+          activities: {},
+          hwrp: $("#hwrp").value.trim(),
+          contractor: $("#contractor").value.trim(),
+          fireSafety: $("#fireSafety").value.trim(),
+          precautions: {},
+          checks: {},
+          extinguishers: {},
+          sketch: $("#sketch").value.trim(),
+          permitValidFrom: $("#permitValidFrom").value.trim(),
+          permitValidTo: $("#permitValidTo").value.trim(),
+          permitTimeFrom: $("#permitTimeFrom").value.trim(),
+          permitTimeTo: $("#permitTimeTo").value.trim(),
+          authorisedBy: $("#authorisedBy").value.trim(),
+          authorisedSig: $("#authorisedSig").value.trim(),
+          authorisedDate: $("#authorisedDate").value.trim(),
+          fireWatcher: $("#fireWatcher").value.trim(),
+          fireWatcherSig: $("#fireWatcherSig").value.trim(),
+          fireWatcherDate: $("#fireWatcherDate").value.trim(),
+          hwrpName: $("#hwrpName").value.trim(),
+          hwrpSig: $("#hwrpSig").value.trim(),
+          hwrpDate: $("#hwrpDate").value.trim(),
+          completionHours: $("#completionHours").value.trim(),
+          fireWatchHours: $("#fireWatchHours").value.trim(),
+          completionTimeFrom: $("#completionTimeFrom").value.trim(),
+          completionTimeTo: $("#completionTimeTo").value.trim(),
+          fireWatchTimeFrom: $("#fireWatchTimeFrom").value.trim(),
+          fireWatchTimeTo: $("#fireWatchTimeTo").value.trim(),
+          clearanceBy: $("#clearanceBy").value.trim(),
+          clearanceSig: $("#clearanceSig").value.trim(),
+          clearanceDate: $("#clearanceDate").value.trim()
+        };
+
+        Object.keys(state.activities).forEach(k=>{
+          const box = document.getElementById("pt_"+k);
+          data.activities[k] = !!(box && box.checked);
+        });
+
+        precautionsList.forEach((_, idx)=>{
+          const box = document.getElementById("pt_prec_"+idx);
+          data.precautions[idx] = !!(box && box.checked);
+        });
+        checksList.forEach((_, idx)=>{
+          const box = document.getElementById("pt_chk_"+idx);
+          data.checks[idx] = !!(box && box.checked);
+        });
+
+        ["co2","foam","water","dryPowder"].forEach(k=>{
+          const box = document.getElementById("pt_"+k);
+          data.extinguishers[k] = !!(box && box.checked);
+        });
+        return data;
+      }
+
+      async function onDownload(){
+        const btn = $("#btnDownload");
+        btn.disabled = true;
+        btn.textContent = "Generating…";
+
+        try{
+          const data = readForm();
+          await generateHotWorkPermitPDF(data, precautionsList, checksList);
+        }catch(err){
+          showBanner(String(err && err.message ? err.message : err), "bad");
+        }finally{
+          btn.disabled = false;
+          btn.textContent = "Download PDF";
+        }
+      }
     }
 
     async function generateDailyBriefPDF(data){
+      // 1) pdf-lib availability
       if(!window.PDFLib){
-        throw new Error("PDF engine is blocked (pdf-lib did not load). If you use a strict Content-Security-Policy, you must allow the CDN or host pdf-lib locally.");
+        throw new Error("PDF engine is blocked.");
       }
 
       const { PDFDocument, StandardFonts, rgb } = PDFLib;
-
       const pdfDoc = await PDFDocument.create();
       const helv = await pdfDoc.embedFont(StandardFonts.Helvetica);
       const helvBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
 
+      const A4 = [595.28, 841.89];
+      const BLACK = rgb(0, 0, 0);
+      const RED = rgb(0.753, 0, 0); // rgb(192, 0, 0)
+      const HEADER_TEXT = rgb(1, 1, 1);
+      const LIGHT_FILL = rgb(0.985, 0.985, 0.99);
+      const YELLOW = rgb(1, 1, 0); // Full yellow
+
+      const pdfDoc = await PDFDocument.create();
+      const helv = await pdfDoc.embedFont(StandardFonts.Helvetica);
+      const helvBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
       const A4 = [595.28, 841.89];
       const page1 = pdfDoc.addPage(A4);
       const page2 = pdfDoc.addPage(A4);
@@ -2100,12 +2237,12 @@
       let atlLogo;
       const atlBytes = await fetchImage("/atl-logo.png") || await fetchImage("atl-logo.png");
       if(atlBytes) atlLogo = await embedImageBytes(atlBytes);
-
       const RED = rgb(0.78, 0.1, 0.1);
       const HEADER_TEXT = rgb(1, 1, 1);
+
       const BLACK = rgb(0,0,0);
-      const LIGHT_FILL = rgb(0.985, 0.985, 0.99);
-      const YELLOW = rgb(1, 0.84, 0);
+      const LIGHT_BLUE = rgb(1, 1, 1);
+      const LIGHT_GRAY = rgb(1, 1, 1);
 
       const drawText = (page, text, x, y, size=10, font=helvBold, color=BLACK) => {
         if(!text) return;
@@ -2114,38 +2251,31 @@
 
       const drawCenteredText = (page, text, centerX, y, size=12, font=helvBold, color=BLACK) => {
         if(!text) return;
-        const width = font.widthOfTextAtSize(String(text), size);
+        const width = font.widthOfTextAtSize(text, size);
         page.drawText(String(text), { x: centerX - (width / 2), y, size, font, color });
       };
 
       const drawCell = (page, x, y, w, h, { fill, border=1 } = {}) => {
-        const opts = { x, y, width:w, height:h, borderColor: BLACK, borderWidth: border };
-        if(fill) opts.color = fill;
-        page.drawRectangle(opts);
+        page.drawRectangle({
+          x,
+          y,
+          width: w,
+          height: h,
+          color: fill,
+          borderColor: BLACK,
+          borderWidth: border
+        });
       };
 
-      // Better vertical-centre baseline so text doesn't sit high
-      const vCenterBaseline = (y, h, size) => {
-        return y + (h - size) / 2 + (size * 0.26);
-      };
-
-      const drawTextInCell = (page, text, x, y, w, h, {
-        size=10, font=helv, color=BLACK, padding=6, align="left"
-      } = {}) => {
-        if(text === undefined || text === null) return;
-        const s = String(text);
-        let tx = x + padding;
-
-        if(align === "center"){
-          const tw = font.widthOfTextAtSize(s, size);
-          tx = x + (w - tw) / 2;
-        }else if(align === "right"){
-          const tw = font.widthOfTextAtSize(s, size);
-          tx = x + w - padding - tw;
-        }
-
-        const ty = vCenterBaseline(y, h, size);
-        page.drawText(s, { x: tx, y: ty, size, font, color });
+      const drawCheckmark = (page, boxX, boxY, boxW, boxH) => {
+        const left = boxX + (boxW * 0.18);
+        const midX = boxX + (boxW * 0.42);
+        const right = boxX + (boxW * 0.82);
+        const lower = boxY + (boxH * 0.35);
+        const midY = boxY + (boxH * 0.15);
+        const upper = boxY + (boxH * 0.75);
+        page.drawLine({ start:{ x:left, y:lower }, end:{ x:midX, y:midY }, thickness:1.4, color: BLACK });
+        page.drawLine({ start:{ x:midX, y:midY }, end:{ x:right, y:upper }, thickness:1.4, color: BLACK });
       };
 
       // ✅ Updated: preserves manual line breaks (\n) AND wraps within each line
@@ -2181,62 +2311,14 @@
         }
       };
 
-      // Vertically centred + left aligned wrapped text block inside a cell
-      const drawWrappedVCenterLeft = (page, text, x, y, w, h, {
-        size=8.2,
-        font=helvBold,
-        color=BLACK,
-        padding=8,
-        lineHeight=10,
-        maxLines=2
-      } = {}) => {
-        const maxWidth = w - padding*2;
-        const lines = wrapLines(font, text, size, maxWidth).slice(0, maxLines);
-        const n = lines.length || 1;
-
-        const blockH = n * lineHeight;
-        const topPad = Math.max(0, (h - blockH) / 2);
-
-        const firstBoxTop = y + h - topPad - lineHeight;
-        const base0 = firstBoxTop + (lineHeight - size) / 2 + (size * 0.18);
-
-        for(let i=0;i<n;i++){
-          page.drawText(lines[i], {
-            x: x + padding,
-            y: base0 - i*lineHeight,
-            size,
-            font,
-            color
-          });
+      const drawYesNoBox = (page, x, y, size, isYes) => {
+        drawCell(page, x, y, size, size, { fill: undefined, border: 1 });
+        const centerX = x + (size / 2);
+        const centerY = y + (size / 2);
+        const radius = (size / 2) - 2;
+        if(isYes){
+          drawCheckmark(page, x + 1.5, y + 1.5, size - 3, size - 3);
         }
-      };
-
-      // Only one yellow label: YES or NO (centred)
-      const drawYesNoSingle = (page, x, y, w, h, value) => {
-        const v = String(value || "").trim().toUpperCase() === "NO" ? "NO" : "YES";
-        const boxH = Math.min(14, h - 4);
-        const boxW = Math.min(44, w - 4);
-        const bx = x + w - boxW - 2;
-        const by = y + (h - boxH) / 2;
-
-        drawCell(page, bx, by, boxW, boxH, { fill: YELLOW, border: 1 });
-        drawTextInCell(page, v, bx, by, boxW, boxH, { size:7.4, font:helvBold, align:"center" });
-      };
-
-      const drawCheckmark = (page, boxX, boxY, boxW, boxH) => {
-        const centerX = boxX + (boxW / 2);
-        const centerY = boxY + (boxH / 2);
-        const radius = Math.min(boxW, boxH) * 0.28;
-        page.drawCircle({ x: centerX, y: centerY, size: radius, color: BLACK });
-      };
-
-      const fitFontSizeToWidth = (font, text, startSize, maxWidth, minSize=6.2) => {
-        let size = startSize;
-        const t = String(text || "");
-        while(size > minSize && font.widthOfTextAtSize(t, size) > maxWidth){
-          size -= 0.2;
-        }
-        return Math.max(minSize, size);
       };
 
       const ddmmyyyy = toDDMMYYYY(data.dateISO);
@@ -2271,25 +2353,14 @@
 
         rows.forEach((row, i) => {
           const y = tableTop - (rowH * (i + 1));
-
-          drawCell(page, marginX, y, labelW, rowH);
-          drawCell(page, marginX + labelW, y, valueW, rowH, { fill: LIGHT_FILL });
-
-          drawCell(page, marginX + labelW + valueW, y, label2W, rowH);
-          drawCell(page, marginX + labelW + valueW + label2W, y, value2W, rowH, { fill: LIGHT_FILL });
-
-          // ✅ FIX: labels are vertically centered in their cells (left-aligned)
-          drawWrappedVCenterLeft(page, row[0], marginX, y, labelW, rowH, {
-            size: 8.6, font: helvBold, padding: 8, lineHeight: 10, maxLines: 2
-          });
-
-          drawTextInCell(page, row[1], marginX + labelW, y, valueW, rowH, { size:10, font:helv, align:"left" });
-
-          drawWrappedVCenterLeft(page, row[2], marginX + labelW + valueW, y, label2W, rowH, {
-            size: 8.2, font: helvBold, padding: 8, lineHeight: 10, maxLines: 2
-          });
-
-          drawTextInCell(page, row[3], marginX + labelW + valueW + label2W, y, value2W, rowH, { size:10, font:helv, align:"left" });
+          drawCell(page, marginX, y, labelW, rowH, { fill: undefined });
+          drawCell(page, marginX + labelW, y, valueW, rowH, { fill: LIGHT_BLUE });
+          drawCell(page, marginX + labelW + valueW, y, label2W, rowH, { fill: undefined });
+          drawCell(page, marginX + labelW + valueW + label2W, y, value2W, rowH, { fill: LIGHT_BLUE });
+          drawWrappedFromTop(page, row[0], marginX + 6, y + rowH - 10, labelW - 10, 10, 8, 2, BLACK);
+          drawText(page, row[1], marginX + labelW + 6, y + 10, 10);
+          drawWrappedFromTop(page, row[2], marginX + labelW + valueW + 6, y + rowH - 10, label2W - 10, 10, 8, 2, BLACK);
+          drawText(page, row[3], marginX + labelW + valueW + label2W + 6, y + 10, 10);
         });
 
         return tableTop - (rowH * rows.length) - 10;
@@ -2298,51 +2369,42 @@
       function drawPreviousDay(page, startY){
         const marginX = 40;
         const headerH = 20;
-
         drawCell(page, marginX, startY - headerH, 395, headerH, { fill: RED });
         drawCell(page, marginX + 395, startY - headerH, 120, headerH, { fill: RED });
+        drawText(page, "PREVIOUS DAY'S ACTIVITIES", marginX + 6, startY - 14, 9, helvBold, HEADER_TEXT);
+        drawWrappedFromTop(page, "DID THEY GO AS\nPLANNED? [Yes / No]", marginX + 402, startY - 6, 110, 9, 7, 2, HEADER_TEXT, helvBold);
 
-        drawTextInCell(page, "PREVIOUS DAY'S ACTIVITIES", marginX, startY - headerH, 395, headerH, { size:9, font:helvBold, color:HEADER_TEXT });
+        const boxSize = 14;
+        const yesX = marginX + 495;
+        const yesY = startY - headerH + 3;
+        drawYesNoBox(page, yesX, yesY, boxSize, data.prevPlanned === "Yes");
 
-        drawWrappedFromTop(page, "DID THEY GO AS\nPLANNED?", marginX + 395 + 6, startY - 6, 70, 9, 7.2, 2, HEADER_TEXT, helvBold);
-        drawYesNoSingle(page, marginX + 395, startY - headerH, 120, headerH, data.prevPlanned);
+        const qH = 55;
+        const qY = startY - headerH - qH;
+        drawCell(page, marginX, qY, 515, qH, { fill: undefined });
+        drawText(page, "Any concerns from the previous day?", marginX + 6, qY + qH - 18, 9);
+        drawCell(page, marginX, qY - 55, 515, 55, { fill: LIGHT_BLUE });
+        drawWrappedFromTop(page, data.prevConcerns, marginX + 6, qY - 8, 500, 12, 10, 4);
 
-        const qRowH = 24;
-        const aRowH = 64;
-
-        const qY = startY - headerH - qRowH;
-        drawCell(page, marginX, qY, 515, qRowH);
-        drawTextInCell(page, "Any concerns from the previous day?", marginX, qY, 515, qRowH, { size:9.2, font:helvBold });
-
-        const aY = qY - aRowH;
-        drawCell(page, marginX, aY, 515, aRowH, { fill: LIGHT_FILL });
-        drawWrappedFromTop(page, data.prevConcerns, marginX + 6, aY + aRowH - 10, 500, 12, 10, 5, BLACK, helv);
-
-        return aY - 12;
+        return qY - 70;
       }
 
       function drawTodayPlanned(page, startY){
         const marginX = 40;
         const headerH = 18;
-
         drawCell(page, marginX, startY - headerH, 515, headerH, { fill: RED });
-        drawTextInCell(page, "TODAY'S PLANNED ACTIVITIES BRIEFING", marginX, startY - headerH, 515, headerH, { size:9, font:helvBold, color:HEADER_TEXT });
-
-        const bodyH = 110;
-        const bodyY = startY - headerH - bodyH;
-
-        drawCell(page, marginX, bodyY, 515, bodyH, { fill: LIGHT_FILL });
-        drawWrappedFromTop(page, data.todayPlanned, marginX + 6, bodyY + bodyH - 10, 500, 12, 10, 8, BLACK, helv);
-
-        return bodyY - 14;
+        drawText(page, "TODAY'S PLANNED ACTIVITIES BRIEFING", marginX + 6, startY - 12, 9, helvBold, HEADER_TEXT);
+        const bodyH = 120;
+        drawCell(page, marginX, startY - headerH - bodyH, 515, bodyH, { fill: LIGHT_BLUE });
+        drawWrappedFromTop(page, data.todayPlanned, marginX + 6, startY - headerH - 8, 500, 12, 10, 8);
+        return startY - headerH - bodyH - 18;
       }
 
       function drawPointsGrid(page, startY){
         const marginX = 40;
         const headerH = 16;
-
         drawCell(page, marginX, startY - headerH, 515, headerH, { fill: RED });
-        drawTextInCell(page, "Points discussed for today's operation:", marginX, startY - headerH, 515, headerH, { size:8, font:helvBold, color:HEADER_TEXT });
+        drawText(page, "Points discussed for today's operation:", marginX + 6, startY - 12, 8, helvBold, HEADER_TEXT);
 
         const rowH = 18;
         const colGroups = [
@@ -2350,7 +2412,6 @@
           { labelW: 150, checkW: 20 },
           { labelW: 155, checkW: 20 }
         ];
-
         const rows = [
           ["confined", "barriers", "coshh"],
           ["emergency", "clearAccess", "fire"],
@@ -2359,7 +2420,6 @@
           ["plant", "trenchCollapse", "cables"],
           ["safetyPlanning", "welfare", "trips"],
         ];
-
         const labels = {
           confined: "Confined Spaces / Areas",
           emergency: "Emergency Procedures",
@@ -2382,99 +2442,80 @@
         };
 
         let y = startY - headerH;
-
         rows.forEach((row) => {
           y -= rowH;
           let x = marginX;
-
           row.forEach((key, idx) => {
             const group = colGroups[idx];
-            drawCell(page, x, y, group.labelW, rowH);
-            drawCell(page, x + group.labelW, y, group.checkW, rowH, { fill: LIGHT_FILL });
-
-            const txt = labels[key];
-            const maxW = group.labelW - 12;
-            const size = fitFontSizeToWidth(helvBold, txt, 8.0, maxW, 6.4);
-            drawTextInCell(page, txt, x, y, group.labelW, rowH, { size, font:helvBold, align:"left" });
-
+            drawCell(page, x, y, group.labelW, rowH, { fill: undefined });
+            drawCell(page, x + group.labelW, y, group.checkW, rowH, { fill: LIGHT_BLUE });
+            drawText(page, labels[key], x + 6, y + 6, 8);
             if(data.points && data.points[key]){
               drawCheckmark(page, x + group.labelW + 2, y + 3, group.checkW - 4, rowH - 6);
             }
-
             x += group.labelW + group.checkW;
           });
         });
 
-        const footerH = 16;
-        const footerY = y - 2 - footerH;
-        drawCell(page, marginX, footerY, 515, footerH, { fill: RED });
+        const footerY = y - 18;
+        drawCell(page, marginX, footerY, 515, 16, { fill: RED });
         drawCenteredText(page, "This list is not exhaustive  -  REMEMBER – MANAGE HEALTH & SAFETY", 297.5, footerY + 4, 8, helvBold, HEADER_TEXT);
-
-        return footerY - 4;
+        return footerY - 16;
       }
 
       function drawConfirmations(page, startY){
         const marginX = 40;
-        const rowH = 28;
+        const rowH = 32;
         const textW = 460;
         const boxW = 55;
-
         const items = [
           { text: "Are all today's activities covered by the Operation Procedure / Method Statement / Risk Assessment / Work Instruction?", value: data.covered },
           { text: "Are all Control Measures in place?", value: data.controls },
           { text: "Are all operatives compliant with the site requirements for PPE?", value: data.ppe }
         ];
-
         let y = startY;
-
         items.forEach(item => {
           y -= rowH;
-          drawCell(page, marginX, y, textW, rowH);
-          drawCell(page, marginX + textW, y, boxW, rowH);
-
-          drawWrappedVCenterLeft(page, item.text, marginX, y, textW, rowH, {
-            size:7.4, font:helvBold, padding:8, lineHeight:9.4, maxLines:3
-          });
-
-          drawYesNoSingle(page, marginX + textW, y, boxW, rowH, item.value);
+          drawCell(page, marginX, y, textW, rowH, { fill: undefined });
+          drawCell(page, marginX + textW, y, boxW, rowH, { fill: undefined });
+        drawWrappedFromTop(page, item.text, marginX + 6, y + rowH - 10, textW - 10, 10, 8, 3, BLACK);
+          drawYesNoBox(page, marginX + textW + 18, y + 9, 12, item.value === "Yes");
         });
       }
 
       function drawSignUpPage(page){
         drawHeader(page);
-
         drawCell(page, 40, 675, 515, 20, { fill: RED });
         drawCenteredText(page, "HEALTH & SAFETY – MORNING BRIEFING SIGN-UP Sheet", 297.5, 680, 9, helvBold, HEADER_TEXT);
-
-        drawCell(page, 40, 645, 515, 30);
+        drawCell(page, 40, 645, 515, 30, { fill: undefined });
         drawWrappedFromTop(
           page,
           "Signing of this briefing confirms that all control measures defined in the associated risk assessments are in place, anyone joining the working group must be briefed prior to starting",
-          50, 668, 495, 10, 8, 3, BLACK, helv
+          50,
+          668,
+          495,
+          10,
+          8,
+          3,
+          BLACK
         );
-
         drawCell(page, 40, 632, 515, 20, { fill: RED });
         drawCenteredText(page, "ATTENDEES", 297.5, 637, 8, helvBold, HEADER_TEXT);
       }
 
       async function drawAttendeeTable(page, startY, attendees, startIndex){
         const marginX = 40;
-        const rowH = 18;
-        const rowsPerPage = 32;
-
+        const rowH = 22;
         const nameW = 250;
         const dateW = 110;
         const sigW = 155;
-
         const headerY = startY;
-
         drawCell(page, marginX, headerY, nameW, rowH, { fill: RED });
         drawCell(page, marginX + nameW, headerY, dateW, rowH, { fill: RED });
         drawCell(page, marginX + nameW + dateW, headerY, sigW, rowH, { fill: RED });
-
-        drawTextInCell(page, "NAME", marginX, headerY, nameW, rowH, { size:8, font:helvBold, color:HEADER_TEXT, align:"left" });
-        drawTextInCell(page, "DATE", marginX + nameW, headerY, dateW, rowH, { size:8, font:helvBold, color:HEADER_TEXT, align:"left" });
-        drawTextInCell(page, "SIGNATURE", marginX + nameW + dateW, headerY, sigW, rowH, { size:8, font:helvBold, color:HEADER_TEXT, align:"left" });
+        drawText(page, "NAME", marginX + 6, headerY + 8, 8, helvBold, HEADER_TEXT);
+        drawText(page, "DATE", marginX + nameW + 6, headerY + 8, 8, helvBold, HEADER_TEXT);
+        drawText(page, "SIGNATURE", marginX + nameW + dateW + 6, headerY + 8, 8, helvBold, HEADER_TEXT);
 
         const fitInto = (imgW, imgH, maxW, maxH) => {
           const r = Math.min(maxW / imgW, maxH / imgH);
@@ -2485,10 +2526,11 @@
           if(!dataUrl || typeof dataUrl !== "string") return null;
           const match = dataUrl.match(/^data:(image\/(png|jpeg|jpg));base64,(.+)$/i);
           if(!match) return null;
+          const mime = match[1].toLowerCase();
           const b64 = match[3];
           if(!b64) return null;
           const bytes = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
-          return { bytes };
+          return { mime, bytes };
         };
 
         const embedImageFromDataUrl = async (dataUrl) => {
@@ -2499,26 +2541,23 @@
 
         let y = headerY - rowH;
         let idx = startIndex;
-
-        for(let i=0;i<rowsPerPage;i++){
-          drawCell(page, marginX, y, nameW, rowH, { fill: LIGHT_FILL });
-          drawCell(page, marginX + nameW, y, dateW, rowH, { fill: LIGHT_FILL });
-          drawCell(page, marginX + nameW + dateW, y, sigW, rowH, { fill: LIGHT_FILL });
-
+        for(let i=0;i<20;i++){
+          drawCell(page, marginX, y, nameW, rowH, { fill: LIGHT_BLUE });
+          drawCell(page, marginX + nameW, y, dateW, rowH, { fill: LIGHT_BLUE });
+          drawCell(page, marginX + nameW + dateW, y, sigW, rowH, { fill: LIGHT_BLUE });
           const a = attendees[idx];
           if(a){
-            drawTextInCell(page, a.name, marginX, y, nameW, rowH, { size:9.4, font:helv, align:"left" });
-            drawTextInCell(page, toDDMMYYYY(a.dateISO), marginX + nameW, y, dateW, rowH, { size:9.4, font:helv, align:"left" });
-
+            drawText(page, a.name, marginX + 6, y + 6, 10);
+            drawText(page, toDDMMYYYY(a.dateISO), marginX + nameW + 6, y + 6, 10);
             if(a.signature){
               const embed = await embedImageFromDataUrl(a.signature);
               if(embed){
-                const maxW = sigW - 10;
-                const maxH = rowH - 4;
+                const maxW = sigW - 12;
+                const maxH = rowH - 6;
                 const s = fitInto(embed.width, embed.height, maxW, maxH);
-                const xImg = marginX + nameW + dateW + 5 + ((maxW - s.w) / 2);
-                const yImg = y + 2 + ((maxH - s.h) / 2);
-                page.drawImage(embed, { x: xImg, y: yImg, width:s.w, height:s.h });
+                const x = marginX + nameW + dateW + 6 + ((maxW - s.w) / 2);
+                const yImg = y + 3 + ((maxH - s.h) / 2);
+                page.drawImage(embed, { x, y: yImg, width:s.w, height:s.h });
               }
             }
             idx++;
@@ -2527,11 +2566,6 @@
         }
         return idx;
       }
-
-      const addPageFooter = (page, pageIndex, totalPages) => {
-        drawText(page, "QPFS12.4", 40, 24, 9, helvBold, BLACK);
-        drawText(page, `Page No. ${pageIndex} of ${totalPages}`, 455, 24, 9, helvBold, BLACK);
-      };
 
       drawHeader(page1);
       let cursorY = drawIntroTable(page1);
@@ -2542,24 +2576,27 @@
 
       drawSignUpPage(page2);
 
-      const MAX_PDF_ATTENDEES = 96;
-      const attendeesAll = (data.attendees || []).slice(0, MAX_PDF_ATTENDEES).map(a=>({
+      const attendeesAll = (data.attendees || []).slice(0, 36).map(a=>({
         name: (a.name||"").trim(),
         dateISO: (a.dateISO||data.dateISO||todayISO()),
         signature: (a.signature||"")
       }));
-
       let next = await drawAttendeeTable(page2, 612, attendeesAll, 0);
-
-      while(next < attendeesAll.length){
-        const p = pdfDoc.addPage(A4);
-        drawSignUpPage(p);
-        next = await drawAttendeeTable(p, 612, attendeesAll, next);
+      if(next < attendeesAll.length){
+        const page3 = pdfDoc.addPage(A4);
+        drawSignUpPage(page3);
+        await drawAttendeeTable(page3, 612, attendeesAll, next);
       }
 
-      const pages = pdfDoc.getPages();
-      pages.forEach((p, idx) => addPageFooter(p, idx + 1, pages.length));
+      const addPageFooter = (page, pageIndex, totalPages) => {
+        drawText(page, "QPFS12.4", 40, 24, 9);
+        drawText(page, `Page No. ${pageIndex} of ${totalPages}`, 455, 24, 9);
+      };
 
+      const pages = pdfDoc.getPages();
+      pages.forEach((page, idx) => addPageFooter(page, idx + 1, pages.length));
+
+      // Save + download (with fallback)
       const outBytes = await pdfDoc.save();
       const blob = new Blob([outBytes], { type:"application/pdf" });
       const url = URL.createObjectURL(blob);
