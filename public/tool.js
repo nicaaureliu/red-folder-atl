@@ -1395,6 +1395,34 @@ window.__pdfLibLoadFailed = false;
       }
     }
 
+    function renderGroundDisturbancePermit(){
+      const app = $("#app");
+      app.innerHTML = "";
+
+      const head = el("div",{class:"head"},[
+        el("div",{},[
+          el("h1",{},["Ground disturbance permit"]),
+          el("div",{class:"sub"},["View or download the permit template."])
+        ]),
+        el("div",{class:"pillRow"},[
+          el("a",{class:"btn btnYellow", href:"templates/1.pdf", target:"_blank", rel:"noopener"},["Open PDF"]),
+          el("a",{class:"btn btnGhost", href:"templates/1.pdf", download:"Ground-disturbance-permit.pdf"},["Download PDF"])
+        ])
+      ]);
+
+      const note = el("div",{class:"note"},[
+        "If you need this as a fillable form, share the editable PDF or field list and I will wire it up."
+      ]);
+
+      const frameWrap = el("div",{class:"pdfWrap"},[
+        el("iframe",{class:"pdfFrame", src:"templates/1.pdf", title:"Ground disturbance permit"},[])
+      ]);
+
+      app.appendChild(head);
+      app.appendChild(note);
+      app.appendChild(frameWrap);
+    }
+
     async function generateDailyBriefPDF(data){
       // 1) pdf-lib availability
       if(!window.PDFLib){
@@ -2321,10 +2349,17 @@ window.__pdfLibLoadFailed = false;
       }
     }
 
-    if(t.toLowerCase() === "daily brief" || t.toLowerCase() === "daily briefing"){
+    const tLower = t.toLowerCase();
+    if(tLower === "daily brief" || tLower === "daily briefing"){
       renderDailyBrief();
-    }else if(t.toLowerCase() === "hot work permit" || t.toLowerCase() === "hot works permit"){
+    }else if(tLower === "hot work permit" || tLower === "hot works permit"){
       renderHotWorkPermit();
+    }else if(
+      tLower === "ground disturbance permit" ||
+      tLower === "break ground (red)" ||
+      tLower === "break ground (blue)"
+    ){
+      renderGroundDisturbancePermit();
     }else{
       renderPlaceholder(t);
     }
