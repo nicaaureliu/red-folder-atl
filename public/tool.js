@@ -2342,6 +2342,7 @@ async function loadPdfLib() {
       renderHotWorkPermit();
     }else{
       renderPlaceholder(t);
+    }
 
 // Wrap PDF generation functions to add lazy-loading and better error handling
 function wrapPdfGen(fnName) {
