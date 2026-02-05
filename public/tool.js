@@ -2030,14 +2030,22 @@ window.__pdfLibLoadFailed = false;
         drawCell(page, marginX, startY - headerH, 515, headerH, { fill: RED });
         drawText(page, "PREVIOUS DAY'S ACTIVITIES", marginX + 6, startY - 14, 9, helvBold, HEADER_TEXT);
 
-        const qH = 36;
-        const qY = startY - headerH - qH;
-        drawCell(page, marginX, qY, 515, qH, { fill: LIGHT_GRAY });
-        drawTextInCellLeft(page, `Did previous day go as planned? ${data.prevPlanned}`, marginX, qY, 515, qH, 9, helvBold, BLACK);
-        drawCell(page, marginX, qY - 36, 515, 36, { fill: LIGHT_BLUE });
-        drawWrappedFromTop(page, data.prevConcerns, marginX + 6, qY - 8, 500, 11, 9, 3, BLACK, helvBold);
+        const planH = 26;
+        const planY = startY - headerH - planH;
+        drawCell(page, marginX, planY, 515, planH, { fill: LIGHT_GRAY });
+        drawTextInCellLeft(page, `Did previous day go as planned? ${data.prevPlanned}`, marginX, planY, 515, planH, 9, helvBold, BLACK);
 
-        return qY - 52;
+        const qH = 26;
+        const qY = planY - qH;
+        drawCell(page, marginX, qY, 515, qH, { fill: LIGHT_GRAY });
+        drawTextInCellLeft(page, "Any concerns from the previous day?", marginX, qY, 515, qH, 9, helvBold, BLACK);
+
+        const ansH = 36;
+        const ansY = qY - ansH;
+        drawCell(page, marginX, ansY, 515, ansH, { fill: LIGHT_BLUE });
+        drawWrappedFromTop(page, data.prevConcerns, marginX + 6, ansY + ansH - 8, 500, 11, 9, 3, BLACK, helvBold);
+
+        return ansY - 16;
       }
 
       function drawTodayPlanned(page, startY){
