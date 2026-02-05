@@ -2033,7 +2033,12 @@ window.__pdfLibLoadFailed = false;
         const planH = 26;
         const planY = startY - headerH - planH;
         drawCell(page, marginX, planY, 515, planH, { fill: LIGHT_GRAY });
-        drawTextInCellLeft(page, `Did previous day go as planned? ${data.prevPlanned}`, marginX, planY, 515, planH, 9, helvBold, BLACK);
+        drawTextInCellLeft(page, "Did previous day go as planned?", marginX, planY, 340, planH, 9, helvBold, BLACK);
+        drawText(page, "Yes", marginX + 360, planY + 7, 9, helvBold, BLACK);
+        drawText(page, "No", marginX + 430, planY + 7, 9, helvBold, BLACK);
+        const boxSize = 12;
+        drawYesNoBox(page, marginX + 338, planY + 6, boxSize, data.prevPlanned === "Yes");
+        drawYesNoBox(page, marginX + 408, planY + 6, boxSize, data.prevPlanned === "No");
 
         const qH = 26;
         const qY = planY - qH;
